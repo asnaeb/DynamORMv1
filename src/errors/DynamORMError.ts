@@ -1,8 +1,6 @@
 import type {Constructor} from '../types/Utils'
 import type {DynamORMTable} from '../table/DynamORMTable'
 
-type Caller = Function | {name: string}
-
 export class DynamORMError extends Error {
     constructor(message?: string) {
         super(message)
