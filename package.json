@@ -1,0 +1,21 @@
+{
+  "name": "dynamorm",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=18.12.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build-tests": "tsc --project ./tests/tsconfig.json",
+    "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.218.0",
+    "@aws-sdk/lib-dynamodb": "^3.218.0",
+    "typescript": "https://typescript.visualstudio.com/cf7ac146-d525-443c-b23c-0d58337efebc/_apis/build/builds/137898/artifacts?artifactName=tgz&fileId=6FB2BB103E56A9586D2E2E87A6EFA518FA1DF0DCEAB1DA2E42D01B659F3DDE6602&fileName=/typescript-5.0.0-insiders.20221108.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.9"
+  }
+}

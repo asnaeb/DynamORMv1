@@ -1,0 +1,10 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "Node16",
+        "outDir": "./",
+    },
+    "include": ["/**/*.ts"],
+    "exclude": ["legacy"]
+}
