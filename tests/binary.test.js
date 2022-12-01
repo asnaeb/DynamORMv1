@@ -35,8 +35,11 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
 import assert from 'node:assert';
 import { after, before, describe, it } from 'node:test';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-import { readFile, writeFile, rm } from 'node:fs/promises';
-import { HashKey, Attribute, Connect, Table } from './env/DynamORM.js';
+import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
+import { HashKey, RangeKey, Attribute, Connect, Table } from './env/DynamORM.js';
+import { join } from 'path';
+import { homedir } from 'os';
+import * as readline from 'node:readline/promises';
 describe('Binary data and primary key', () => {
     const DDB = new DynamoDBLocal();
     before(() => DDB.start());
@@ -47,44 +50,73 @@ describe('Binary data and primary key', () => {
         let _classExtraInitializers = [];
         let _classThis;
         let _instanceExtraInitializers = [];
-        let _filename_decorators;
-        let _filename_initializers = [];
-        let _file_decorators;
-        let _file_initializers = [];
+        let _name_decorators;
+        let _name_initializers = [];
+        let _extension_decorators;
+        let _extension_initializers = [];
+        let _data_decorators;
+        let _data_initializers = [];
         let _encoding_decorators;
         let _encoding_initializers = [];
         var BinaryTest = class extends Table {
             static {
-                _filename_decorators = [HashKey.S];
-                _file_decorators = [Attribute];
+                _name_decorators = [HashKey.S];
+                _extension_decorators = [RangeKey.S];
+                _data_decorators = [Attribute];
                 _encoding_decorators = [Attribute];
-                __esDecorate(null, null, _filename_decorators, { kind: "field", name: "filename", static: false, private: false, access: { get() { return this.filename; }, set(value) { this.filename = value; } } }, _filename_initializers, _instanceExtraInitializers);
-                __esDecorate(null, null, _file_decorators, { kind: "field", name: "file", static: false, private: false, access: { get() { return this.file; }, set(value) { this.file = value; } } }, _file_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _name_decorators, { kind: "field", name: "name", static: false, private: false, access: { get() { return this.name; }, set(value) { this.name = value; } } }, _name_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _extension_decorators, { kind: "field", name: "extension", static: false, private: false, access: { get() { return this.extension; }, set(value) { this.extension = value; } } }, _extension_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _data_decorators, { kind: "field", name: "data", static: false, private: false, access: { get() { return this.data; }, set(value) { this.data = value; } } }, _data_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _encoding_decorators, { kind: "field", name: "encoding", static: false, private: false, access: { get() { return this.encoding; }, set(value) { this.encoding = value; } } }, _encoding_initializers, _instanceExtraInitializers);
                 __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
                 BinaryTest = _classThis = _classDescriptor.value;
                 __runInitializers(_classThis, _classExtraInitializers);
             }
-            filename = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _filename_initializers, void 0));
-            file = __runInitializers(this, _file_initializers, void 0);
+            name = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _name_initializers, void 0));
+            extension = __runInitializers(this, _extension_initializers, void 0);
+            data = __runInitializers(this, _data_initializers, void 0);
             encoding = __runInitializers(this, _encoding_initializers, void 0);
+            get filename() {
+                return this.name + this.extension;
+            }
+            constructor(name, extension) {
+                super();
+                this.name = name;
+                this.extension = extension;
+            }
+            async writeFileToDisk(dir) {
+                if (this.data) {
+                    await mkdir(dir, { recursive: true });
+                    return writeFile(dir + this.filename, this.data);
+                }
+            }
+            async getDataFromDisk(path) {
+                this.data = await readFile(path);
+            }
         };
         return BinaryTest = _classThis;
     })();
     it('Create table', () => BinaryTest.create());
     it('Create item and put', async () => {
-        const b = new BinaryTest();
-        b.filename = 'example.txt';
-        b.file = Buffer.from('This is an example text file');
-        b.encoding = 'utf-8';
-        await b.save();
+        const txt = new BinaryTest('example', '.txt');
+        txt.data = Buffer.from('This is an example text file');
+        txt.encoding = 'utf-8';
+        await txt.save();
+        const jpg = new BinaryTest('example', '.jpg');
+        await jpg.getDataFromDisk(join(homedir(), 'Pictures', 'io.jpg'));
+        await jpg.save();
     });
     it('Retrieve item and write buffer to file', async () => {
-        const { Data } = await BinaryTest.select('example.txt').get();
-        const path = `./tests/${Data?.[0]?.filename}`;
-        await writeFile(path, Data?.[0]?.file);
-        const file = await readFile(path, Data?.[0]?.encoding);
-        await rm(path);
-        assert.equal(file, 'This is an example text file');
+        const { Data } = await BinaryTest.select({ example: ['.txt', '.jpg'] }).get();
+        console.log(Data?.[0]);
+        const path = './tests.resources/';
+        if (Data)
+            for (const file of Data)
+                await file.writeFileToDisk(path);
+        const rl = readline.createInterface(process.stdin, process.stdout);
+        const answer = await rl.question('Are the correct files present in ./tests.resources? y/n ');
+        await rm(path, { recursive: true });
+        assert.equal(answer, 'y');
+        process.exit(0);
     });
 });
