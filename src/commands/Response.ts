@@ -1,5 +1,5 @@
-import {ResponseInfo} from '../types/Interfaces'
 import {removeUndefined} from '../utils/General'
+import {ResponseInfo} from '../interfaces/ResponseInfo'
 
 export class RawResponse<T> {
     public output?: T

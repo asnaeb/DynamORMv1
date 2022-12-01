@@ -1,5 +1,4 @@
 import type {Condition, QueryObject, PrimaryKeys, Update as TUpdate, ValidRecord} from '../types/Internal'
-import type {CreateTableParams, QueryOptions, QueryParams, ResponseInfo, ScanOptions} from '../types/Interfaces'
 import type {Constructor} from '../types/Utils'
 import {Update} from '../commands/Update'
 import {Query} from '../commands/Query'
@@ -24,6 +23,11 @@ import {TABLE_DESCR} from '../private/Weakmaps'
 import {TABLE_NAME} from '../private/Symbols'
 import {rawAttributes} from '../utils/Attributes'
 import {KeyGenerator} from '../generators/KeyGenerator'
+import {CreateTableParams} from '../interfaces/CreateTableParams'
+import {QueryParams} from '../interfaces/QueryParams'
+import {QueryOptions} from '../interfaces/QueryOptions'
+import {ScanOptions} from '../interfaces/ScanOptions'
+import {ResponseInfo} from '../interfaces/ResponseInfo'
 
 export abstract class DynamORMTable {
     public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: ValidRecord<T>) {

@@ -1,4 +1,3 @@
-import type {CreateSecondaryIndexParams, GlobalIndexParams, LocalIndexParams} from '../../types/Interfaces'
 import type {AttributeDefinition, GlobalSecondaryIndex, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
@@ -6,6 +5,9 @@ import {makeAlphaNumeric} from '../../utils/General'
 import {TABLE_DESCR} from '../../private/Weakmaps'
 import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, GLOBAL_INDEXES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
+import {CreateSecondaryIndexParams} from '../../interfaces/CreateSecondaryIndexParams'
+import {LocalIndexParams} from '../../interfaces/LocalIndexParams'
+import {GlobalIndexParams} from '../../interfaces/GlobalIndexParams'
 
 interface LegacyFactoryParams {
     Kind: 'Local' | 'Global'

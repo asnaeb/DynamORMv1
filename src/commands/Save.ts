@@ -1,9 +1,9 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {SaveParams} from '../types/Interfaces'
 import {UpdateCommand, type UpdateCommandInput, type UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
 import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
+import {SaveParams} from '../interfaces/SaveParams'
 
 export class Save<T extends DynamORMTable> extends TableCommand<UpdateCommandInput, UpdateCommandOutput> {
     protected readonly command: UpdateCommand

@@ -1,10 +1,10 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {ScanParams} from '../types/Interfaces'
 import {ScanCommand, type ScanCommandInput, type ScanCommandOutput} from "@aws-sdk/lib-dynamodb"
 import {TablePaginatedCommand} from './TablePaginatedCommand'
 import {ConditionsGenerator} from '../generators/ConditionsGenerator'
 import {AttributeNames, AttributeValues} from '../types/Internal'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {ScanParams} from '../interfaces/ScanParams'
 
 export class Scan<T extends DynamORMTable> extends TablePaginatedCommand<ScanCommandInput, ScanCommandOutput> {
     protected readonly command: ScanCommand

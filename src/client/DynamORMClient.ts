@@ -1,4 +1,3 @@
-import type {SharedInfo} from '../types/Interfaces'
 import {type DynamoDBClientConfig, DynamoDBClient} from '@aws-sdk/client-dynamodb'
 import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import {Connect} from '../decorators/Connect'
@@ -16,6 +15,7 @@ import {Attribute} from '../decorators/Attribute'
 import {LegacyHashKey, LegacyRangeKey} from '../decorators/legacy/PrimaryKey'
 import {LegacyAttribute} from '../decorators/legacy/Attribute'
 import {LegacyTimeToLive} from '../decorators/legacy/TimeToLive'
+import {SharedInfo} from '../interfaces/SharedInfo'
 
 export class DynamORMClient {
     readonly #Config: DynamoDBClientConfig

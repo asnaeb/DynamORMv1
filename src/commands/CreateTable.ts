@@ -1,7 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {CreateTableParams} from '../types/Interfaces'
 import {BillingMode, CreateTableCommand, type CreateTableCommandInput, type CreateTableCommandOutput,} from '@aws-sdk/client-dynamodb'
 import {TableCommand} from './TableCommand'
+import {CreateTableParams} from '../interfaces/CreateTableParams'
 
 export class CreateTable<T extends DynamORMTable> extends TableCommand<CreateTableCommandInput, CreateTableCommandOutput> {
     protected command: CreateTableCommand

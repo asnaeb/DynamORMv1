@@ -4,7 +4,8 @@
         "target": "ES2022",
         "module": "Node16",
         "outDir": "./",
+        "declaration": false
     },
     "include": ["/**/*.ts"],
-    "exclude": ["legacy"]
+    "exclude": ["legacy", "env"]
 }

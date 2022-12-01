@@ -1,9 +1,9 @@
 // LEGACY DECORATORS SUPPORT
-import {ConnectionParams} from '../../types/Interfaces'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {TABLE_DESCR} from '../../private/Weakmaps'
 import {CLIENT, CLIENT_CONFIG, DOCUMENT_CLIENT, TABLE_NAME} from '../../private/Symbols'
 import {makeAlphaNumeric} from '../../utils/General'
+import {ConnectionParams} from '../../interfaces/ConnectionParams'
 
 function legacyDecoratorFactory({TableName, ClientConfig, Client, DocumentClient}: Omit<ConnectionParams, 'SharedInfo'>) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T) {

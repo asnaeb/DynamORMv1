@@ -1,8 +1,8 @@
 import {TABLE_DESCR} from '../../private/Weakmaps'
-import {CreatePrimaryKeyParams} from '../../types/Interfaces'
 import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {KeyType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
+import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
 
 export const LegacyHashKey = {
     get S() {return legacyDecorator<string>(KeyType.HASH, ScalarAttributeType.S)},

@@ -1,11 +1,11 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {UpdateParams} from '../types/Interfaces'
 import {UpdateCommand, type UpdateCommandInput, type UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {Command} from './Command'
 import {RawResponse} from './Response'
 import {UpdateGenerator} from '../generators/UpdateGenerator'
 import {mergeNumericProps} from '../utils/General'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
+import {UpdateParams} from '../interfaces/UpdateParams'
 
 export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput, UpdateCommandOutput> {
     readonly #Commands: UpdateCommand[]

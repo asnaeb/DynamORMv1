@@ -1,9 +1,9 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {BatchWriteCommand, type BatchWriteCommandInput, type BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableBatchCommand} from './TableBatchCommand'
-import {TableBatchPutParams} from '../types/Interfaces'
 import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {TableBatchPutParams} from '../interfaces/TableBatchPutParams'
 
 export class TableBatchPut<T extends DynamORMTable> extends TableBatchCommand<BatchWriteCommandInput, BatchWriteCommandOutput> {
     protected readonly commands: BatchWriteCommand[] = []

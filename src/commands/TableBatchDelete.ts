@@ -1,8 +1,8 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {BatchWriteCommand, type BatchWriteCommandInput, type BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableBatchCommand} from './TableBatchCommand'
-import {TableBatchDeleteParams} from '../types/Interfaces'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {TableBatchDeleteParams} from '../interfaces/TableBatchDeleteParams'
 
 export class TableBatchDelete<T extends DynamORMTable> extends TableBatchCommand<BatchWriteCommandInput, BatchWriteCommandOutput> {
     protected commands: BatchWriteCommand[] = []

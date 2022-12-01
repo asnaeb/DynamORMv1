@@ -1,9 +1,9 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {GetCommandInput, GetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {GetCommand} from '@aws-sdk/lib-dynamodb'
-import type {GetParams} from '../types/Interfaces'
 import {TableCommand} from './TableCommand'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {GetParams} from '../interfaces/GetParams'
 
 export class Get<T extends DynamORMTable> extends TableCommand<GetCommandInput, GetCommandOutput> {
     protected command: GetCommand

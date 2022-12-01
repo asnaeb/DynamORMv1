@@ -1,7 +1,8 @@
-import type {CreatePrimaryKeyParams, SharedInfo} from '../types/Interfaces'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {KeyType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {DynamoDBTypeAlias} from '../types/Internal'
+import {SharedInfo} from '../interfaces/SharedInfo'
+import {CreatePrimaryKeyParams} from '../interfaces/CreatePrimaryKeyParams'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -21,27 +22,27 @@ function decoratorFactory<X>({SharedInfo, KeyType, AttributeType, AttributeName}
     }
 }
 
-function decorator<T>(SharedInfo: SharedInfo, KeyType: KeyType, AttributeType: ScalarAttributeType) {
-    return Object.assign(decoratorFactory<T>({SharedInfo, KeyType, AttributeType}), {
+function decorator<T>(params: FactoryParams) {
+    return Object.assign(decoratorFactory<T>(params), {
         AttributeName(AttributeName: string) {
-            return decoratorFactory<T>({SharedInfo, KeyType, AttributeType, AttributeName})
+            return decoratorFactory<T>({...params, AttributeName})
         }
     })
 }
 
 export function HashKey(SharedInfo: SharedInfo) {
     return {
-        get String() {return decorator<string>(SharedInfo, KeyType.HASH, ScalarAttributeType.S)},
-        get Number() {return decorator<number>(SharedInfo, KeyType.HASH, ScalarAttributeType.N)},
-        get Binary() {return decorator<Uint8Array>(SharedInfo, KeyType.HASH, ScalarAttributeType.B)},
+        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.S})},
+        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.N})},
+        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.B})}
     }
 }
 
 export function RangeKey(SharedInfo: SharedInfo) {
     return {
-        get String() {return decorator<string>(SharedInfo, KeyType.RANGE, ScalarAttributeType.S)},
-        get Number() {return decorator<number>(SharedInfo, KeyType.RANGE, ScalarAttributeType.N)},
-        get Binary() {return decorator<string>(SharedInfo, KeyType.RANGE, ScalarAttributeType.B)},
+        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.S})},
+        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.N})},
+        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.B})},
     }
 }
 

@@ -1,4 +1,4 @@
-import {ResponseInfo} from '../types/Interfaces'
+import {ResponseInfo} from '../interfaces/ResponseInfo'
 
 /** Checks if a value is a Javascript Object, excluding most native objects like `Array`, `Set`, `Map` etc. */
 export function isObject<T extends Record<PropertyKey, any>>(obj: any): obj is T {

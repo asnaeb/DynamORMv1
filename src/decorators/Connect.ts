@@ -1,4 +1,3 @@
-import type {ConnectionParams} from '../types/Interfaces'
 import {makeAlphaNumeric} from '../utils/General'
 import {
     TABLE_NAME,
@@ -11,6 +10,7 @@ import {
 } from '../private/Symbols'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMTable} from '../table/DynamORMTable'
+import {ConnectionParams} from '../interfaces/ConnectionParams'
 
 function decoratorFactory({TableName, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T, ctx: ClassDecoratorContext) {

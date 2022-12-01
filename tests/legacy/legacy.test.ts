@@ -13,10 +13,10 @@ class LegacyTest extends Table {
     @RangeKey.N
     b?: number
 
-    @Attribute
+    @Attribute.B
     c?: Uint8Array
 
-    @Attribute
+    @Attribute.M
     d?: {a: 0, b: 'hello'}
 
     @TimeToLive

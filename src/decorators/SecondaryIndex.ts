@@ -1,10 +1,13 @@
-import type {CreateSecondaryIndexParams, GlobalIndexParams, LocalIndexParams, SharedInfo} from '../types/Interfaces'
 import type {GlobalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
 import {makeAlphaNumeric} from '../utils/General'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {DynamoDBTypeAlias} from '../types/Internal'
+import {SharedInfo} from '../interfaces/SharedInfo'
+import {CreateSecondaryIndexParams} from '../interfaces/CreateSecondaryIndexParams'
+import {LocalIndexParams} from '../interfaces/LocalIndexParams'
+import {GlobalIndexParams} from '../interfaces/GlobalIndexParams'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -18,20 +21,20 @@ interface FactoryParams {
     UID?: number
 }
 
-function decoratorFactory<X>(params: FactoryParams) {
+function decoratorFactory<X>({AttributeType, KeyType, ...params}: FactoryParams) {
     return function<T extends X | undefined>(_: undefined, {name: AttributeName}: ClassFieldDecoratorContext<DynamORMTable, T>) {
-        const AttributeDefinitions = {[params.KeyType]: {AttributeName, AttributeType: params.AttributeType}}
+        const AttributeDefinitions = {[KeyType]: {AttributeName, AttributeType}}
         AttributeName = String(AttributeName)
         params.SharedInfo.Attributes ??= {}
-        params.SharedInfo.Attributes[AttributeName] = params.AttributeType as unknown as DynamoDBTypeAlias
+        params.SharedInfo.Attributes[AttributeName] = AttributeType as unknown as DynamoDBTypeAlias
         AddIndexInfo({...params, AttributeDefinitions})
     }
 }
 export function LocalIndex(SharedInfo: SharedInfo) {
-    function decorator<T>(params: Omit<FactoryParams, 'AttributeType'>, AttributeType: ScalarAttributeType) {
-        return Object.assign(decoratorFactory<T>({...params, AttributeType}), {
+    function decorator<T>(params: FactoryParams) {
+        return Object.assign(decoratorFactory<T>(params), {
             AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeType, AttributeName})
+                return decoratorFactory<T>({...params, AttributeName})
             }
         })
     }
@@ -44,12 +47,13 @@ export function LocalIndex(SharedInfo: SharedInfo) {
             Kind: 'Local' as const,
             KeyType: KeyType.RANGE
         }
+
         return {
             get LocalRange() {
                 return {
-                    get String() {return decorator<string>(params, ScalarAttributeType.S)},
-                    get Number() {return decorator<number>(params, ScalarAttributeType.N)},
-                    get Binary() {return decorator<Uint8Array>(params, ScalarAttributeType.B)}
+                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S})},
+                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B})}
                 }
             }
         }
@@ -57,11 +61,10 @@ export function LocalIndex(SharedInfo: SharedInfo) {
 }
 
 export function GlobalIndex(SharedInfo: SharedInfo) {
-    function decorator<T>(params: Omit<FactoryParams, 'AttributeType' | 'KeyType'>,
-            AttributeType: ScalarAttributeType, KeyType: KeyType) {
-        return Object.assign(decoratorFactory<T>({...params, AttributeType, KeyType}), {
+    function decorator<T>(params: FactoryParams) {
+        return Object.assign(decoratorFactory<T>(params), {
             AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeType, KeyType, AttributeName})
+                return decoratorFactory<T>({...params, AttributeName})
             }
         })
     }
@@ -87,16 +90,16 @@ export function GlobalIndex(SharedInfo: SharedInfo) {
         return {
             get GlobalHash() {
                 return {
-                    get String() {return decorator<string>(params, ScalarAttributeType.S, KeyType.HASH)},
-                    get Binary() {return decorator<Uint8Array>(params, ScalarAttributeType.B, KeyType.HASH)},
-                    get Number() {return decorator<number>(params, ScalarAttributeType.N, KeyType.HASH)},
+                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S, KeyType: KeyType.HASH})},
+                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N, KeyType: KeyType.HASH})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B, KeyType: KeyType.HASH})}
                 }
             },
             get GlobalRange() {
                 return {
-                    get String() {return decorator<string>(params, ScalarAttributeType.S, KeyType.RANGE)},
-                    get Binary() {return decorator<Uint8Array>(params, ScalarAttributeType.B, KeyType.RANGE)},
-                    get Number() {return decorator<number>(params, ScalarAttributeType.N, KeyType.RANGE)},
+                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S, KeyType: KeyType.RANGE})},
+                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N, KeyType: KeyType.RANGE})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B, KeyType: KeyType.RANGE})}
                 }
             },
             get IndexName() {

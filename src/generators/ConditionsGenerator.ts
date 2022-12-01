@@ -1,11 +1,11 @@
 import type {Condition} from '../types/Internal'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {AttributeTypes, AttributeNames, AttributeValues} from '../types/Internal'
-import type {ConditionsGeneratorParams} from '../types/Interfaces'
 import {CONDITION} from '../private/Symbols'
 import {isObject} from '../utils/General'
 import {isConditionSymbol} from '../validation/symbols'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
+import {ConditionsGeneratorParams} from '../interfaces/ConditionsGeneratorParams'
 
 export class ConditionsGenerator<T extends DynamORMTable> {
     readonly #AttributeNames: AttributeNames

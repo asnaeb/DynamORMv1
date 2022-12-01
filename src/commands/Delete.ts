@@ -1,10 +1,10 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {DeleteParams} from '../types/Interfaces'
 import {DeleteCommand, type DeleteCommandInput, type DeleteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
 import {ConditionsGenerator} from '../generators/ConditionsGenerator'
 import {AttributeNames, AttributeValues} from '../types/Internal'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
+import {DeleteParams} from '../interfaces/DeleteParams'
 
 export class Delete <T extends DynamORMTable> extends TableCommand<DeleteCommandInput, DeleteCommandOutput> {
     protected command: DeleteCommand

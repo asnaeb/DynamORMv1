@@ -1,5 +1,4 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {PutParams} from '../types/Interfaces'
 import {PutCommand, type PutCommandInput, type PutCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
 import {ConditionsGenerator} from '../generators/ConditionsGenerator'
@@ -7,6 +6,7 @@ import {ATTRIBUTE_EXISTS} from '../private/Symbols'
 import {AttributeNames} from '../types/Internal'
 import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {PutParams} from '../interfaces/PutParams'
 
 export class Put<T extends DynamORMTable> extends TableCommand<PutCommandInput, PutCommandOutput> {
     protected readonly command: PutCommand

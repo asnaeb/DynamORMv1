@@ -36,13 +36,13 @@ import assert from 'node:assert';
 import { after, before, describe, it } from 'node:test';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
 import { readFile, writeFile, rm } from 'node:fs/promises';
-import ORM from './env/DynamORM.js';
+import { HashKey, Attribute, Connect, Table } from './env/DynamORM.js';
 describe('Binary data and primary key', () => {
     const DDB = new DynamoDBLocal();
     before(() => DDB.start());
     after(() => DDB.kill());
     let BinaryTest = (() => {
-        let _classDecorators = [ORM.Connect];
+        let _classDecorators = [Connect];
         let _classDescriptor;
         let _classExtraInitializers = [];
         let _classThis;
@@ -53,11 +53,11 @@ describe('Binary data and primary key', () => {
         let _file_initializers = [];
         let _encoding_decorators;
         let _encoding_initializers = [];
-        var BinaryTest = class extends ORM.Table {
+        var BinaryTest = class extends Table {
             static {
-                _filename_decorators = [ORM.HashKey.String];
-                _file_decorators = [ORM.Attribute];
-                _encoding_decorators = [ORM.Attribute.String];
+                _filename_decorators = [HashKey.S];
+                _file_decorators = [Attribute];
+                _encoding_decorators = [Attribute];
                 __esDecorate(null, null, _filename_decorators, { kind: "field", name: "filename", static: false, private: false, access: { get() { return this.filename; }, set(value) { this.filename = value; } } }, _filename_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _file_decorators, { kind: "field", name: "file", static: false, private: false, access: { get() { return this.file; }, set(value) { this.file = value; } } }, _file_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _encoding_decorators, { kind: "field", name: "encoding", static: false, private: false, access: { get() { return this.encoding; }, set(value) { this.encoding = value; } } }, _encoding_initializers, _instanceExtraInitializers);

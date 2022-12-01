@@ -6,6 +6,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build-test-env": "tsc --project ./tests/env/tsconfig.json",
     "build-tests": "tsc --project ./tests/tsconfig.json",
     "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
     "watch": "tsc --watch"

@@ -1,6 +1,6 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {SharedInfo} from '../types/Interfaces'
 import {type DynamoDBMap, type DynamoDBNativeType, DynamoDBTypeAlias} from '../types/Internal'
+import {SharedInfo} from '../interfaces/SharedInfo'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -35,15 +35,15 @@ export function Attribute(SharedInfo: SharedInfo) {
         | DynamoDBNativeType[]
         | DynamoDBMap
     >(), {
-        get String() {return decorator<string>(DynamoDBTypeAlias.S)},
-        get Number() {return decorator<number>(DynamoDBTypeAlias.N)},
-        get Binary() {return decorator<Uint8Array>(DynamoDBTypeAlias.B)},
-        get Bool() {return decorator<boolean>(DynamoDBTypeAlias.BOOL)},
-        get List() {return decorator<DynamoDBNativeType[]>(DynamoDBTypeAlias.BOOL)},
-        get StringSet() {return decorator<Set<string>>(DynamoDBTypeAlias.SS)},
-        get NumberSet() {return decorator<Set<number>>(DynamoDBTypeAlias.NS)},
-        get BinarySet() {return decorator<Set<Uint8Array>>(DynamoDBTypeAlias.BS)},
-        get Map() {return decorator<DynamoDBMap>(DynamoDBTypeAlias.M)},
-        get Null() {return decorator<null>(DynamoDBTypeAlias.NULL)}
+        get S() {return decorator<string>(DynamoDBTypeAlias.S)},
+        get N() {return decorator<number>(DynamoDBTypeAlias.N)},
+        get B() {return decorator<Uint8Array>(DynamoDBTypeAlias.B)},
+        get BOOL() {return decorator<boolean>(DynamoDBTypeAlias.BOOL)},
+        get L() {return decorator<DynamoDBNativeType[]>(DynamoDBTypeAlias.BOOL)},
+        get SS() {return decorator<Set<string>>(DynamoDBTypeAlias.SS)},
+        get NS() {return decorator<Set<number>>(DynamoDBTypeAlias.NS)},
+        get BS() {return decorator<Set<Uint8Array>>(DynamoDBTypeAlias.BS)},
+        get M() {return decorator<DynamoDBMap>(DynamoDBTypeAlias.M)},
+        get NULL() {return decorator<null>(DynamoDBTypeAlias.NULL)}
     })
 }

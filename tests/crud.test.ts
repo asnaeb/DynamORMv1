@@ -13,13 +13,13 @@ describe('Crud operations test', () => {
 
     @Connect
     class Crud extends Table {
-        @HashKey.String
+        @HashKey.S
         a!: string
 
-        @RangeKey.Number
+        @RangeKey.N
         b!: number
 
-        @Attribute.Map
+        @Attribute
         c?: {
             x?: boolean[],
             y: {
@@ -27,7 +27,7 @@ describe('Crud operations test', () => {
             }
         }
 
-        @Attribute.Null
+        @Attribute
         d!: null
 
         out = 'I am an ignored attribute'

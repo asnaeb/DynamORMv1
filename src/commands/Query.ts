@@ -1,12 +1,12 @@
 import type {GlobalSecondaryIndex, LocalSecondaryIndex} from "@aws-sdk/client-dynamodb"
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {QueryParams} from '../types/Interfaces'
 import type {AttributeNames, AttributeValues} from '../types/Internal'
 import {QueryCommand, type QueryCommandInput, type QueryCommandOutput} from "@aws-sdk/lib-dynamodb"
 import {TablePaginatedCommand} from './TablePaginatedCommand'
 import {ConditionsGenerator} from '../generators/ConditionsGenerator'
 import {EQUAL} from '../private/Symbols'
+import {QueryParams} from '../interfaces/QueryParams'
 
 export class Query<T extends DynamORMTable> extends TablePaginatedCommand<QueryCommandInput, QueryCommandOutput> {
     protected readonly command: QueryCommand

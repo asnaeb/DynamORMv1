@@ -13,7 +13,7 @@ describe('Binary data and primary key', () => {
 
     @Connect
     class BinaryTest extends Table {
-        @HashKey.String
+        @HashKey.S
         filename?: string
 
         @Attribute

@@ -6,8 +6,8 @@ import {isUpdateObject} from '../validation/symbols'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {ConditionsGenerator} from './ConditionsGenerator'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE, TABLE_NAME} from '../private/Symbols'
-import {UpdateGeneratorParams} from '../types/Interfaces'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
+import {UpdateGeneratorParams} from '../interfaces/UpdateGeneratorParams'
 
 export class UpdateGenerator<T extends DynamORMTable> {
     readonly #Commands: UpdateCommand[] = []
