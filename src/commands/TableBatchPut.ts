@@ -1,7 +1,6 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {BatchWriteCommand, type BatchWriteCommandInput, type BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableBatchCommand} from './TableBatchCommand'
-import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {TableBatchPutParams} from '../interfaces/TableBatchPutParams'
 
@@ -12,7 +11,7 @@ export class TableBatchPut<T extends DynamORMTable> extends TableBatchCommand<Ba
         if (this.inputs?.length) for (const input of this.inputs) {
             if (this.TableName) this.commands.push(new BatchWriteCommand({
                 RequestItems: {
-                    [this.TableName]: input.map((Item: T) => ({PutRequest: {Item: normalizeAttributes(Target, Item)}}))
+                    [this.TableName]: input.map((Item: T) => ({PutRequest: {Item}}))
                 },
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
             }))

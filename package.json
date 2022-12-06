@@ -12,11 +12,11 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.218.0",
-    "@aws-sdk/lib-dynamodb": "^3.218.0",
+    "@aws-sdk/client-dynamodb": "^3.222.0",
+    "@aws-sdk/lib-dynamodb": "^3.222.0",
     "typescript": "https://typescript.visualstudio.com/cf7ac146-d525-443c-b23c-0d58337efebc/_apis/build/builds/137898/artifacts?artifactName=tgz&fileId=6FB2BB103E56A9586D2E2E87A6EFA518FA1DF0DCEAB1DA2E42D01B659F3DDE6602&fileName=/typescript-5.0.0-insiders.20221108.tgz"
   },
   "devDependencies": {
-    "@types/node": "^18.11.9"
+    "@types/node": "^18.11.10"
   }
 }

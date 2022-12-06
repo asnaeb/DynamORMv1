@@ -1,10 +1,10 @@
-import type {Size as TSize, AttributeTypes} from '../types/Internal'
+import type {Size as TSize, DynamoDBTypeAlias} from '../types/Internal'
 import * as SYMBOLS from '../private/Symbols'
 
 export function AttributeExists(value: boolean) {
     return { [SYMBOLS.ATTRIBUTE_EXISTS]: value }
 }
-export function AttributeType(value: AttributeTypes) {
+export function AttributeType(value: DynamoDBTypeAlias) {
     return { [SYMBOLS.ATTRIBUTE_TYPE]: value }
 }
 export function Contains<T>(...values: T[]) {

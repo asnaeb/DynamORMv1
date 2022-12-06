@@ -8,9 +8,8 @@ export const ATTRIBUTE_DEFINITIONS = Symbol('AttributeDefinitions')
 export const LOCAL_INDEXES = Symbol('LocalIndexes')
 export const GLOBAL_INDEXES = Symbol('GlobalIndexes')
 export const TTL = Symbol('TimeToLive')
-export const IGNORE = Symbol('Ignore')
-
 export const ATTRIBUTES = Symbol('Attributes')
+export const SERIALIZER = Symbol('Serializer')
 export const TABLE_INFO = {
     TABLE_NAME,
     CLIENT,
@@ -20,8 +19,7 @@ export const TABLE_INFO = {
     ATTRIBUTE_DEFINITIONS,
     LOCAL_INDEXES,
     GLOBAL_INDEXES,
-    TTL,
-    IGNORE
+    TTL
 }
 
 // OPERATORS - UPDATE

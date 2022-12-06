@@ -1,7 +1,11 @@
 import {isObject} from '../utils/General'
 import {REMOVE} from '../private/Symbols'
 
-export function validateType(value: any): boolean {
+export function isValidKeyType(value: unknown): value is string | number | Uint8Array {
+    return typeof value === 'string' || typeof value === 'number' || value instanceof Uint8Array
+}
+
+export function isValidType(value: unknown): boolean {
     switch (typeof value) {
         case 'string':
         case 'number':
@@ -16,7 +20,7 @@ export function validateType(value: any): boolean {
             if (value instanceof Array) {
                 if (!value.length)
                     return true
-                else if (value.every(i => validateType(i)))
+                else if (value.every(i => isValidType(i)))
                     return true
             }
             if (value instanceof Uint8Array)
@@ -46,7 +50,7 @@ export function validateType(value: any): boolean {
             if (isObject(value)) {
                 if (!Object.keys(value).length)
                     return true
-                if (Object.entries(value).every(([,v]) => validateType(v)))
+                if (Object.entries(value).every(([,v]) => isValidType(v)))
                     return true
             }
             if (value === null)

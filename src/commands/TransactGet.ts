@@ -3,8 +3,7 @@ import type {PrimaryKeys} from '../types/Internal'
 import type {Constructor} from '../types/Utils'
 import {type DynamoDBDocumentClient, TransactGetCommand, type TransactGetCommandInput} from '@aws-sdk/lib-dynamodb'
 import {Get} from './Get'
-import {validateKey} from '../validation/key'
-import {KeyGenerator} from '../generators/KeyGenerator'
+import {Serializer} from '../serializer/Serializer'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 
 export class TransactGet {
@@ -19,7 +18,7 @@ export class TransactGet {
     }
 
     #filterKeys<T extends DynamORMTable>(table: Constructor<T>, keys: PrimaryKeys<T>) {
-        let generatedKeys = new KeyGenerator(table).generateKeys(keys).filter(k => validateKey(table, k))
+        let generatedKeys = new Serializer(table).generateKeys(keys)
         if (generatedKeys.length > 100) {
             // TODO Log Warning
             return generatedKeys.slice(0, 99)

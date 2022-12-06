@@ -14,18 +14,18 @@ describe('Binary data and primary key', () => {
 
     after(() => DDB.kill())
 
-    @Connect
+    @Connect()
     class BinaryTest extends Table {
-        @HashKey.S
+        @HashKey.S()
         name: string
 
-        @RangeKey.S
+        @RangeKey.S()
         extension: '.txt' | '.jpg'
 
-        @Attribute
+        @Attribute()
         data?: Uint8Array
 
-        @Attribute
+        @Attribute()
         encoding?: BufferEncoding
 
         get filename() {
@@ -48,6 +48,11 @@ describe('Binary data and primary key', () => {
         async getDataFromDisk(path: string) {
             this.data = await readFile(path)
         }
+
+        toString() {
+            if (this.data)
+                return Buffer.from(this.data).toString(this.encoding)
+        }
     }
 
     it('Create table', () => BinaryTest.create())
@@ -59,14 +64,13 @@ describe('Binary data and primary key', () => {
         await txt.save()
 
         const jpg = new BinaryTest('example', '.jpg')
+        jpg.encoding = 'base64'
         await jpg.getDataFromDisk(join(homedir(), 'Pictures', 'io.jpg'))
         await jpg.save()
     })
 
     it('Retrieve item and write buffer to file', async () => {
         const {Data} = await BinaryTest.select({example: ['.txt', '.jpg']}).get()
-
-        console.log(Data?.[0])
 
         const path = './tests.resources/'
 

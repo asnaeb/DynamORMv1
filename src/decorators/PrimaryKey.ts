@@ -12,22 +12,21 @@ interface FactoryParams {
 }
 
 function decoratorFactory<X>({SharedInfo, KeyType, AttributeType, AttributeName}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, {name: AttributeName}: ClassFieldDecoratorContext<DynamORMTable, T>) {
-        AttributeName = String(AttributeName)
+    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+        name = String(name)
 
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[AttributeName] = AttributeType as unknown as DynamoDBTypeAlias
+        SharedInfo.Attributes[name] = {AttributeType}
+        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
 
-        AddKeyInfo({SharedInfo, KeyType, AttributeType, AttributeName})
+        AddKeyInfo({SharedInfo, KeyType, AttributeType, AttributeName: AttributeName ?? name})
     }
 }
 
 function decorator<T>(params: FactoryParams) {
-    return Object.assign(decoratorFactory<T>(params), {
-        AttributeName(AttributeName: string) {
-            return decoratorFactory<T>({...params, AttributeName})
-        }
-    })
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return decoratorFactory<T>({...params, AttributeName})
+    }
 }
 
 export function HashKey(SharedInfo: SharedInfo) {

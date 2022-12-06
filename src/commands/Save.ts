@@ -1,9 +1,9 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {UpdateCommand, type UpdateCommandInput, type UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
-import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {SaveParams} from '../interfaces/SaveParams'
+import {alphaNumeric} from '../utils/General'
 
 export class Save<T extends DynamORMTable> extends TableCommand<UpdateCommandInput, UpdateCommandOutput> {
     protected readonly command: UpdateCommand
@@ -13,16 +13,15 @@ export class Save<T extends DynamORMTable> extends TableCommand<UpdateCommandInp
 
         let ExpressionAttributeNames, ExpressionAttributeValues, UpdateExpression
 
-        Attributes = normalizeAttributes(Target, Attributes)
-
-        if (Object.keys(Attributes).length) {
+        if (Attributes && Object.keys(Attributes).length) {
             const UpdateExpressions = []
             ExpressionAttributeNames = {}
             ExpressionAttributeValues = {}
             for (const [key, value] of Object.entries(Attributes)) {
-                Object.assign(ExpressionAttributeNames, {[`#${key}`]: key})
-                Object.assign(ExpressionAttributeValues, {[`:${key}`]: value})
-                UpdateExpressions.push(`#${key} = :${key}`)
+                const $key = alphaNumeric(key)
+                Object.assign(ExpressionAttributeNames, {[`#${$key}`]: key})
+                Object.assign(ExpressionAttributeValues, {[`:${$key}`]: value})
+                UpdateExpressions.push(`#${$key} = :${$key}`)
             }
             UpdateExpression = 'SET ' + UpdateExpressions.join(', ')
         }

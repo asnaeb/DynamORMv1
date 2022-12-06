@@ -1,7 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {AttributeNames, AttributeValues, Key, Update} from '../types/Internal'
 import {UpdateCommand} from '@aws-sdk/lib-dynamodb'
-import {isObject} from '../utils/General'
+import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {ConditionsGenerator} from './ConditionsGenerator'
@@ -41,18 +41,18 @@ class UpdateCommandGenerator<T extends DynamORMTable> {
 
     constructor(Update: Update<T>, Key: Key, TableName: string, Commands: UpdateCommand[], path: string[] = []) {
         for (const [key, value] of Object.entries(Update)) {
-            let $path
-            Object.assign(this.#AttributeNames, {[`#${key}`]: key})
+            let $path, $key = alphaNumeric(key)
+            Object.assign(this.#AttributeNames, {[`#${$key}`]: key})
             if (path?.length) {
-                $path = [...path, key]
+                $path = [...path, $key]
                 for (const k of path) Object.assign(this.#AttributeNames, {[`#${k}`]: k})
-            } else $path = [key]
+            } else $path = [$key]
             if (isObject(value)) {
                 if (isUpdateObject(value))
                     this.#handleUpdate(value, $path)
                 else {
-                    Object.assign(this.#AttributeValues, {[`:${key}_object_map`]: {}})
-                    this.#UpdateExpressionsMap.Update.push(`#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${key}_object_map)`)
+                    Object.assign(this.#AttributeValues, {[`:${$key}_object_map`]: {}})
+                    this.#UpdateExpressionsMap.Update.push(`#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`)
                     new UpdateCommandGenerator(value, Key, TableName, Commands, $path)
                 }
             } else {

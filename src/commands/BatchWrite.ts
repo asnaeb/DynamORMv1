@@ -2,10 +2,9 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {PrimaryKeys} from '../types/Internal'
 import type {Constructor} from '../types/Utils'
 import {BatchWriteCommand, type BatchWriteCommandInput, type DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
-import {validateKey} from '../validation/key'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {TABLE_NAME} from '../private/Symbols'
-import {KeyGenerator} from '../generators/KeyGenerator'
+import {Serializer} from '../serializer/Serializer'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 
 type RequestItem = {PutRequest: {Item: any}} | {DeleteRequest: {Key: any}}
@@ -56,13 +55,11 @@ export class BatchWrite {
         const TableName = TABLE_DESCR(table).get(TABLE_NAME)
         return {
             addPutRequest: (...elements: T[]) => {
-                elements.forEach(Item => this.#addToPool(TableName, {PutRequest: {Item: {...Item}}}))
+                elements.forEach(Item => this.#addToPool(TableName, {PutRequest: {Item}}))
             },
             addDeleteRequest: (...keys: PrimaryKeys<T>) => {
-                const generatedKeys = new KeyGenerator(table).generateKeys(keys)
-                generatedKeys.forEach(Key => {
-                    if (validateKey(table, Key)) this.#addToPool(TableName, {DeleteRequest: {Key}})
-                })
+                const generatedKeys = new Serializer(table).generateKeys(keys)
+                generatedKeys.forEach(Key => this.#addToPool(TableName, {DeleteRequest: {Key}}))
             }
         }
     }

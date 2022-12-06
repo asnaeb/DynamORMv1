@@ -3,6 +3,7 @@ import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, KEY_SCHEMA, LOCAL_INDEXES} from '../.
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {KeyType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
+import {SharedInfo} from '../../interfaces/SharedInfo'
 
 export const LegacyHashKey = {
     get S() {return legacyDecorator<string>(KeyType.HASH, ScalarAttributeType.S)},
@@ -15,7 +16,7 @@ export const LegacyRangeKey = {
     get B() {return legacyDecorator<Uint8Array>(KeyType.RANGE, ScalarAttributeType.B)}
 }
 
-function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: ScalarAttributeType) {
+function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: ScalarAttributeType, MappedAttributeName?: string) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
@@ -24,18 +25,20 @@ function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: ScalarAttrib
             if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
                 TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
 
-            TABLE_DESCR(prototype.constructor).get(ATTRIBUTES)[AttributeName] = AttributeType
-            AddKeyInfo(prototype.constructor, {KeyType, AttributeType, AttributeName: <string>AttributeName})
+            const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
+
+            Attributes[<string>AttributeName] = {AttributeType}
+            Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
+
+            AddKeyInfo(prototype.constructor, {KeyType, AttributeType, AttributeName: MappedAttributeName ?? <string>AttributeName})
         }
     }
 }
 
 function legacyDecorator<T>(KeyType: KeyType, AttributeType: ScalarAttributeType) {
-    return Object.assign(legacyDecoratorFactory<T>(KeyType, AttributeType), {
-        AttributeName(AttributeName: string) {
-            return legacyDecoratorFactory<T>(KeyType, AttributeType)
-        }
-    })
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return legacyDecoratorFactory<T>(KeyType, AttributeType, AttributeName)
+    }
 }
 
 function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<CreatePrimaryKeyParams, 'SharedInfo'>) {
@@ -66,6 +69,6 @@ function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<C
         if (!wm.has(ATTRIBUTE_DEFINITIONS))
             wm.set(ATTRIBUTE_DEFINITIONS, [])
 
-        wm.get<typeof AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)?.push(AttributeDefinition)
+        wm.get<typeof AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)!.push(AttributeDefinition)
     }
 }

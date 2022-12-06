@@ -1,17 +1,14 @@
-import type {
-    KeySchemaElement,
-    AttributeDefinition,
-    GlobalSecondaryIndex,
-    LocalSecondaryIndex,
-    ScalarAttributeType
-} from '@aws-sdk/client-dynamodb'
+import type {AttributeDefinition, GlobalSecondaryIndex, KeySchemaElement, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
+import {ScalarAttributeType} from '@aws-sdk/client-dynamodb'
+import type {Key} from '../types/Internal'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMError} from '../errors/DynamORMError'
-import {LOCAL_INDEXES, GLOBAL_INDEXES, ATTRIBUTE_DEFINITIONS, KEY_SCHEMA} from '../private/Symbols'
+import {ATTRIBUTE_DEFINITIONS, GLOBAL_INDEXES, KEY_SCHEMA, LOCAL_INDEXES} from '../private/Symbols'
 
-export function validateKey<T extends DynamORMTable>(constructor: Constructor<T>, key: {[p: string]: unknown}, indexName?: string) {
+export function isValidKey<T extends DynamORMTable>(constructor: Constructor<T>, key: Record<string, unknown>, indexName?: string):
+    key is Key {
     const attributeDefinitions = TABLE_DESCR(constructor).get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)
     let keySchema = TABLE_DESCR(constructor).get<KeySchemaElement[]>(KEY_SCHEMA)
 
@@ -41,23 +38,20 @@ export function validateKey<T extends DynamORMTable>(constructor: Constructor<T>
     const rangeType = <ScalarAttributeType>attributeDefinitions?.filter(a => a.AttributeName === rangeName)[0]?.AttributeType
 
     function check(name: string | undefined, type: ScalarAttributeType) {
-        if (name) {
+        if (name && name in key) {
             const value = key[name]
+            if (type === ScalarAttributeType.S && typeof value === 'string')
+                return true
 
-            if (!(name in key))
-                return false
+            if (type === ScalarAttributeType.N && typeof value === 'number')
+                return true
 
-            if ((type === 'S' && typeof value !== 'string') ||
-                (type === 'N' && typeof value !== 'number') ||
-                (type === 'B' && !(value instanceof Uint8Array))) {
-                return false
-            }
+            if (type === ScalarAttributeType.B && value instanceof Uint8Array)
+                return true
 
-            if (typeof value === 'number' && isNaN(value))
-                return false
         }
 
-        return true
+        return false
     }
 
     if (!check(hashName, hashType) || !check(rangeName, rangeType)) {

@@ -1,8 +1,8 @@
 import type {Condition} from '../types/Internal'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {AttributeTypes, AttributeNames, AttributeValues} from '../types/Internal'
+import type {DynamoDBTypeAlias, AttributeNames, AttributeValues} from '../types/Internal'
 import {CONDITION} from '../private/Symbols'
-import {isObject} from '../utils/General'
+import {alphaNumeric, isObject} from '../utils/General'
 import {isConditionSymbol} from '../validation/symbols'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
 import {ConditionsGeneratorParams} from '../interfaces/ConditionsGeneratorParams'
@@ -50,25 +50,12 @@ export class ConditionsGenerator<T extends DynamORMTable> {
             let value = condition[key as keyof Condition<T>]
             let $path = path
             if (typeof key === 'string') {
-                Object.assign(this.#AttributeNames, {[`#${key}`]: key})
-                $path = path.length ? [...path, key] : [key]
+                const $key = alphaNumeric(key)
+                Object.assign(this.#AttributeNames, {[`#${$key}`]: key})
+                $path = path.length ? [...path, $key] : [$key]
                 if (isObject(value)) this.#iterateCondition(value, block, $path)
-            } else if (isConditionSymbol(key)) this.#handleCondition(key, value, $path, block)
-        }
-    }
-
-    #formatAttributeType(type: AttributeTypes) {
-        switch (type) {
-            case 'String': return 'S'
-            case 'Number': return 'N'
-            case 'Binary': return 'B'
-            case 'Boolean': return 'BOOL'
-            case 'List': return 'L'
-            case 'StringSet': return 'SS'
-            case 'NumberSet': return 'NS'
-            case 'BinarySet': return 'BS'
-            case 'Map': return 'M'
-            case 'Null': return 'NULL'
+            } else if (isConditionSymbol(key))
+                this.#handleCondition(key, value, $path, block)
         }
     }
 
@@ -131,7 +118,7 @@ export class ConditionsGenerator<T extends DynamORMTable> {
                 break
             case CONDITION.ATTRIBUTE_TYPE:
                 attributeValue = makeAttributeValue('attributeType')
-                Object.assign(this.#AttributeValues, {[attributeValue]: this.#formatAttributeType(value)})
+                Object.assign(this.#AttributeValues, {[attributeValue]: value})
                 block.push(`attribute_type(${attributeName}, ${attributeValue})`)
                 break
             case CONDITION.SIZE: {

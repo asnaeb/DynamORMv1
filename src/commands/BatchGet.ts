@@ -4,8 +4,7 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import {BatchGetCommand, type BatchGetCommandInput, type DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {TABLE_NAME} from '../private/Symbols'
-import {validateKey} from '../validation/key'
-import {KeyGenerator} from '../generators/KeyGenerator'
+import {Serializer} from '../serializer/Serializer'
 
 export class BatchGet {
     readonly #Client: DynamoDBDocumentClient
@@ -55,9 +54,7 @@ export class BatchGet {
         const TableName = TABLE_DESCR(table).get(TABLE_NAME)
         return {
             addGetRequest: (...keys: PrimaryKeys<T>) => {
-                new KeyGenerator(table).generateKeys(keys).forEach(key => {
-                    if (key && validateKey(table, key)) this.#addToPool(TableName, key)
-                })
+                new Serializer(table).generateKeys(keys).forEach(key => this.#addToPool(TableName, key))
             }
         }
     }

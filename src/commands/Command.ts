@@ -18,7 +18,6 @@ export abstract class Command<I extends ServiceInputTypes, O extends ServiceOutp
     protected readonly LocalSecondaryIndexes?: LocalSecondaryIndex[]
     protected readonly GlobalSecondaryIndexes?: GlobalSecondaryIndex[]
     protected readonly TimeToLive?: string
-    protected readonly Ignore?: string[]
 
     public abstract readonly commandInput: I | I[]
 
@@ -33,7 +32,6 @@ export abstract class Command<I extends ServiceInputTypes, O extends ServiceOutp
         this.LocalSecondaryIndexes = wm.get(TABLE_INFO.LOCAL_INDEXES)
         this.GlobalSecondaryIndexes = wm.get(TABLE_INFO.GLOBAL_INDEXES)
         this.TimeToLive = wm.get(TABLE_INFO.TTL)
-        this.Ignore = wm.get(TABLE_INFO.IGNORE)
     }
 
     public abstract send(): Promise<typeof this.response>

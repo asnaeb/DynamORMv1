@@ -4,7 +4,6 @@ import {TableCommand} from './TableCommand'
 import {ConditionsGenerator} from '../generators/ConditionsGenerator'
 import {ATTRIBUTE_EXISTS} from '../private/Symbols'
 import {AttributeNames} from '../types/Internal'
-import {normalizeAttributes} from '../utils/Attributes'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {PutParams} from '../interfaces/PutParams'
 
@@ -33,7 +32,7 @@ export class Put<T extends DynamORMTable> extends TableCommand<PutCommandInput, 
             TableName: this.TableName,
             ExpressionAttributeNames,
             ConditionExpression,
-            Item: normalizeAttributes(Target, Item),
+            Item,
             ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
         })
     }

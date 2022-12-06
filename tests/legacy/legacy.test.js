@@ -8,10 +8,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 import { DynamoDBLocal } from '../env/DynamoDBLocal.js';
-import ORM from '../env/DynamORM.js';
+import { Legacy, Table } from '../env/DynamORM.js';
 import { TABLE_DESCR } from '../../lib/private/Weakmaps.js';
 import { ATTRIBUTES } from '../../lib/private/Symbols.js';
-let LegacyTest = class LegacyTest extends ORM.Table {
+import { Increment } from '../../lib/operators/Functions.js';
+const { Connect, RangeKey, HashKey, TimeToLive, Attribute } = Legacy;
+let LegacyTest = class LegacyTest extends Table {
     a;
     b;
     c;
@@ -19,33 +21,34 @@ let LegacyTest = class LegacyTest extends ORM.Table {
     e;
 };
 __decorate([
-    ORM.Legacy.HashKey,
+    HashKey.S({ AttributeName: '@Partition Key' }),
     __metadata("design:type", String)
 ], LegacyTest.prototype, "a", void 0);
 __decorate([
-    ORM.Legacy.RangeKey,
+    RangeKey.N({ AttributeName: '@Sort Key' }),
     __metadata("design:type", Number)
 ], LegacyTest.prototype, "b", void 0);
 __decorate([
-    ORM.Legacy.Attribute,
-    __metadata("design:type", Object)
+    Attribute.B({ AttributeName: '@Binary Attribute' }),
+    __metadata("design:type", Uint8Array)
 ], LegacyTest.prototype, "c", void 0);
 __decorate([
-    ORM.Legacy.Attribute,
+    Attribute.M({ AttributeName: '@Map Attribute' }),
     __metadata("design:type", Object)
 ], LegacyTest.prototype, "d", void 0);
 __decorate([
-    ORM.Legacy.TimeToLive,
+    TimeToLive({ AttributeName: '@Time To Live' }),
     __metadata("design:type", Number)
 ], LegacyTest.prototype, "e", void 0);
 LegacyTest = __decorate([
-    ORM.Legacy.Connect
+    Connect()
 ], LegacyTest);
 console.log(TABLE_DESCR(LegacyTest).get(ATTRIBUTES));
 const DB = new DynamoDBLocal();
 await DB.start();
 await LegacyTest.create();
 await LegacyTest.make({ a: 'asnaeb', b: 0, c: new Uint8Array([1, 2, 3]) }).save();
+await LegacyTest.select({ asnaeb: 0 }).update({ e: Increment(40) });
 const { Data } = await LegacyTest.select({ asnaeb: 0 }).get();
-console.log(Data?.[0].raw().c);
+console.log(Data?.[0]);
 await DB.kill();

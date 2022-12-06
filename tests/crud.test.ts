@@ -11,15 +11,15 @@ describe('Crud operations test', () => {
 
     after(() => DDB.kill())
 
-    @Connect
+    @Connect()
     class Crud extends Table {
-        @HashKey.S
+        @HashKey.S()
         a!: string
 
-        @RangeKey.N
+        @RangeKey.N()
         b!: number
 
-        @Attribute
+        @Attribute.M()
         c?: {
             x?: boolean[],
             y: {
@@ -27,7 +27,7 @@ describe('Crud operations test', () => {
             }
         }
 
-        @Attribute
+        @Attribute.NULL()
         d!: null
 
         out = 'I am an ignored attribute'

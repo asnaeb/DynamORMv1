@@ -7,5 +7,6 @@
     "declaration": true,
     "outDir": "lib",
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["lib", "node_modules"]
 }

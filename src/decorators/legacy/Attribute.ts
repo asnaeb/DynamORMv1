@@ -2,27 +2,29 @@ import {TABLE_DESCR} from '../../private/Weakmaps'
 import {ATTRIBUTES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {DynamoDBMap, DynamoDBNativeType, DynamoDBTypeAlias} from '../../types/Internal'
+import {SharedInfo} from '../../interfaces/SharedInfo'
 
-function legacyDecoratorFactory<Z>(AttributeType?: DynamoDBTypeAlias, AttributeName?: string) {
+function legacyDecoratorFactory<Z>(AttributeType?: DynamoDBTypeAlias, MappedAttributeName?: string) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
         if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
             TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
 
-        TABLE_DESCR(prototype.constructor).get(ATTRIBUTES)[AttributeName] = AttributeType ?? 'ANY'
+        const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
+
+        Attributes[<string>AttributeName] = {AttributeType: AttributeType ?? 'ANY'}
+        Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
     }
 }
 
 function decorator<T>(AttributeType?: DynamoDBTypeAlias) {
-    return Object.assign(legacyDecoratorFactory<T>(AttributeType), {
-        AttributeName(AttributeName: string) {
-            return legacyDecoratorFactory(AttributeType, AttributeName)
-        }
-    })
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return legacyDecoratorFactory<T>(AttributeType, AttributeName)
+    }
 }
 
-export const LegacyAttribute = Object.assign(decorator<DynamoDBNativeType | DynamoDBMap>(), {
+export const LegacyAttribute = Object.assign(decorator<DynamoDBNativeType>(), {
     get S() {return decorator<string>(DynamoDBTypeAlias.S)},
     get N() {return decorator<number>(DynamoDBTypeAlias.N)},
     get B() {return decorator<Uint8Array>(DynamoDBTypeAlias.B)},

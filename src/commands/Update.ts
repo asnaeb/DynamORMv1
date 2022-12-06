@@ -1,11 +1,11 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
+import type {UpdateParams} from '../interfaces/UpdateParams'
 import {UpdateCommand, type UpdateCommandInput, type UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {Command} from './Command'
 import {RawResponse} from './Response'
 import {UpdateGenerator} from '../generators/UpdateGenerator'
-import {mergeNumericProps} from '../utils/General'
+import {alphaNumeric, mergeNumericProps} from '../utils/General'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
-import {UpdateParams} from '../interfaces/UpdateParams'
 
 export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput, UpdateCommandOutput> {
     readonly #Commands: UpdateCommand[]
@@ -23,8 +23,9 @@ export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput,
         for (const key in Key) {
             if ((!SK && key === PK) || (SK && key === SK)) {
                 const expression = this.#Commands[0].input.ConditionExpression
-                Object.assign(this.#Commands[0].input.ExpressionAttributeNames ?? {}, {[`#${key}`]: key})
-                this.#Commands[0].input.ConditionExpression = `attribute_exists(#${key})` +
+                const $key = alphaNumeric(key)
+                Object.assign(this.#Commands[0].input.ExpressionAttributeNames ?? {}, {[`#${$key}`]: key})
+                this.#Commands[0].input.ConditionExpression = `attribute_exists(#${$key})` +
                     (expression ? ` ${ConditionalOperator.AND} (${expression})` :  '')
             }
         }

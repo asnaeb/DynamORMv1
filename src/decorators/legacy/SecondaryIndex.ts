@@ -1,48 +1,50 @@
 import type {AttributeDefinition, GlobalSecondaryIndex, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
-import {makeAlphaNumeric} from '../../utils/General'
+import {alphaNumericDotDash} from '../../utils/General'
 import {TABLE_DESCR} from '../../private/Weakmaps'
 import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, GLOBAL_INDEXES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {CreateSecondaryIndexParams} from '../../interfaces/CreateSecondaryIndexParams'
 import {LocalIndexParams} from '../../interfaces/LocalIndexParams'
 import {GlobalIndexParams} from '../../interfaces/GlobalIndexParams'
+import {SharedInfo} from '../../interfaces/SharedInfo'
 
 interface LegacyFactoryParams {
     Kind: 'Local' | 'Global'
     KeyType: KeyType
-    AttributeName?: string
+    MappedAttributeName?: string
     AttributeType: ScalarAttributeType
     IndexName?: string
     ProjectedAttributes?: GlobalIndexParams['ProjectedAttributes']
     ProvisionedThroughput?: GlobalIndexParams['ProvisionedThroughput']
 }
 
-function decoratorFactory<Z>({AttributeType, ...params}: LegacyFactoryParams) {
+function decoratorFactory<Z>({AttributeType, MappedAttributeName, ...params}: LegacyFactoryParams) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
-        const AttributeDefinitions = {[params.KeyType]: {AttributeName, AttributeType}}
+        const AttributeDefinitions = {[params.KeyType]: {AttributeName: MappedAttributeName ?? <string>AttributeName, AttributeType}}
 
         if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
             TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
 
-        TABLE_DESCR(prototype.constructor).get(ATTRIBUTES)[AttributeName] = AttributeType
+        const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
+
+        Attributes[<string>AttributeName] = {AttributeType}
+        Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
 
         AddIndexInfo(prototype.constructor, {...params, AttributeDefinitions})
     }
 }
 
-export function LegacyLocalIndex() {
-    function decorator<T>(params: LegacyFactoryParams) {
-        return Object.assign(decoratorFactory<T>(params), {
-            AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeName})
-            }
-        })
+function decorator<T>(params: LegacyFactoryParams) {
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return decoratorFactory<T>({...params, MappedAttributeName: AttributeName})
     }
+}
 
+export function LegacyLocalIndex() {
     return function({IndexName, ProjectedAttributes}: Omit<LocalIndexParams, 'SharedInfo'> = {}) {
         const params = {
             IndexName,
@@ -64,14 +66,6 @@ export function LegacyLocalIndex() {
 }
 
 export function LegacyGlobalIndex() {
-    function decorator<T>(params: LegacyFactoryParams) {
-        return Object.assign(decoratorFactory<T>(params), {
-            AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeName})
-            }
-        })
-    }
-
     return function({IndexName, ProjectedAttributes, ProvisionedThroughput}: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
         const params = {
             Kind: 'Global' as const,
@@ -110,7 +104,7 @@ export function AddIndexInfo(target: any, {Kind, AttributeDefinitions, IndexName
     }
 
     if (IndexName)
-        secondaryIndex.IndexName = makeAlphaNumeric(IndexName)
+        secondaryIndex.IndexName = alphaNumericDotDash(IndexName)
     else {
         secondaryIndex.IndexName = `Dynam0RM.${Kind}Index`
         if (UID !== undefined && Kind === 'Global')

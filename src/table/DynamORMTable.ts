@@ -1,6 +1,5 @@
-import type {Condition, QueryObject, PrimaryKeys, Update as TUpdate, ValidRecord} from '../types/Internal'
+import type {QueryObject, PrimaryKeys, ValidRecord} from '../types/Internal'
 import type {Constructor} from '../types/Utils'
-import {Update} from '../commands/Update'
 import {Query} from '../commands/Query'
 import {CreateTable} from '../commands/CreateTable'
 import {DeleteTable} from '../commands/DeleteTable'
@@ -9,36 +8,28 @@ import {Put} from '../commands/Put'
 import {Delete} from '../commands/Delete'
 import {Save} from '../commands/Save'
 import {Scan} from '../commands/Scan'
-import {Get} from '../commands/Get'
 import {Response} from '../commands/Response'
-import {TableBatchGet} from '../commands/TableBatchGet'
 import {TableBatchPut} from '../commands/TableBatchPut'
-import {TableBatchDelete} from '../commands/TableBatchDelete'
-import {validateKey} from '../validation/key'
-import {validateType} from '../validation/type'
-import {DynamORMError} from '../errors/DynamORMError'
 import {isQueryObject} from '../validation/symbols'
 import {mergeNumericProps, isObject} from '../utils/General'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {TABLE_NAME} from '../private/Symbols'
-import {rawAttributes} from '../utils/Attributes'
-import {KeyGenerator} from '../generators/KeyGenerator'
+import {Serializer} from '../serializer/Serializer'
 import {CreateTableParams} from '../interfaces/CreateTableParams'
 import {QueryParams} from '../interfaces/QueryParams'
 import {QueryOptions} from '../interfaces/QueryOptions'
 import {ScanOptions} from '../interfaces/ScanOptions'
 import {ResponseInfo} from '../interfaces/ResponseInfo'
+import {Select} from '../commands/Select'
+import {TABLE_DESCR} from '../private/Weakmaps'
+import {SERIALIZER} from '../private/Symbols'
+import {Buffer} from 'buffer'
 
 export abstract class DynamORMTable {
     public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: ValidRecord<T>) {
         const instance = new (<new (...args: any) => T>this)()
 
-        if (isObject(attributes)) for (const [key, value] of Object.entries(attributes)) {
-            if (validateType(value))
+        if (isObject(attributes))
+            for (const [key, value] of Object.entries(attributes))
                 Object.assign(instance, {[key]: value})
-            else
-                DynamORMError.invalidType(this, key)
-        }
 
         return instance
     }
@@ -63,9 +54,10 @@ export abstract class DynamORMTable {
     }
 
     public static async scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
+        const _this = this as unknown as typeof DynamORMTable
         const {output, error} = await new Scan({Target: this, Limit, ConsistentRead, IndexName}).send()
         return new Response({
-            Data: output?.Items?.map(i => (<any>this).make(i)) as T[],
+            Data: output?.Items?.map(i => _this.make(i)) as T[],
             Errors: error ? [error] : [],
             Info: {
                 ConsumedCapacity: output?.ConsumedCapacity,
@@ -91,9 +83,11 @@ export abstract class DynamORMTable {
         Options?: QueryOptions):
         Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
     public static async query<T extends DynamORMTable>(
-        this: Constructor<T>, H: string | number,
+        this: Constructor<T>,
+        H: string | number,
         Q?: QueryObject<string | number> | QueryOptions,
         O?: QueryOptions) {
+        const _this = this as unknown as typeof DynamORMTable
         const Params: QueryParams<any> = {
             Target: this,
             HashValue: H
@@ -116,7 +110,7 @@ export abstract class DynamORMTable {
         const {output, error} = await new Query(Params).send()
 
         return new Response({
-            Data: output?.Items?.map(i => (<any>this).make(i)) as T[],
+            Data: output?.Items?.map(i => _this.make(i)) as T[],
             Errors: error ? [error] : undefined,
             Info: {
                 ConsumedCapacity: output?.ConsumedCapacity,
@@ -177,8 +171,9 @@ export abstract class DynamORMTable {
         Promise<Response<never, ResponseInfo & {SuccessfulPuts?: number; FailedPuts?: number}>> {
         const Errors: Error[] = []
         const Info: (ResponseInfo & {SuccessfulPuts?: number; FailedPuts?: number})[] = []
-        const results = await Promise.all(elements.map(Item => new Put({Target: this,
-            Item: new KeyGenerator(this).convertItemKey(Item)
+        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
+        const results = await Promise.all(elements.map(i => new Put({Target: this,
+            Item: serializer?.serialize(i).Item ?? {}
         }).send()))
 
         for (const {output, error} of results) {
@@ -197,9 +192,10 @@ export abstract class DynamORMTable {
         Promise<Response<never, ResponseInfo & {ChunksSent?: number}>>{
         const Info: (ResponseInfo & {ChunksSent?: number})[] = []
         const Errors: Error[] = []
+        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)!
         const {outputs, errors} = await new TableBatchPut({
             Target: this,
-            Items: Items.map(i => new KeyGenerator(this).convertItemKey(i))
+            Items: Items.map(i => serializer.serialize(i).Item ?? {})
         }).send()
 
         outputs?.forEach(({ConsumedCapacity}) => {
@@ -212,146 +208,57 @@ export abstract class DynamORMTable {
         return new Response({Errors, Info: mergeNumericProps(Info)})
     }
 
-    public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: PrimaryKeys<T>) {
-        const Keys = new KeyGenerator(this).generateKeys(keys).filter(k => {
-            if (validateKey(this, k))
-                return true
-            if (k)
-                DynamORMError.invalidKey(this, k)
-            return false
-        })
-        const Conditions: Condition<T>[] = []
-        const methods = {
-            update: async (UpdateObject: TUpdate<T>) => {
-                const Data: T[] = []
-                const Info: ResponseInfo[] = []
-                const Errors: Error[] = []
-                const results = await Promise.all(Keys.map(Key => new Update({Target: this, Key, UpdateObject, Conditions}).send()))
-
-                for (const {output, error} of results) {
-                    if (output?.Attributes)
-                        Data.push((<any>this).make(output?.Attributes))
-                    if (output?.ConsumedCapacity)
-                        Info.push({ConsumedCapacity: output?.ConsumedCapacity})
-                    if (error)
-                        Errors.push(error)
-                }
-
-                return new Response({Data, Errors, Info: mergeNumericProps(Info)})
-            },
-            delete: async (): Promise<Response<T[], ResponseInfo & {SuccessfulDeletes?: number, FailedDeletes?: number}>> => {
-                const Data: T[] = []
-                const Info: (ResponseInfo & {SuccessfulDeletes?: number, FailedDeletes?: number})[] = []
-                const Errors: Error[] = []
-                const results = await Promise.all(Keys.map(Key => new Delete({Target: this, Key, Conditions}).send()))
-
-                for (const {output, error} of results) {
-                    if (output?.Attributes)
-                        Data.push((<any>this).make(output?.Attributes))
-                        Info.push({SuccessfulDeletes: 1})
-                    if (output?.ConsumedCapacity)
-                        Info.push({ConsumedCapacity: output?.ConsumedCapacity})
-                    if (error) {
-                        Info.push({FailedDeletes: 1})
-                        Errors.push(error)
-                    }
-                }
-
-                return new Response({Data, Errors, Info: mergeNumericProps(Info)})
-            }
-        }
-
-        const or = (condition: Condition<T>) => {
-            Conditions.push(condition)
-            return {or, ...methods}
-        }
-
-        return {
-            get: async ({ConsistentRead}: {ConsistentRead?: boolean} = {}) => {
-                const TableName = TABLE_DESCR(this).get(TABLE_NAME)
-                const Data: T[] = []
-                const Errors: Error[] = []
-                const Info: ResponseInfo[] = []
-                if (ConsistentRead) {
-                    const results = await Promise.all(Keys.map(Key => new Get({Target: this, Key, ConsistentRead}).send()))
-
-                    for (const {output, error} of results) {
-                        if (output) {
-                            Data.push((<any>this).make(output?.Item))
-                            Info.push({ConsumedCapacity: output?.ConsumedCapacity})
-                        }
-                        if (error)
-                            Errors.push(error)
-                    }
-                } else {
-                    const {outputs, errors} = await new TableBatchGet({Target: this, Keys}).send()
-                    outputs?.forEach(({Responses, ConsumedCapacity}) => {
-                        Responses?.[TableName].forEach(i => Data.push((<any>this).make(i)))
-                        ConsumedCapacity?.forEach(ConsumedCapacity => Info.push({ConsumedCapacity}))
-                    })
-                    errors?.forEach(e => Errors.push(e))
-                }
-                return new Response({Data, Errors, Info: mergeNumericProps(Info)})
-            },
-            batchDelete: async (): Promise<Response<never, ResponseInfo & {ChunksSent?: number}>> => {
-                const Info: (ResponseInfo & {ChunksSent?: number})[] = []
-                const Errors: Error[] = []
-                const {outputs, errors} = await new TableBatchDelete({Target: this, Keys}).send()
-                outputs?.forEach(({ConsumedCapacity}) => {
-                    Info.push({ChunksSent: 1})
-                    ConsumedCapacity?.forEach(ConsumedCapacity => Info.push({ConsumedCapacity}))
-                })
-                errors?.forEach(e => Errors.push(e))
-                return new Response({Errors, Info: mergeNumericProps(Info)})
-            },
-            if(condition: Condition<T>) {
-                Conditions.push(condition)
-                return {or, ...methods}
-            },
-            ...methods,
-        }
+    public static select<T extends DynamORMTable>(this: Constructor<T>, ...Keys: PrimaryKeys<T>) {
+        return new Select<T>({Target: this, Keys})
     }
 
     public async save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
         const Target = this.constructor as Constructor<T>
-        const KeyGen = new KeyGenerator(Target)
+        const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
+        const {Key, Attributes, Item} = serializer?.serialize(this)
+
         let result
 
         if (overwrite) {
-            const Key = KeyGen.extractKey(this)
             if (Key)
-                result = await new Save({Target, Key, Attributes: KeyGen.excludeKey(this)}).send()
+                result = await new Save({Target, Key, Attributes}).send()
             else {
                 // TODO Log warning
             }
         } else
-            result = await new Put({Target, Item: this}).send()
+            result = await new Put({Target, Item}).send()
 
         return new Response({
-            Info: result?.output?.ConsumedCapacity && {ConsumedCapacity: result?.output?.ConsumedCapacity},
+            Info: result?.output?.ConsumedCapacity && {ConsumedCapacity: result.output.ConsumedCapacity},
             Errors: result?.error && [result.error]
         })
     }
 
     public async delete<T extends DynamORMTable>(this: T) {
         const Target = this.constructor as Constructor<T>
-        const Key = new KeyGenerator(Target).extractKey(this)
-        let result
+        const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
+        const {Key} = serializer.serialize(this)
 
-        if (Key)
-            result = await new Delete({Target, Key}).send()
+        if (Key) {
+            const {output, error} = await new Delete({Target, Key}).send()
+            return new Response({
+                Info: output?.ConsumedCapacity && {ConsumedCapacity: output?.ConsumedCapacity},
+                Errors: error && [error]
+            })
+        }
         else {
             // TODO Log warning
         }
-
-        return new Response({
-            Info: result?.output?.ConsumedCapacity && {ConsumedCapacity: result?.output?.ConsumedCapacity},
-            Errors: result?.error && [result.error]
-        })
     }
 
     public raw<T extends DynamORMTable>(this: T) {
-        const Target = this.constructor as Constructor<T>
-        return rawAttributes(Target, this)
+        const {Item} = TABLE_DESCR(this.constructor).get<Serializer<T>>(SERIALIZER)?.serialize(this)!
+
+        for (const [k, v] of Object.entries(Item)) {
+            if (v instanceof Uint8Array)
+                Item[k] = Buffer.from(v).toString('base64')
+        }
+
+        return Item
     }
 }

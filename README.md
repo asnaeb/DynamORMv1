@@ -16,18 +16,18 @@ import {DynamORMClient, Table} from 'dynamorm'
 
 const {Connect, HashKey, RangeKey, Attribute} = new DynamORMClient({/* DynamoDB Config */})
 
-@Connect
+@Connect({TableName: 'Files'})
 class FileItem extends Table {
-    @HashKey.S
+    @HashKey.S()
     name: string
 
-    @RangeKey.S
+    @RangeKey.S()
     extension: '.txt' | '.jpeg'
 
-    @Attribute.B
+    @Attribute.B()
     data?: Uint8Array
 
-    @Attribute.S
+    @Attribute.S()
     encoding?: BufferEncoding
 
     get filename() {
@@ -51,22 +51,27 @@ class FileItem extends Table {
         this.data = await readFile(path)
     }
     
-    async toString() {
+    toString() {
         if (this.data) 
             return Buffer.from(this.data).toString(this.encoding)
     }
 }
 ```
-Notice that some members do not have annotations. They will just be ignored by DynamoDB. To use it, we just do
+To use it, we just do
 ```typescript
 const txt = new FileItem('example', '.txt')
+
 txt.data = Buffer.from('This is an example text file')
 txt.encoding = 'utf-8'
-await txt.save()
 
+await txt.save()
+```
+```typescript
 const jpg = new FileItem('example', '.jpg')
+
 jpg.encoding = 'base64'
-await jpg.getDataFromDisk('some_image.jpg')
+await jpg.getDataFromDisk('./path/to/some_image.jpg')
+
 await jpg.save()
 ```
 At this point, we have our items on DynamoDB. They can be retrieved from elsewhere like this
@@ -76,7 +81,7 @@ const {Data} = await FileItem.select({'example': ['.txt', '.jpg']}).get()
 Now we can write the files to disk
 ```typescript
 if (Data) for (const file of Data) {
-    await file.writeFileToDisk('some_directory')
+    await file.writeFileToDisk('./path/to/some_directory')
 }
 ```
 Or We can get a string representation of the file with the appropriate encoding
@@ -85,7 +90,7 @@ const encodedTxt = Data?.[0].toString() // <- 'This is an example text file'
 ```
 Or Update the content and save it back
 ```typescript
-await Data?.[1]?.getDataFromDisk('some_other_image.jpg')
+await Data?.[1]?.getDataFromDisk('./path/to/some_other_image.jpg')
 await Data?.[1]?.save()
 ```
 This was just a small,  non exhaustive example of what you can do with DynamORM. To get started, please see 

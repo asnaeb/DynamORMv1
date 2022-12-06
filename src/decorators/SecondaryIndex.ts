@@ -1,7 +1,7 @@
 import type {GlobalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
-import {makeAlphaNumeric} from '../utils/General'
+import {alphaNumericDotDash} from '../utils/General'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {DynamoDBTypeAlias} from '../types/Internal'
 import {SharedInfo} from '../interfaces/SharedInfo'
@@ -21,24 +21,27 @@ interface FactoryParams {
     UID?: number
 }
 
-function decoratorFactory<X>({AttributeType, KeyType, ...params}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, {name: AttributeName}: ClassFieldDecoratorContext<DynamORMTable, T>) {
-        const AttributeDefinitions = {[KeyType]: {AttributeName, AttributeType}}
-        AttributeName = String(AttributeName)
-        params.SharedInfo.Attributes ??= {}
-        params.SharedInfo.Attributes[AttributeName] = AttributeType as unknown as DynamoDBTypeAlias
-        AddIndexInfo({...params, AttributeDefinitions})
+function decoratorFactory<X>({AttributeType, KeyType, AttributeName, SharedInfo,...params}: FactoryParams) {
+    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+        const AttributeDefinitions = {[KeyType]: {AttributeName: AttributeName ?? name, AttributeType}}
+
+        name = String(name)
+
+        SharedInfo.Attributes ??= {}
+        SharedInfo.Attributes[name] = {AttributeType}
+        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
+
+        AddIndexInfo({...params, SharedInfo, AttributeDefinitions})
     }
 }
-export function LocalIndex(SharedInfo: SharedInfo) {
-    function decorator<T>(params: FactoryParams) {
-        return Object.assign(decoratorFactory<T>(params), {
-            AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeName})
-            }
-        })
-    }
 
+function decorator<T>(params: FactoryParams) {
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return decoratorFactory<T>({...params, AttributeName})
+    }
+}
+
+export function LocalIndex(SharedInfo: SharedInfo) {
     return function({IndexName, ProjectedAttributes}: Omit<LocalIndexParams, 'SharedInfo'> = {}) {
         const params = {
             SharedInfo,
@@ -61,14 +64,6 @@ export function LocalIndex(SharedInfo: SharedInfo) {
 }
 
 export function GlobalIndex(SharedInfo: SharedInfo) {
-    function decorator<T>(params: FactoryParams) {
-        return Object.assign(decoratorFactory<T>(params), {
-            AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({...params, AttributeName})
-            }
-        })
-    }
-
     return function({IndexName, ProjectedAttributes, ProvisionedThroughput}: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
         let UID = 0
         let _IndexName: string | undefined
@@ -119,7 +114,7 @@ export function AddIndexInfo({SharedInfo, Kind, AttributeDefinitions, IndexName,
     }
 
     if (IndexName)
-        secondaryIndex.IndexName = makeAlphaNumeric(IndexName)
+        secondaryIndex.IndexName = alphaNumericDotDash(IndexName)
     else {
         secondaryIndex.IndexName = `Dynam0RM.${Kind}Index`
         if (UID !== undefined && Kind === 'Global')

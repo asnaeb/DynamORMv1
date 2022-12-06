@@ -2,24 +2,25 @@ import {DynamoDBLocal} from '../env/DynamoDBLocal.js'
 import {Legacy, Table} from '../env/DynamORM.js'
 import {TABLE_DESCR} from '../../lib/private/Weakmaps.js'
 import {ATTRIBUTES} from '../../lib/private/Symbols.js'
+import {Increment, Overwrite} from '../../lib/operators/Functions.js'
 
 const {Connect, RangeKey, HashKey, TimeToLive, Attribute} = Legacy
 
-@Connect
+@Connect()
 class LegacyTest extends Table {
-    @HashKey.S
+    @HashKey.S()
     a?: string
 
-    @RangeKey.N
+    @RangeKey.N()
     b?: number
 
-    @Attribute.B
+    @Attribute.B()
     c?: Uint8Array
 
-    @Attribute.M
-    d?: {a: 0, b: 'hello'}
+    @Attribute.M()
+    d?: {a: 0; b: 'hello'}
 
-    @TimeToLive
+    @TimeToLive()
     e?: number
 }
 
@@ -33,8 +34,10 @@ await LegacyTest.create()
 
 await LegacyTest.make({a: 'asnaeb', b: 0, c: new Uint8Array([1, 2, 3])}).save()
 
-const {Data} =  await LegacyTest.select({asnaeb: 0}).get()
+await LegacyTest.select({asnaeb: 0}).update({e: Increment(40)})
 
-console.log(Data?.[0].raw().c)
+const {Data} = await LegacyTest.select({asnaeb: 0}).get()
+
+console.log(Data?.[0])
 
 await DB.kill()

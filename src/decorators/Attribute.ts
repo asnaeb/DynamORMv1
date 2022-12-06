@@ -4,24 +4,25 @@ import {SharedInfo} from '../interfaces/SharedInfo'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
-    AttributeType?: DynamoDBTypeAlias
+    AttributeType: DynamoDBTypeAlias | 'ANY'
     AttributeName?: string
 }
 
 function decoratorFactory<X>({SharedInfo, AttributeType, AttributeName}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, ctx: ClassFieldDecoratorContext<DynamORMTable, T>) {
+    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+        name = String(name)
+
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[<string>ctx.name] = AttributeType ?? 'ANY'
+        SharedInfo.Attributes[name] = {AttributeType}
+        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
     }
 }
 
 export function Attribute(SharedInfo: SharedInfo) {
-    function decorator<T>(AttributeType?: DynamoDBTypeAlias) {
-        return Object.assign(decoratorFactory<T>({SharedInfo, AttributeType}), {
-            AttributeName(AttributeName: string) {
-                return decoratorFactory<T>({SharedInfo, AttributeType, AttributeName})
-            }
-        })
+    function decorator<T>(AttributeType: DynamoDBTypeAlias | 'ANY') {
+        return function({AttributeName}: {AttributeName?: string} = {}) {
+            return decoratorFactory<T>({SharedInfo, AttributeType, AttributeName})
+        }
     }
 
     return Object.assign(decorator<
@@ -34,7 +35,7 @@ export function Attribute(SharedInfo: SharedInfo) {
         | Uint8Array
         | DynamoDBNativeType[]
         | DynamoDBMap
-    >(), {
+    >('ANY'), {
         get S() {return decorator<string>(DynamoDBTypeAlias.S)},
         get N() {return decorator<number>(DynamoDBTypeAlias.N)},
         get B() {return decorator<Uint8Array>(DynamoDBTypeAlias.B)},

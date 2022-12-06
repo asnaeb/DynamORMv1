@@ -45,7 +45,7 @@ describe('Binary data and primary key', () => {
     before(() => DDB.start());
     after(() => DDB.kill());
     let BinaryTest = (() => {
-        let _classDecorators = [Connect];
+        let _classDecorators = [Connect()];
         let _classDescriptor;
         let _classExtraInitializers = [];
         let _classThis;
@@ -60,10 +60,10 @@ describe('Binary data and primary key', () => {
         let _encoding_initializers = [];
         var BinaryTest = class extends Table {
             static {
-                _name_decorators = [HashKey.S];
-                _extension_decorators = [RangeKey.S];
-                _data_decorators = [Attribute];
-                _encoding_decorators = [Attribute];
+                _name_decorators = [HashKey.S()];
+                _extension_decorators = [RangeKey.S()];
+                _data_decorators = [Attribute()];
+                _encoding_decorators = [Attribute()];
                 __esDecorate(null, null, _name_decorators, { kind: "field", name: "name", static: false, private: false, access: { get() { return this.name; }, set(value) { this.name = value; } } }, _name_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _extension_decorators, { kind: "field", name: "extension", static: false, private: false, access: { get() { return this.extension; }, set(value) { this.extension = value; } } }, _extension_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _data_decorators, { kind: "field", name: "data", static: false, private: false, access: { get() { return this.data; }, set(value) { this.data = value; } } }, _data_initializers, _instanceExtraInitializers);
@@ -93,6 +93,10 @@ describe('Binary data and primary key', () => {
             async getDataFromDisk(path) {
                 this.data = await readFile(path);
             }
+            toString() {
+                if (this.data)
+                    return Buffer.from(this.data).toString(this.encoding);
+            }
         };
         return BinaryTest = _classThis;
     })();
@@ -103,12 +107,12 @@ describe('Binary data and primary key', () => {
         txt.encoding = 'utf-8';
         await txt.save();
         const jpg = new BinaryTest('example', '.jpg');
+        jpg.encoding = 'base64';
         await jpg.getDataFromDisk(join(homedir(), 'Pictures', 'io.jpg'));
         await jpg.save();
     });
     it('Retrieve item and write buffer to file', async () => {
         const { Data } = await BinaryTest.select({ example: ['.txt', '.jpg'] }).get();
-        console.log(Data?.[0]);
         const path = './tests.resources/';
         if (Data)
             for (const file of Data)

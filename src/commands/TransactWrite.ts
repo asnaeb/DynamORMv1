@@ -6,8 +6,7 @@ import {type DynamoDBDocumentClient, TransactWriteCommand} from '@aws-sdk/lib-dy
 import {Put} from './Put'
 import {Delete} from './Delete'
 import {Update} from './Update'
-import {validateKey} from '../validation/key'
-import {KeyGenerator} from '../generators/KeyGenerator'
+import {Serializer} from '../serializer/Serializer'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 
 export class TransactWrite {
@@ -22,7 +21,7 @@ export class TransactWrite {
     }
 
     #filterKeys<T extends DynamORMTable>(table: Constructor<T>, keys: PrimaryKeys<T>) {
-        let generatedKeys = new KeyGenerator(table).generateKeys(keys).filter(k => validateKey(table, k))
+        let generatedKeys = new Serializer(table).generateKeys(keys)
         if (generatedKeys.length > 100) {
             //TODO Log Warning
             return generatedKeys.slice(0, 99)
@@ -30,9 +29,11 @@ export class TransactWrite {
         return generatedKeys
     }
 
-    #addPut<T extends DynamORMTable>(Target: Constructor<T>, items: T[]) {
+    #addPut<T extends DynamORMTable>(Target: Constructor<T>, {serialize}: Serializer<T>, items: T[]) {
         if (this.#TransactWrite.TransactItems?.length! < 100) {
-            items.forEach(Item => this.#TransactWrite.TransactItems?.push({Put: new Put({Target, Item}).commandInput}))
+            items.forEach(i => this.#TransactWrite.TransactItems?.push({
+                Put: new Put({Target, Item: serialize(i)}).commandInput
+            }))
         } else {
             // TODO Log warning
         }
@@ -48,10 +49,19 @@ export class TransactWrite {
         }
     }
 
-    #addUpdate<T extends DynamORMTable>(Target: Constructor<T>, keys: PrimaryKeys<T>, UpdateObject: TUpdate<T>, Conditions?: Condition<T>[]) {
+    #addUpdate<T extends DynamORMTable>(Target: Constructor<T>,
+        {serialize}: Serializer<T>,
+        keys: PrimaryKeys<T>,
+        UpdateObject: TUpdate<T>,
+        Conditions?: Condition<T>[]) {
         if (this.#TransactWrite.TransactItems?.length! < 100) {
             this.#filterKeys(Target, keys).forEach(Key =>
-                new Update({Target, Key, UpdateObject, Conditions}).commandInput.forEach(i =>
+                new Update({
+                    Target,
+                    Key,
+                    UpdateObject: serialize(UpdateObject, 'preserve'),
+                    Conditions: Conditions?.map(c => serialize(c))
+                }).commandInput.forEach(i =>
                     this.#TransactWrite.TransactItems?.push({Update: i as Required<typeof i>})))
         } else {
             // TODO Log warning
@@ -59,13 +69,14 @@ export class TransactWrite {
     }
 
     public selectTable<T extends DynamORMTable>(table: Constructor<T>) {
+        const serializer = new Serializer(table)
         return {
-            addPutRequest: (...items: T[]) => this.#addPut(table, items),
+            addPutRequest: (...items: T[]) => this.#addPut(table, serializer, items),
             selectKeys: (...keys: PrimaryKeys<T>) => {
                 const conditions: Condition<T>[] = []
                 const commands = {
                     addDeleteRequest: () => this.#addDelete(table, keys, conditions),
-                    addUpdateRequest: (update: TUpdate<T>) => this.#addUpdate(table, keys, update, conditions)
+                    addUpdateRequest: (update: TUpdate<T>) => this.#addUpdate(table, serializer, keys, update, conditions)
                 }
                 const or = (condition: Condition<T>) => {
                     conditions.push(condition)

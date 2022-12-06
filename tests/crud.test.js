@@ -42,7 +42,7 @@ describe('Crud operations test', () => {
     before(() => DDB.start());
     after(() => DDB.kill());
     let Crud = (() => {
-        let _classDecorators = [Connect];
+        let _classDecorators = [Connect()];
         let _classDescriptor;
         let _classExtraInitializers = [];
         let _classThis;
@@ -57,10 +57,10 @@ describe('Crud operations test', () => {
         let _d_initializers = [];
         var Crud = class extends Table {
             static {
-                _a_decorators = [HashKey.S];
-                _b_decorators = [RangeKey.N];
-                _c_decorators = [Attribute];
-                _d_decorators = [Attribute];
+                _a_decorators = [HashKey.S()];
+                _b_decorators = [RangeKey.N()];
+                _c_decorators = [Attribute.M()];
+                _d_decorators = [Attribute.NULL()];
                 __esDecorate(null, null, _a_decorators, { kind: "field", name: "a", static: false, private: false, access: { get() { return this.a; }, set(value) { this.a = value; } } }, _a_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _b_decorators, { kind: "field", name: "b", static: false, private: false, access: { get() { return this.b; }, set(value) { this.b = value; } } }, _b_initializers, _instanceExtraInitializers);
                 __esDecorate(null, null, _c_decorators, { kind: "field", name: "c", static: false, private: false, access: { get() { return this.c; }, set(value) { this.c = value; } } }, _c_initializers, _instanceExtraInitializers);

@@ -13,7 +13,7 @@ export function isObject<T extends Record<PropertyKey, any>>(obj: any): obj is T
         )
 }
 
-export function removeUndefined<T extends {[p: PropertyKey]: any}>(target: T) {
+export function removeUndefined<T extends Record<PropertyKey, any>>(target: T) {
     if (isObject(target)) {
         for (const key of Reflect.ownKeys(target)) {
             if (target[key] === undefined)
@@ -36,8 +36,12 @@ export function splitToChunks<T>(array: T[], maxLength: number): T[][] {
     return [array]
 }
 
-export function makeAlphaNumeric(name: string) {
+export function alphaNumericDotDash(name: string) {
     return name.replace(/[^a-zA-Z0-9\-._]/g, '')
+}
+
+export function alphaNumeric(name: string) {
+    return name.replace(/[^a-zA-Z0-9_]/g, '')
 }
 
 export function mergeNumericProps<T extends {[p: string]: any}>(responses: T[]) {
