@@ -21,23 +21,23 @@ let LegacyTest = class LegacyTest extends Table {
     e;
 };
 __decorate([
-    HashKey.S({ AttributeName: '@Partition Key' }),
+    HashKey.S(),
     __metadata("design:type", String)
 ], LegacyTest.prototype, "a", void 0);
 __decorate([
-    RangeKey.N({ AttributeName: '@Sort Key' }),
+    RangeKey.N(),
     __metadata("design:type", Number)
 ], LegacyTest.prototype, "b", void 0);
 __decorate([
-    Attribute.B({ AttributeName: '@Binary Attribute' }),
+    Attribute.B(),
     __metadata("design:type", Uint8Array)
 ], LegacyTest.prototype, "c", void 0);
 __decorate([
-    Attribute.M({ AttributeName: '@Map Attribute' }),
+    Attribute.M(),
     __metadata("design:type", Object)
 ], LegacyTest.prototype, "d", void 0);
 __decorate([
-    TimeToLive({ AttributeName: '@Time To Live' }),
+    TimeToLive({ AttributeName: '@TTL' }),
     __metadata("design:type", Number)
 ], LegacyTest.prototype, "e", void 0);
 LegacyTest = __decorate([

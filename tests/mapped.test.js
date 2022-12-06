@@ -36,7 +36,7 @@ import { DynamoDBLocal } from './env/DynamoDBLocal.js';
 import { Connect, Table, HashKey, Attribute, RangeKey } from './env/DynamORM.js';
 const db = new DynamoDBLocal();
 let MappedTest = (() => {
-    let _classDecorators = [Connect({ TableName: 'Mapped Names Table' })];
+    let _classDecorators = [Connect({ TableName: 'Mapped.Names.Table' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -49,9 +49,9 @@ let MappedTest = (() => {
     let _c_initializers = [];
     var MappedTest = class extends Table {
         static {
-            _a_decorators = [HashKey.S({ AttributeName: 'TheHash' })];
-            _b_decorators = [RangeKey.N({ AttributeName: 'TheRange' })];
-            _c_decorators = [Attribute.S({ AttributeName: 'FirstAttribtue' })];
+            _a_decorators = [HashKey.S({ AttributeName: 'The-Hash' })];
+            _b_decorators = [RangeKey.N({ AttributeName: 'The-Range' })];
+            _c_decorators = [Attribute.S({ AttributeName: 'First-Attribute' })];
             __esDecorate(null, null, _a_decorators, { kind: "field", name: "a", static: false, private: false, access: { get() { return this.a; }, set(value) { this.a = value; } } }, _a_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _b_decorators, { kind: "field", name: "b", static: false, private: false, access: { get() { return this.b; }, set(value) { this.b = value; } } }, _b_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _c_decorators, { kind: "field", name: "c", static: false, private: false, access: { get() { return this.c; }, set(value) { this.c = value; } } }, _c_initializers, _instanceExtraInitializers);
@@ -66,9 +66,8 @@ let MappedTest = (() => {
     return MappedTest = _classThis;
 })();
 await db.start();
-const create = await MappedTest.create();
-console.log('TableName', create.Data?.TableName);
+await MappedTest.create();
 await MappedTest.make({ a: 'hello', b: 1, c: '33' }).save();
 const { Data } = await MappedTest.select({ hello: 1 }).get();
-console.log(Data);
+console.log(Data?.[0].raw);
 await db.kill();

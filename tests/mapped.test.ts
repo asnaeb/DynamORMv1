@@ -5,27 +5,26 @@ import {ATTRIBUTES} from '../lib/private/Symbols.js'
 
 const db = new DynamoDBLocal()
 
-@Connect({TableName: 'Mapped Names Table'})
+@Connect({TableName: 'Mapped.Names.Table'})
 class MappedTest extends Table {
-    @HashKey.S({AttributeName: 'TheHash'})
+    @HashKey.S({AttributeName: 'The-Hash'})
     a?: string
 
-    @RangeKey.N({AttributeName: 'TheRange'})
+    @RangeKey.N({AttributeName: 'The-Range'})
     b?: number
 
-    @Attribute.S({AttributeName: 'FirstAttribtue'})
+    @Attribute.S({AttributeName: 'First-Attribute'})
     c?: string
 }
 
 await db.start()
 
-const create = await MappedTest.create()
-console.log('TableName', create.Data?.TableName)
+await MappedTest.create()
 
 await MappedTest.make({a: 'hello', b: 1, c: '33'}).save()
 
 const {Data} = await MappedTest.select({hello: 1}).get()
 
-console.log(Data)
+console.log(Data?.[0].raw)
 
 await db.kill()

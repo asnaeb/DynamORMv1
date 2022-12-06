@@ -122,13 +122,15 @@ export class Serializer<T extends DynamORMTable> {
     public serialize<T extends Record<PropertyKey, any>>(element: T, preserve?: 'preserve') {
         const attributes: DynamoDBRecord = {}
 
-        if (this.#Attributes) for (const k in element) {
+        if (this.#Attributes) for (let [k, v] of Object.entries(element)) {
             if (k in this.#Attributes) {
                 const name = this.#Attributes[k].AttributeName
 
-                if (name !== undefined && element[k] !== undefined) {
-                    const value = preserve ? element[k] : this.#finalizeValue(name, element[k])
-                    Object.assign(attributes, {[name]: value})
+                if (name !== undefined && v !== undefined) {
+                    if (!preserve)
+                        v = this.#finalizeValue(name, v)
+
+                    Object.assign(attributes, {[name]: v})
                 }
             }
         }
@@ -138,6 +140,17 @@ export class Serializer<T extends DynamORMTable> {
             Key: this.#extractKey(attributes),
             Attributes: this.#excludeKey(attributes)
         }
+    }
+
+    public deserialize(element: DynamoDBRecord) {
+        const instance = new (<new (...args: any) => T>this.#Table)()
+
+        if (this.#Attributes) for (const [k, value] of Object.entries(element))
+            for (const [$k, {AttributeName}] of Object.entries(this.#Attributes))
+                if (k === AttributeName || k === $k)
+                    Object.assign(instance, {[$k]: value})
+
+        return instance
     }
 
     public generateKeys(keys: PrimaryKeys<T>) {

@@ -54,10 +54,10 @@ export abstract class DynamORMTable {
     }
 
     public static async scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
-        const _this = this as unknown as typeof DynamORMTable
+        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
         const {output, error} = await new Scan({Target: this, Limit, ConsistentRead, IndexName}).send()
         return new Response({
-            Data: output?.Items?.map(i => _this.make(i)) as T[],
+            Data: output?.Items?.map(i => serializer?.deserialize(i)),
             Errors: error ? [error] : [],
             Info: {
                 ConsumedCapacity: output?.ConsumedCapacity,
@@ -87,7 +87,7 @@ export abstract class DynamORMTable {
         H: string | number,
         Q?: QueryObject<string | number> | QueryOptions,
         O?: QueryOptions) {
-        const _this = this as unknown as typeof DynamORMTable
+        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
         const Params: QueryParams<any> = {
             Target: this,
             HashValue: H
@@ -110,7 +110,7 @@ export abstract class DynamORMTable {
         const {output, error} = await new Query(Params).send()
 
         return new Response({
-            Data: output?.Items?.map(i => _this.make(i)) as T[],
+            Data: output?.Items?.map(i => serializer?.deserialize(i)),
             Errors: error ? [error] : undefined,
             Info: {
                 ConsumedCapacity: output?.ConsumedCapacity,
@@ -192,10 +192,10 @@ export abstract class DynamORMTable {
         Promise<Response<never, ResponseInfo & {ChunksSent?: number}>>{
         const Info: (ResponseInfo & {ChunksSent?: number})[] = []
         const Errors: Error[] = []
-        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)!
+        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
         const {outputs, errors} = await new TableBatchPut({
             Target: this,
-            Items: Items.map(i => serializer.serialize(i).Item ?? {})
+            Items: Items.map(i => serializer?.serialize(i).Item ?? {})
         }).send()
 
         outputs?.forEach(({ConsumedCapacity}) => {
@@ -251,8 +251,8 @@ export abstract class DynamORMTable {
         }
     }
 
-    public raw<T extends DynamORMTable>(this: T) {
-        const {Item} = TABLE_DESCR(this.constructor).get<Serializer<T>>(SERIALIZER)?.serialize(this)!
+    public get raw() {
+        const {Item} = TABLE_DESCR(this.constructor).get<Serializer<this>>(SERIALIZER)?.serialize(this)!
 
         for (const [k, v] of Object.entries(Item)) {
             if (v instanceof Uint8Array)

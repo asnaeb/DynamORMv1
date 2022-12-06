@@ -14,7 +14,7 @@ utility methods to work with them.
 import {readFile, writeFile, mkdir} from 'node:fs/promises'
 import {DynamORMClient, Table} from 'dynamorm'
 
-const {Connect, HashKey, RangeKey, Attribute} = new DynamORMClient({/* DynamoDB Config */})
+const {Connect, HashKey, RangeKey, Attribute, TimeToLive} = new DynamORMClient({/* DynamoDB Config */})
 
 @Connect({TableName: 'Files'})
 class FileItem extends Table {

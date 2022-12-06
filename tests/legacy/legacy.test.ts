@@ -18,9 +18,9 @@ class LegacyTest extends Table {
     c?: Uint8Array
 
     @Attribute.M()
-    d?: {a: 0; b: 'hello'}
+    d?: {a: number; b: string}
 
-    @TimeToLive()
+    @TimeToLive({AttributeName: '@TTL'})
     e?: number
 }
 

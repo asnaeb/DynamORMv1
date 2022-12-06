@@ -52,7 +52,7 @@ export class Select<T extends DynamORMTable> {
 
         for (const {output, error} of results) {
             if (output?.Attributes)
-                Data.push(this.#Target.make<any>(output?.Attributes))
+                Data.push(this.#Serializer.deserialize(output?.Attributes))
             if (output?.ConsumedCapacity)
                 Info.push({ConsumedCapacity: output?.ConsumedCapacity})
             if (error)
@@ -77,7 +77,7 @@ export class Select<T extends DynamORMTable> {
 
         for (const {output, error} of results) {
             if (output?.Attributes) {
-                Data.push(this.#Target.make<any>(output?.Attributes))
+                Data.push(this.#Serializer.deserialize(output?.Attributes))
                 Info.push({SuccessfulDeletes: 1})
             }
 
@@ -107,7 +107,7 @@ export class Select<T extends DynamORMTable> {
 
             for (const {output, error} of results) {
                 if (output?.Item) {
-                    Data.push(this.#Target.make<any>(output?.Item))
+                    Data.push(this.#Serializer.deserialize(output?.Item))
                     Info.push({ConsumedCapacity: output?.ConsumedCapacity})
                 }
 
@@ -118,7 +118,7 @@ export class Select<T extends DynamORMTable> {
             const {outputs, errors} = await new TableBatchGet({Target: this.#Target, Keys: this.#Keys}).send()
             outputs?.forEach(({Responses, ConsumedCapacity}) => {
                 // TODO Add chunks sent
-                Responses?.[TableName].forEach(i => Data.push(this.#Target.make<any>(i)))
+                Responses?.[TableName].forEach(i => Data.push(this.#Serializer.deserialize(i)))
                 ConsumedCapacity?.forEach(ConsumedCapacity => Info.push({ConsumedCapacity}))
             })
             errors?.forEach(e => Errors.push(e))
