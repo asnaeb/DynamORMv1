@@ -4,12 +4,12 @@ import {UpdateCommand} from '@aws-sdk/lib-dynamodb'
 import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {TABLE_DESCR} from '../private/Weakmaps'
-import {ConditionsGenerator} from './ConditionsGenerator'
+import {ConditionsGeneratorSync} from './ConditionsGeneratorSync'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE, TABLE_NAME} from '../private/Symbols'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {UpdateGeneratorParams} from '../interfaces/UpdateGeneratorParams'
 
-export class UpdateGenerator<T extends DynamORMTable> {
+export class UpdateGeneratorSync<T extends DynamORMTable> {
     readonly #Commands: UpdateCommand[] = []
 
     public get Commands() {
@@ -22,7 +22,7 @@ export class UpdateGenerator<T extends DynamORMTable> {
             new UpdateCommandGenerator(UpdateObject, Key, TableName, this.#Commands)
         const last = this.#Commands[this.#Commands.length - 1]
         if (Conditions?.length) {
-            const {ExpressionAttributeNames, ExpressionAttributeValues, ConditionExpression} = new ConditionsGenerator({Conditions})
+            const {ExpressionAttributeNames, ExpressionAttributeValues, ConditionExpression} = new ConditionsGeneratorSync({Conditions})
             Object.assign(last.input.ExpressionAttributeNames!, ExpressionAttributeNames)
             Object.assign(last.input.ExpressionAttributeValues!, ExpressionAttributeValues)
             last.input.ConditionExpression = ConditionExpression

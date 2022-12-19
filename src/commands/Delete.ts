@@ -1,7 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {DeleteCommand, type DeleteCommandInput, type DeleteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
-import {ConditionsGenerator} from '../generators/ConditionsGenerator'
+import {ConditionsGeneratorSync} from '../generators/ConditionsGeneratorSync'
 import {AttributeNames, AttributeValues} from '../types/Internal'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {DeleteParams} from '../interfaces/DeleteParams'
@@ -16,7 +16,7 @@ export class Delete <T extends DynamORMTable> extends TableCommand<DeleteCommand
         let ConditionExpression: string | undefined
 
         if (Conditions?.length) {
-            const generator = new ConditionsGenerator({Conditions})
+            const generator = new ConditionsGeneratorSync({Conditions})
             ExpressionAttributeNames = generator.ExpressionAttributeNames
             ExpressionAttributeValues = generator.ExpressionAttributeValues
             ConditionExpression = generator.ConditionExpression

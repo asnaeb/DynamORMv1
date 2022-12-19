@@ -6,7 +6,7 @@ import {Update as TUpdate} from '../types/Internal'
 import {ResponseInfo} from '../interfaces/ResponseInfo'
 import {Update} from './Update'
 import {Response} from './Response'
-import {mergeNumericProps} from '../utils/General'
+import {mergeNumericPropsSync} from '../utils/General'
 import {Delete} from './Delete'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
@@ -59,7 +59,7 @@ export class Select<T extends DynamORMTable> {
                 Errors.push(error)
         }
 
-        return new Response({Data, Errors, Info: mergeNumericProps(Info)})
+        return new Response({Data, Errors, Info: mergeNumericPropsSync(Info)})
     }
 
     async delete(): Promise<Response<T[], ResponseInfo & {SuccessfulDeletes?: number, FailedDeletes?: number}>> {
@@ -90,7 +90,7 @@ export class Select<T extends DynamORMTable> {
             }
         }
 
-        return new Response({Data, Errors, Info: mergeNumericProps(Info)})
+        return new Response({Data, Errors, Info: mergeNumericPropsSync(Info)})
     }
 
     async get({ConsistentRead}: {ConsistentRead?: boolean} = {}) {
@@ -123,7 +123,7 @@ export class Select<T extends DynamORMTable> {
             })
             errors?.forEach(e => Errors.push(e))
         }
-        return new Response({Data, Errors, Info: mergeNumericProps(Info)})
+        return new Response({Data, Errors, Info: mergeNumericPropsSync(Info)})
     }
 
     async batchDelete(): Promise<Response<never, ResponseInfo & {ChunksSent?: number}>> {
@@ -135,16 +135,24 @@ export class Select<T extends DynamORMTable> {
             ConsumedCapacity?.forEach(ConsumedCapacity => Info.push({ConsumedCapacity}))
         })
         errors?.forEach(e => Errors.push(e))
-        return new Response({Errors, Info: mergeNumericProps(Info)})
+        return new Response({Errors, Info: mergeNumericPropsSync(Info)})
     }
 
     #or(condition: Condition<T>) {
         this.#Conditions.push(condition)
-        return Object.freeze({or: this.#or, update: this.update, delete: this.delete})
+        return Object.freeze({
+            or: this.#or,
+            update: this.update.bind(this),
+            delete: this.delete.bind(this)
+        })
     }
 
     if(condition: Condition<T>) {
         this.#Conditions.push(condition)
-        return Object.freeze({or: this.#or, update: this.update, delete: this.delete})
+        return Object.freeze({
+            or: this.#or.bind(this),
+            update: this.update.bind(this),
+            delete: this.delete.bind(this)
+        })
     }
 }

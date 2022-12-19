@@ -1,4 +1,4 @@
-import type {ConditionSymbols, UpdateSymbols, QuerySymbols, QueryObject, Update} from '../types/Internal'
+import type {ConditionSymbols, UpdateSymbols, QuerySymbols, QueryObject, Update, Condition} from '../types/Internal'
 import {QUERY, CONDITION, UPDATE} from '../private/Symbols'
 
 export function isQuerySymbol(key: PropertyKey): key is QuerySymbols {
@@ -12,6 +12,10 @@ export function isQueryObject(object: any): object is QueryObject<any> {
 
 export function isConditionSymbol(key: PropertyKey): key is ConditionSymbols {
     return typeof key === 'symbol' && Object.entries(CONDITION).some(([, s]) => s === key)
+}
+
+export function isConditionObject(object: any): object is Condition<any> {
+    return Reflect.ownKeys(object).every(k => isConditionSymbol(k))
 }
 
 export function isUpdateSymbol(key: PropertyKey): key is UpdateSymbols {

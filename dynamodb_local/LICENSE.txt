@@ -26,7 +26,7 @@ The Software is provided to the U.S. Government as “commercial items,” “co
 Amendment
 AWS Licensor may amend this License at its sole discretion by posting the revised terms on the AWS website (aws.amazon.com) or within the Software. Your continued use of the Software after any amendment's effective date evidences your agreement to be bound by it.
 Conflicts
-The terms of this License govern the Software and any updates or upgrades to the Software that AWS Licensor may provide that replace or supplement the original Software, unless the update or upgrade is accompanied by a separate license, in which case the terms of that license will govern.
+The terms of this License govern the Software and any updates or upgrades to the Software that AWS Licensor may provide that replace or supplement the original Software, unless the SET or upgrade is accompanied by a separate license, in which case the terms of that license will govern.
 
 Note
 Other license terms may apply to certain, identified software files contained within or distributed with the accompanying software if such terms are included in the file THIRD-PARTY-LICENSES.txt. Such other license terms will then apply in lieu of the terms of the software license above.

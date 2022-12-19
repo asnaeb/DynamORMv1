@@ -100,7 +100,7 @@ describe('Binary data and primary key', () => {
         };
         return BinaryTest = _classThis;
     })();
-    it('Create table', () => BinaryTest.create());
+    it('Create table', () => BinaryTest.createTable());
     it('Create item and put', async () => {
         const txt = new BinaryTest('example', '.txt');
         txt.data = Buffer.from('This is an example text file');

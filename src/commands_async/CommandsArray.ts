@@ -1,102 +1,60 @@
-import {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
+import type {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
+import {AsyncArray} from '@asn.aeb/async-array'
+import type {DynamORMTable} from '../table/DynamORMTable'
+import type {Constructor} from '../types/Utils'
 import {Command} from './Command'
-import {DynamORMTable} from '../table/DynamORMTable'
-import {_Response, TResponse} from '../commands/Response'
-import {isObject, mergeNumericProps} from '../utils/General'
-import {DynamoDBRecord} from '../types/Internal'
-import {Constructor} from '../types/Utils'
-import { ConsumedCapacity } from '@aws-sdk/client-dynamodb'
 
-export abstract class CommandsList<T extends DynamORMTable, O extends ServiceOutputTypes> extends Command<T> {
-    protected static responsesEvent = Symbol('responses')
+//type Responses<T> = {output?: T; error?: Error}[]
+
+export abstract class CommandsArray<T extends DynamORMTable, O extends ServiceOutputTypes> extends Command<T, O> {
     protected static commandsEvent = Symbol('commands')
 
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(CommandsList.commandsEvent, commands => {
-            const commandsLength = commands.length
-            const responses: {output?: O; error?: Error}[] = []
-            const promises: Promise<O>[] = []
-
-            const iterateCommands = async (i = 0) => {
-                if (i === commandsLength) {
-                    const settled = await Promise.allSettled(promises)
-                    const settledLength = settled.length
-
-                    const iterateSettled = (i = 0) => {
-                        if (i === settledLength)
-                            return this.emit(CommandsList.responsesEvent, responses)
-
-                        const data = settled[i]
-
-                        if (data.status === 'fulfilled')
-                            responses.push({output: data.value})
-                        else
-                            responses.push({error: data.reason})
-
-                        setImmediate(iterateSettled, ++i)
-                    }
-
-                    return iterateSettled()
-                }
-
-                promises.push(this.client?.send<any, O>(commands[i]))
-                setImmediate(iterateCommands, ++i)
-            }
-
-            iterateCommands()
-        })
-    }
-
-    protected make_response
-    <
-        S extends string,
-        F extends string,
-        D extends keyof O | undefined,
-        I extends {ConsumedCapacity?: ConsumedCapacity} & {[K in S]?: number} & {[K in F]?: number}
-    >
-    (successKey: S, failKey: F, dataKey?: D) {
-        return new Promise<TResponse<T[], D, I>>(resolve => {
-            this.once(CommandsList.responsesEvent, responses => {
-                let data: T[], errors: Error[]
-
-                const responsesLength = responses.length
-                const infos: I[] = []
-
-                const iterateResponses = async (i = 0) => {
-                    if (i === responsesLength) {
-                        const info = await mergeNumericProps(infos)
-                        const response = _Response<T[], D, I>(data, info, errors)
-                        return resolve(response)
-                    }
-
-                    const {output, error} = responses[i]
-
-                    if (output) {
-                        if (dataKey && output[dataKey]) {
-                            data ??= []
-                            data.push(this.serializer.deserialize(<DynamoDBRecord>output[dataKey]))
-                            infos.push({[successKey]: 1} as I)
-                        } else if (dataKey && !output[dataKey])
-                            infos.push({[failKey]: 1} as I)
-                        else
-                            infos.push({[successKey]: 1} as I)
-
-                        infos.push({ConsumedCapacity: output.ConsumedCapacity} as I)
-                    }
-
-                    if (error) {
-                        errors ??= []
-                        errors.push(error)
-                        infos.push({[failKey]: 1} as  I)
-                    }
-
-                    setImmediate(iterateResponses, ++i)
-                }
-
-                iterateResponses()
+        this.once(CommandsArray.commandsEvent, async (commands: any[], length?: number) => {
+            const promises = await AsyncArray.from(commands).map(command => this.client.send(command))
+            const settled = await Promise.allSettled(promises) 
+            const responses = await AsyncArray.from(settled).map(data => {
+                if (data.status === 'fulfilled')
+                    return {output: data.value}
+                
+                return {error: data.reason}
             })
+
+            this.emit(Command.responsesEvent, responses, length)
+
+            // const commandsLength = commands.length
+            // const responses: Responses<O> = []
+            // const promises: Promise<O>[] = []            
+
+            // const iterateCommands = async (i = 0) => {
+            //     if (i === commandsLength) {
+            //         const settled = await Promise.allSettled(promises)
+            //         const settledLength = settled.length
+
+            //         const iterateSettled = (i = 0) => {
+            //             if (i === settledLength)
+            //                 return this.emit(Command.responsesEvent, responses, length)
+
+            //             const data = settled[i]
+
+            //             if (data.status === 'fulfilled')
+            //                 responses.push({output: data.value})
+            //             else
+            //                 responses.push({error: data.reason})
+
+            //             setImmediate(iterateSettled, ++i)
+            //         }
+
+            //         return iterateSettled()
+            //     }
+
+            //     promises.push(this.client?.send<any, O>(commands[i]))
+            //     setImmediate(iterateCommands, ++i)
+            // }
+
+            // iterateCommands()
         })
     }
 }

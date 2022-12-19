@@ -49,13 +49,13 @@ describe('Binary data and primary key', () => {
             this.data = await readFile(path)
         }
 
-        toString() {
+        override toString() {
             if (this.data)
                 return Buffer.from(this.data).toString(this.encoding)
         }
     }
 
-    it('Create table', () => BinaryTest.create())
+    it('Create table', () => BinaryTest.createTable())
 
     it('Create item and put', async () => {
         const txt = new BinaryTest('example', '.txt')
@@ -74,8 +74,7 @@ describe('Binary data and primary key', () => {
 
         const path = './tests.resources/'
 
-        if (Data) for (const file of Data)
-            await file.writeFileToDisk(path)
+        if (Data) for (const file of Data) await file.writeFileToDisk(path)
 
         const rl = readline.createInterface(process.stdin, process.stdout)
         const answer = await rl.question('Are the correct files present in ./tests.resources? y/n ')

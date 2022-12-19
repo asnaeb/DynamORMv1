@@ -2,11 +2,11 @@ import {UpdateCommand, type UpdateCommandInput} from '@aws-sdk/lib-dynamodb'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {EventEmitter} from 'node:events'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {AttributeNames, AttributeValues, Condition, Update} from '../types/Internal'
+import {AttributeNames, AttributeValues, Condition, Update, Key} from '../types/Internal'
 import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE} from '../private/Symbols'
-import {AsyncConditionsGenerator} from './AsyncConditionsGenerator'
+import {generateCondition} from './ConditionsGenerator'
 import {GenerateUpdateParams} from '../interfaces/GenerateUpdateParams'
 
 interface ExpressionsMap {
@@ -16,15 +16,24 @@ interface ExpressionsMap {
     DELETE: string[]
 }
 
-export class AsyncUpdateGenerator<T extends DynamORMTable> extends EventEmitter {
+type UpdateParams<T extends DynamORMTable> = [
+    tableName: string,
+    key: Key,
+    updates: Update<T>,
+    conditions?: Condition<T>[]
+]
+
+const doneEvent = Symbol('done')
+
+class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
     #commands: UpdateCommand[] = []
 
-    constructor({Update, TableName, Key, Conditions}: GenerateUpdateParams<T>) {
+    constructor(TableName: string, Key: Key, updates: Update<T>, conditions?: Condition<T>[]) {
         super({captureRejections: true})
 
         this.on('error', e => console.log(e))
 
-        const iterateUpdate = (update = Update, path: string[] = [], top = true) => {
+        const iterateUpdate = (update = updates, path: string[] = [], top = true) => {
             const keys = Object.keys(update)
             const keysLength = keys.length
 
@@ -45,10 +54,10 @@ export class AsyncUpdateGenerator<T extends DynamORMTable> extends EventEmitter 
                     if (top) {
                         this.#commands.reverse()
 
-                        if (Conditions)
-                            return this.#addCondition(Conditions)
+                        if (conditions?.length)
+                            return this.#addCondition(conditions)
 
-                        return this.emit('done', this.#commands)
+                        return this.emit(doneEvent, this.#commands)
                     }
 
                     return
@@ -111,17 +120,17 @@ export class AsyncUpdateGenerator<T extends DynamORMTable> extends EventEmitter 
     }
 
     #addCondition(conditions: Condition<T>[]) {
-        return new AsyncConditionsGenerator(conditions).on('done', data => {
+        return generateCondition(conditions).then(data => {
             const first = this.#commands.at(0)
 
             if (first) {
                 first.input.ExpressionAttributeNames ??= {}
                 first.input.ExpressionAttributeValues ??= {}
-                first.input.ConditionExpression = data.conditionExpression
-                Object.assign(first.input.ExpressionAttributeNames, data.attributeNames)
-                Object.assign(first.input.ExpressionAttributeValues, data.attributeValues)
+                first.input.ConditionExpression = data.ConditionExpression
+                Object.assign(first.input.ExpressionAttributeNames, data.ExpressionAttributeNames)
+                Object.assign(first.input.ExpressionAttributeValues, data.ExpressionAttributeValues)
 
-                return this.emit('done', this.#commands)
+                return this.emit(doneEvent, this.#commands)
             }
         })
     }
@@ -183,6 +192,6 @@ export class AsyncUpdateGenerator<T extends DynamORMTable> extends EventEmitter 
         }
 }
 
-export function generateUpdate<T extends DynamORMTable>(params: GenerateUpdateParams<T>): Promise<UpdateCommand[]> {
-    return new Promise(resolve => new AsyncUpdateGenerator(params).on('done', data => resolve(data)))
+export function generateUpdate<T extends DynamORMTable>(...args: UpdateParams<T>): Promise<UpdateCommand[]> {
+    return new Promise<UpdateCommand[]>(resolve => new UpdateGenerator(...args).once(doneEvent, data => resolve(data)))
 }

@@ -1,27 +1,28 @@
 import type {QueryObject, PrimaryKeys, ValidRecord} from '../types/Internal'
 import type {Constructor} from '../types/Utils'
 import {Query} from '../commands/Query'
-import {CreateTable} from '../commands/CreateTable'
-import {DeleteTable} from '../commands/DeleteTable'
-import {DescribeTable} from '../commands/DescribeTable'
-import {Put} from '../commands/Put'
+import {CreateTable} from '../commands_async/CreateTable'
+import {DeleteTable} from '../commands_async/DeleteTable'
+import {DescribeTable} from '../commands_async/DescribeTable'
+import {Put} from '../commands_async/Put'
+import {Delete as DeleteAsync} from '../commands_async/Delete'
 import {Delete} from '../commands/Delete'
 import {Save} from '../commands/Save'
 import {Scan} from '../commands/Scan'
 import {Response} from '../commands/Response'
 import {TableBatchPut} from '../commands/TableBatchPut'
 import {isQueryObject} from '../validation/symbols'
-import {mergeNumericProps, isObject} from '../utils/General'
+import {mergeNumericPropsSync, isObject} from '../utils/General'
 import {Serializer} from '../serializer/Serializer'
 import {CreateTableParams} from '../interfaces/CreateTableParams'
 import {QueryParams} from '../interfaces/QueryParams'
 import {QueryOptions} from '../interfaces/QueryOptions'
 import {ScanOptions} from '../interfaces/ScanOptions'
 import {ResponseInfo} from '../interfaces/ResponseInfo'
-import {Select} from '../commands/Select'
+import {Select} from './Select'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
-import {Buffer} from 'buffer'
+import {BatchWriteSingle} from '../commands_async/BatchWriteSingle'
 
 export abstract class DynamORMTable {
     public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: ValidRecord<T>) {
@@ -34,19 +35,16 @@ export abstract class DynamORMTable {
         return instance
     }
 
-    public static async create({TableClass, ProvisionedThroughput, StreamViewType}: Omit<CreateTableParams<any>, 'Target'> = {}) {
-        const {output, error} = await new CreateTable({Target: this, TableClass, ProvisionedThroughput, StreamViewType}).send()
-        return new Response({Data: output?.TableDescription, Errors: error ? [error] : []})
+    public static async createTable({TableClass, ProvisionedThroughput, StreamViewType}: CreateTableParams = {}) {
+        return new CreateTable(this, ProvisionedThroughput, TableClass, StreamViewType).response
     }
 
-    public static async delete() {
-        const {output, error} = await new DeleteTable(this).send()
-        return new Response({Data: output?.TableDescription, Errors: error ? [error] : []})
+    public static async deleteTable() {
+        return new DeleteTable(this).response
     }
 
-    public static async describe() {
-        const {output, error} = await new DescribeTable(this).send()
-        return new Response({Data: output?.Table, Errors: error ? [error] : []})
+    public static async describeTable() {
+        return new DescribeTable(this).response
     }
 
     public static sync<T extends DynamORMTable>(this: Constructor<T>) {
@@ -67,26 +65,21 @@ export abstract class DynamORMTable {
         })
     }
 
-    // public static multiThreadScan<T extends DynamORMTable>(this: Constructor<T>, threads: number) {
-    //     const TableName = INFO(this).get(TABLE_NAME)
-    //     const ClientConfig = INFO(this).get(CLIENT_CONFIG)
-    //     return multiThreadScan({TableName, ClientConfig, TotalSegments: threads})
-    // }
-
     public static query<T extends DynamORMTable>(
         HashValue: string | number,
-        Options?: QueryOptions):
-        Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
+        Options?: QueryOptions
+    ): Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
     public static query<T extends DynamORMTable>(
         HashValue: string | number,
         RangeQuery: QueryObject<string | number>,
-        Options?: QueryOptions):
-        Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
+        Options?: QueryOptions
+    ): Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
     public static async query<T extends DynamORMTable>(
         this: Constructor<T>,
         H: string | number,
         Q?: QueryObject<string | number> | QueryOptions,
-        O?: QueryOptions) {
+        O?: QueryOptions
+    ) {
         const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
         const Params: QueryParams<any> = {
             Target: this,
@@ -167,55 +160,22 @@ export abstract class DynamORMTable {
     //     return {or, ...exec}
     // }
 
-    public static async put<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]):
-        Promise<Response<never, ResponseInfo & {SuccessfulPuts?: number; FailedPuts?: number}>> {
-        const Errors: Error[] = []
-        const Info: (ResponseInfo & {SuccessfulPuts?: number; FailedPuts?: number})[] = []
-        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
-        const results = await Promise.all(elements.map(i => new Put({Target: this,
-            Item: serializer?.serialize(i).Item ?? {}
-        }).send()))
-
-        for (const {output, error} of results) {
-            if (output)
-                Info.push({ConsumedCapacity: output?.ConsumedCapacity, SuccessfulPuts: 1})
-            if (error) {
-                Info.push({FailedPuts: 1})
-                Errors.push(error)
-            }
-        }
-
-        return new Response({Errors, Info: mergeNumericProps(Info)})
+    public static put<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
+        return new Put(this, elements).response
     }
 
-    public static async batchPut<T extends DynamORMTable>(this: Constructor<T>, ...Items: T[]):
-        Promise<Response<never, ResponseInfo & {ChunksSent?: number}>>{
-        const Info: (ResponseInfo & {ChunksSent?: number})[] = []
-        const Errors: Error[] = []
-        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
-        const {outputs, errors} = await new TableBatchPut({
-            Target: this,
-            Items: Items.map(i => serializer?.serialize(i).Item ?? {})
-        }).send()
-
-        outputs?.forEach(({ConsumedCapacity}) => {
-            Info.push({ChunksSent: 1})
-            ConsumedCapacity?.forEach(ConsumedCapacity => Info.push({ConsumedCapacity}))
-        })
-
-        errors?.forEach(e => Errors?.push(e))
-
-        return new Response({Errors, Info: mergeNumericProps(Info)})
+    public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
+        return new BatchWriteSingle(this, elements, 'BatchPut').response
     }
 
-    public static select<T extends DynamORMTable>(this: Constructor<T>, ...Keys: PrimaryKeys<T>) {
-        return new Select<T>({Target: this, Keys})
+    public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: PrimaryKeys<T>) {
+        return new Select(this, keys)
     }
 
     public async save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
         const Target = this.constructor as Constructor<T>
         const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
-        const {Key, Attributes, Item} = serializer?.serialize(this)
+        const {Key, Attributes} = serializer?.serialize(this)
 
         let result
 
@@ -226,38 +186,23 @@ export abstract class DynamORMTable {
                 // TODO Log warning
             }
         } else
-            result = await new Put({Target, Item}).send()
-
-        return new Response({
-            Info: result?.output?.ConsumedCapacity && {ConsumedCapacity: result.output.ConsumedCapacity},
-            Errors: result?.error && [result.error]
-        })
+            return new Put(Target, [this]).response
     }
 
     public async delete<T extends DynamORMTable>(this: T) {
         const Target = this.constructor as Constructor<T>
         const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
-        const {Key} = serializer.serialize(this)
+        const {Key} = serializer?.serialize(this)
 
-        if (Key) {
-            const {output, error} = await new Delete({Target, Key}).send()
-            return new Response({
-                Info: output?.ConsumedCapacity && {ConsumedCapacity: output?.ConsumedCapacity},
-                Errors: error && [error]
-            })
-        }
-        else {
-            // TODO Log warning
-        }
+        return new DeleteAsync(Target, [Key!])
     }
 
     public get raw() {
         const {Item} = TABLE_DESCR(this.constructor).get<Serializer<this>>(SERIALIZER)?.serialize(this)!
 
-        for (const [k, v] of Object.entries(Item)) {
+        for (const [k, v] of Object.entries(Item))
             if (v instanceof Uint8Array)
                 Item[k] = Buffer.from(v).toString('base64')
-        }
 
         return Item
     }

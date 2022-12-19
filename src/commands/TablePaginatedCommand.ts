@@ -2,7 +2,7 @@ import {paginateQuery, paginateScan, QueryCommand, ScanCommand, type ServiceInpu
 import {TableCommand} from './TableCommand'
 
 export abstract class TablePaginatedCommand<I extends ServiceInputTypes, O extends ServiceOutputTypes> extends TableCommand<I, O> {
-    public async send() {
+    public override async send() {
         let paginator, client, output, index
         try {
             if (this.DocumentClient) {

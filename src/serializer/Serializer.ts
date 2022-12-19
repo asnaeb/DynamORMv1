@@ -1,5 +1,5 @@
 import type {Constructor} from '../types/Utils'
-import type {KeySchemaElement} from '@aws-sdk/client-dynamodb'
+import type {AttributeValue, KeySchemaElement} from '@aws-sdk/client-dynamodb'
 import {ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {TABLE_DESCR} from '../private/Weakmaps'
@@ -94,7 +94,7 @@ export class Serializer<T extends DynamORMTable> {
                 break
         }
 
-        return DynamORMError.invalidConversion(this.#Table, key, typeof value, type ?? 'undefined')
+        return DynamORMError.invalidConversion(this.#Table, key, value, type ?? 'undefined')
     }
 
     #extractKey<T extends Record<PropertyKey, any>>(element: T) {
@@ -142,7 +142,7 @@ export class Serializer<T extends DynamORMTable> {
         }
     }
 
-    public deserialize(element: DynamoDBRecord) {
+    public deserialize(element: Record<string, AttributeValue>) {
         const instance = new (<new (...args: any) => T>this.#Table)()
 
         if (this.#Attributes) for (const [k, value] of Object.entries(element))

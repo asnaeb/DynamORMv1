@@ -66,8 +66,8 @@ let MappedTest = (() => {
     return MappedTest = _classThis;
 })();
 await db.start();
-await MappedTest.create();
+await MappedTest.createTable();
 await MappedTest.make({ a: 'hello', b: 1, c: '33' }).save();
-const { Data } = await MappedTest.select({ hello: 1 }).get();
-console.log(Data?.[0].raw);
+//const {Data} = await MappedTest.select({hello: 1}).get()
+//console.log(Data?.[0].raw)
 await db.kill();

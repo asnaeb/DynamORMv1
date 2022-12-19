@@ -1,7 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {ScanCommand, type ScanCommandInput, type ScanCommandOutput} from "@aws-sdk/lib-dynamodb"
 import {TablePaginatedCommand} from './TablePaginatedCommand'
-import {ConditionsGenerator} from '../generators/ConditionsGenerator'
+import {ConditionsGeneratorSync} from '../generators/ConditionsGeneratorSync'
 import {AttributeNames, AttributeValues} from '../types/Internal'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {ScanParams} from '../interfaces/ScanParams'
@@ -16,7 +16,7 @@ export class Scan<T extends DynamORMTable> extends TablePaginatedCommand<ScanCom
         let FilterExpression: string | undefined
 
         if (Filter) {
-            const generator = new ConditionsGenerator({Conditions: Filter})
+            const generator = new ConditionsGeneratorSync({Conditions: Filter})
 
             ExpressionAttributeNames = generator.ExpressionAttributeNames
             ExpressionAttributeValues = generator.ExpressionAttributeValues

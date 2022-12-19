@@ -11,37 +11,47 @@ export class RawBatchResponse<T> {
     public errors?: Error[]
 }
 
-export class Response<T, I extends ResponseInfo = ResponseInfo> {
-    #data?: T
-    #info?: I
-    #errors: Error[] | null
-    #ok: boolean
-
-    public get Data() {
-        return this.#data
-    }
-
-    public get Errors() {
-        return this.#errors
-    }
-
-    public get Info() {
-        return this.#info
-    }
-
-    public get OK() {
-        return this.#ok
-    }
+export class Response<T, I> {
+    Data?: T
+    Info?: I
+    Errors?: Error[] | null
+    OK: boolean
 
     constructor({Data, Errors, Info}: {Data?: T, Errors?: Error[], Info?: I} = {}) {
         if (Data)
-            this.#data = removeUndefined(Data)
+            this.Data = removeUndefined(Data)
 
         if (Info && Object.keys(Info).length)
-            this.#info = removeUndefined(Info)
+            this.Info = removeUndefined(Info)
 
-        this.#errors = Errors?.length ? Errors : null
+        if (Errors)
+            this.Errors = Errors
 
-        this.#ok = !!(!this.#errors && (this.#data || this.#info))
+        this.OK = !!(!this.Errors && (this.Data || this.Info))
+
+        return Object.freeze(this)
     }
+}
+
+export interface IResponse<T, I> {Data?: T; Info?: I; Errors?: Error[]; OK: boolean}
+
+export type TResponse<T, D, I> = Omit<IResponse<T, I>, 'Data' | 'Info'> &
+    (D extends undefined ? {} : {Data?: T}) &
+    (I extends undefined ? {} : {Info?: I})
+
+export function _Response<T, D, I>(data?: T, info?: I, errors?: Error[]) {
+    const response: IResponse<T, I> = {OK: false}
+
+    if (data)
+        response.Data = removeUndefined(data)
+
+    if (info && Object.keys(info).length)
+        response.Info = removeUndefined(info)
+
+    if (errors)
+        response.Errors = errors
+
+    response.OK = !!(!errors && (data || info))
+
+    return response as TResponse<T, D, I>
 }

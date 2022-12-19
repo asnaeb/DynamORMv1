@@ -19,12 +19,12 @@ class MappedTest extends Table {
 
 await db.start()
 
-await MappedTest.create()
+await MappedTest.createTable()
 
 await MappedTest.make({a: 'hello', b: 1, c: '33'}).save()
 
-const {Data} = await MappedTest.select({hello: 1}).get()
+//const {Data} = await MappedTest.select({hello: 1}).get()
 
-console.log(Data?.[0].raw)
+//console.log(Data?.[0].raw)
 
 await db.kill()

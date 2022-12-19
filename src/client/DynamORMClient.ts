@@ -68,13 +68,7 @@ export class DynamORMClient {
 
     public constructor(dynamoDBClientConfig: DynamoDBClientConfig) {
         this.#Config = dynamoDBClientConfig
-        this.#Client = new DynamoDBClient({
-            ...this.#Config,
-            logger: {
-                //@ts-ignore
-                info: undefined
-            }
-        })
+        this.#Client = new DynamoDBClient(this.#Config)
         this.#DocumentClient = DynamoDBDocumentClient.from(this.#Client, {
             marshallOptions: {
                 convertClassInstanceToMap: true,

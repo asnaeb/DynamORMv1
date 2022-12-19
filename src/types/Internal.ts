@@ -2,13 +2,15 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {QUERY, UPDATE, CONDITION} from '../private/Symbols'
 import type {ValueOf} from './Utils'
 import type * as SYMBOLS from '../private/Symbols'
+import {NativeAttributeBinary} from '@aws-sdk/util-dynamodb'
 
 export type DynamoDBNativeType = string
     | number
+    | bigint
     | boolean
     | null
-    | Set<string | number | Uint8Array>
-    | Uint8Array
+    | Set<string | number | bigint | NativeAttributeBinary>
+    | NativeAttributeBinary
     | DynamoDBNativeType[]
     | DynamoDBMap
     | undefined
@@ -17,15 +19,15 @@ type DynamoDBNonMapType = string
     | number
     | boolean
     | null
-    | Set<string | number | Uint8Array>
-    | Uint8Array
+    | Set<string | number | NativeAttributeBinary>
+    | NativeAttributeBinary
     | DynamoDBNativeType[]
     | undefined
 
 export type DynamoDBMap =
-    {[p: string | number]: DynamoDBNativeType | DynamoDBMap | undefined}
+    {[key: string]: DynamoDBNativeType | DynamoDBMap | undefined}
     | (new <T extends DynamoDBMap>(...args: any) => T)
-    | undefined // TODO class type should be included here?
+    | undefined
 
 export type DynamoDBRecord = Record<string, DynamoDBNativeType>
 

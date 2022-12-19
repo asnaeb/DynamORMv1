@@ -23,7 +23,7 @@ export class DynamoDBLocal {
         });
     }
     kill() {
-        this.#dynamodb?.kill('SIGINT');
+        this.#dynamodb?.kill();
         return new Promise(res => this.#dynamodb?.on('exit', code => {
             res(code);
             console.log(`LocalDynamoDB exited with code ${code}`);

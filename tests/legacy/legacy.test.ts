@@ -30,7 +30,7 @@ const DB = new DynamoDBLocal()
 
 await DB.start()
 
-await LegacyTest.create()
+await LegacyTest.createTable()
 
 await LegacyTest.make({a: 'asnaeb', b: 0, c: new Uint8Array([1, 2, 3])}).save()
 

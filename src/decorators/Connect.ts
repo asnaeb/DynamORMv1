@@ -14,10 +14,10 @@ import {
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {ConnectionParams} from '../interfaces/ConnectionParams'
-import {Serializer} from '../serializer/Serializer'
+import {Serializer} from '../serializer/SerializerAsync'
 
 function decoratorFactory({TableName, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
-    return function<T extends new (...args: any) => DynamORMTable>(target: T, ctx: ClassDecoratorContext) {
+    return function<T extends new (...args: any) => DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
         TABLE_DESCR(target).set(TABLE_NAME, alphaNumericDotDash(TableName ?? target.name))
         TABLE_DESCR(target).set(CLIENT, Client)
         TABLE_DESCR(target).set(DOCUMENT_CLIENT, DocumentClient)

@@ -2,7 +2,7 @@ import {ServiceInputTypes, ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
 import type {Constructor} from '../types/Utils'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {RawBatchResponse} from './Response'
-import {splitToChunks} from '../utils/General'
+import {splitToChunksSync} from '../utils/General'
 import {Command} from './Command'
 
 export abstract class TableBatchCommand<I extends ServiceInputTypes, O extends ServiceOutputTypes> extends Command<I, O> {
@@ -16,7 +16,7 @@ export abstract class TableBatchCommand<I extends ServiceInputTypes, O extends S
 
     protected constructor(target: Constructor<DynamORMTable>, protected inputs: any[]) {
         super(target)
-        this.inputs = splitToChunks(inputs, 25)
+        this.inputs = splitToChunksSync(inputs, 25)
     }
 
     public async send() {

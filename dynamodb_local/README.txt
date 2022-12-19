@@ -39,7 +39,7 @@ Release Notes
 2021-05-03 (1.16.0)
 
  * Improve the performance of DynamoDbLocal by reducing buffer size to 1KB from 16MB which reduces overall heap memory usage
- * Add a CORS header to DynamoDB local API responses in the case of Errors responses, which solves the issue of returning generic ResourceNotFoundException for all Errors
+ * Add a CORS header to DynamoDB local API outputs in the case of Errors outputs, which solves the issue of returning generic ResourceNotFoundException for all Errors
  * Add support for AWS SDK for Java 2.0
  * Fix wording of the exception messages shown when incorrect attribute definitions are passed in the create table command
 2021-02-08 (1.15.0)
@@ -55,9 +55,9 @@ Release Notes
 2020-12-21 (1.13.6)
 
   * Fix the XSS security issue in the DynamoDB JavaScript shell by sanitizing the input and output Data
-  * Add the log4j-core library dependency with the version update from 2.8 to 2.13.3
+  * Add the log4j-core library dependency with the version SET from 2.8 to 2.13.3
   * Fix the describe-stream CLI for the option, —exclusive-start-shard-id, to return basic streaminfo instead of RESOURCE_NOT_FOUND, if the requested shard-id does not match
-  * Fix GSI input to not mutate while creating a table with billing mode set to PAY_PER_REQUEST
+  * Fix GSI input to not mutate while creating a table with billing mode SET to PAY_PER_REQUEST
   * Update the Jetty library dependency version to 9.4.18.v20190429
 
 2020-10-13 (1.13.5)

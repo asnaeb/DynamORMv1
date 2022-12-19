@@ -3,8 +3,8 @@ import type {UpdateParams} from '../interfaces/UpdateParams'
 import {UpdateCommand, type UpdateCommandInput, type UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {Command} from './Command'
 import {RawResponse} from './Response'
-import {UpdateGenerator} from '../generators/UpdateGenerator'
-import {alphaNumeric, mergeNumericProps} from '../utils/General'
+import {UpdateGeneratorSync} from '../generators/UpdateGeneratorSync'
+import {alphaNumeric, mergeNumericPropsSync} from '../utils/General'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
 
 export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput, UpdateCommandOutput> {
@@ -19,7 +19,7 @@ export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput,
         super(Target)
         const PK = this.KeySchema?.[0]?.AttributeName
         const SK = this.KeySchema?.[1]?.AttributeName
-        this.#Commands = new UpdateGenerator({Target, Key, UpdateObject, Conditions}).Commands
+        this.#Commands = new UpdateGeneratorSync({Target, Key, UpdateObject, Conditions}).Commands
         for (const key in Key) {
             if ((!SK && key === PK) || (SK && key === SK)) {
                 const expression = this.#Commands[0].input.ConditionExpression
@@ -42,7 +42,7 @@ export class Update<T extends DynamORMTable> extends Command<UpdateCommandInput,
                 if (responses.length) {
                     this.response.output = responses[responses.length - 1]
                     this.response.output.ConsumedCapacity =
-                        mergeNumericProps(responses.map(({ConsumedCapacity}) => ConsumedCapacity!))
+                        mergeNumericPropsSync(responses.map(({ConsumedCapacity}) => ConsumedCapacity!))
                 }
             }
         } catch (error: any) {

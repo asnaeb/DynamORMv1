@@ -4,7 +4,7 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {AttributeNames, AttributeValues} from '../types/Internal'
 import {QueryCommand, type QueryCommandInput, type QueryCommandOutput} from "@aws-sdk/lib-dynamodb"
 import {TablePaginatedCommand} from './TablePaginatedCommand'
-import {ConditionsGenerator} from '../generators/ConditionsGenerator'
+import {ConditionsGeneratorSync} from '../generators/ConditionsGeneratorSync'
 import {EQUAL} from '../private/Symbols'
 import {QueryParams} from '../interfaces/QueryParams'
 
@@ -41,14 +41,14 @@ export class Query<T extends DynamORMTable> extends TablePaginatedCommand<QueryC
 
             if (RangeQuery && rangeKey) Object.assign(condition, {[rangeKey]: RangeQuery})
 
-            const generator = new ConditionsGenerator({Conditions: [condition]})
+            const generator = new ConditionsGeneratorSync({Conditions: [condition]})
 
             ExpressionAttributeNames = generator.ExpressionAttributeNames
             ExpressionAttributeValues = generator.ExpressionAttributeValues
             KeyConditionExpression = generator.ConditionExpression
 
             if (Filter) {
-                const {ConditionExpression} = new ConditionsGenerator({
+                const {ConditionExpression} = new ConditionsGeneratorSync({
                     Conditions: Filter,
                     ExpressionAttributeNames,
                     ExpressionAttributeValues

@@ -4,6 +4,7 @@
     "moduleResolution": "Node16",
     "target": "ES2018",
     "strict": true,
+    "noImplicitOverride": true,
     "declaration": true,
     "outDir": "lib",
   },

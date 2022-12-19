@@ -1,6 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {type DynamoDBMap, type DynamoDBNativeType, DynamoDBTypeAlias} from '../types/Internal'
 import {SharedInfo} from '../interfaces/SharedInfo'
+import {NativeAttributeBinary} from '@aws-sdk/util-dynamodb'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -30,20 +31,20 @@ export function Attribute(SharedInfo: SharedInfo) {
         | number
         | boolean
         | null
-        | Set<string | number | Uint8Array>
+        | Set<string | number | bigint | NativeAttributeBinary>
         | (new <T extends DynamoDBMap>(...args: any) => T)
-        | Uint8Array
+        | NativeAttributeBinary
         | DynamoDBNativeType[]
         | DynamoDBMap
     >('ANY'), {
         get S() {return decorator<string>(DynamoDBTypeAlias.S)},
-        get N() {return decorator<number>(DynamoDBTypeAlias.N)},
-        get B() {return decorator<Uint8Array>(DynamoDBTypeAlias.B)},
+        get N() {return decorator<number | bigint>(DynamoDBTypeAlias.N)},
+        get B() {return decorator<NativeAttributeBinary>(DynamoDBTypeAlias.B)},
         get BOOL() {return decorator<boolean>(DynamoDBTypeAlias.BOOL)},
         get L() {return decorator<DynamoDBNativeType[]>(DynamoDBTypeAlias.BOOL)},
         get SS() {return decorator<Set<string>>(DynamoDBTypeAlias.SS)},
-        get NS() {return decorator<Set<number>>(DynamoDBTypeAlias.NS)},
-        get BS() {return decorator<Set<Uint8Array>>(DynamoDBTypeAlias.BS)},
+        get NS() {return decorator<Set<number | bigint>>(DynamoDBTypeAlias.NS)},
+        get BS() {return decorator<Set<NativeAttributeBinary>>(DynamoDBTypeAlias.BS)},
         get M() {return decorator<DynamoDBMap>(DynamoDBTypeAlias.M)},
         get NULL() {return decorator<null>(DynamoDBTypeAlias.NULL)}
     })

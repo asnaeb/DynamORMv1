@@ -15,9 +15,12 @@ export class DynamORMError extends Error {
         this.log(constructor, `${constructor.name} property assignment`, error)
     }
 
-    public static invalidConversion<T extends DynamORMTable>(constructor: Constructor<T>, key: string, input: string, output: string) {
+    public static invalidConversion<T extends DynamORMTable>(constructor: Constructor<T>,
+        key: string,
+        inputValue: any,
+        outputType: string) {
         const error = {
-            message: `Value of key [${key}] cannot be converted from "${input}" to DynamoDB type "${output}"`,
+            message: `Value "${inputValue}" of key [${key}] cannot be converted from type "${typeof inputValue}" to DynamoDB type "${outputType}"`,
             name: 'Invalid Conversion'
         }
         this.log(constructor, 'Converter', error)

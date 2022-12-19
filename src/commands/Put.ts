@@ -1,7 +1,7 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {PutCommand, type PutCommandInput, type PutCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
-import {ConditionsGenerator} from '../generators/ConditionsGenerator'
+import {ConditionsGeneratorSync} from '../generators/ConditionsGeneratorSync'
 import {ATTRIBUTE_EXISTS} from '../private/Symbols'
 import {AttributeNames} from '../types/Internal'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
@@ -22,7 +22,7 @@ export class Put<T extends DynamORMTable> extends TableCommand<PutCommandInput, 
         if (hashKey) {
             const key = rangeKey ?? hashKey
             const condition = {[key]: {[ATTRIBUTE_EXISTS]: false}}
-            const generator = new ConditionsGenerator({Conditions: [condition]})
+            const generator = new ConditionsGeneratorSync({Conditions: [condition]})
 
             ExpressionAttributeNames = generator.ExpressionAttributeNames
             ConditionExpression = generator.ConditionExpression

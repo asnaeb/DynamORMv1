@@ -7,7 +7,7 @@ import {isConditionSymbol} from '../validation/symbols'
 import {ConditionalOperator} from '@aws-sdk/client-dynamodb'
 import {ConditionsGeneratorParams} from '../interfaces/ConditionsGeneratorParams'
 
-export class ConditionsGenerator<T extends DynamORMTable> {
+export class ConditionsGeneratorSync<T extends DynamORMTable> {
     readonly #AttributeNames: AttributeNames
     readonly #AttributeValues: AttributeValues
     readonly #ConditionExpressions: string[][] = []

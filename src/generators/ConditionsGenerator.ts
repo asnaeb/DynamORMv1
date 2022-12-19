@@ -6,7 +6,7 @@ import {alphaNumeric, isObject} from '../utils/General'
 import {isConditionObject} from '../validation/symbols'
 import {EventEmitter} from 'events'
 
-export class AsyncConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
+export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
     #attributeNames: AttributeNames = {}
     #attributeValues: AttributeValues = {}
     #conditionExpressions: string[][] = []
@@ -25,11 +25,11 @@ export class AsyncConditionsGenerator<T extends DynamORMTable> extends EventEmit
                 const q = this.#conditionExpressions.length > 1 ? ')' : ''
                 const andBlocks = this.#conditionExpressions.map(block => p + block.join(` AND `) + q)
 
-                const conditionExpression = andBlocks.join(` OR `)
-                const attributeValues = this.#attributeValues
-                const attributeNames = this.#attributeNames
+                const ConditionExpression = andBlocks.join(` OR `)
+                const ExpressionAttributeValues = this.#attributeValues
+                const ExpressionAttributeNames = this.#attributeNames
 
-                return this.emit('done', {conditionExpression, attributeNames, attributeValues})
+                return this.emit('done', {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
             }
 
             const keys = Object.keys(object)
@@ -157,5 +157,7 @@ export class AsyncConditionsGenerator<T extends DynamORMTable> extends EventEmit
 }
 
 export async function generateCondition<T extends DynamORMTable>(conditions: Condition<T>[]) {
-    return new Promise(resolve => new AsyncConditionsGenerator(conditions).on('done', data => resolve(data)))
+    return new Promise<{
+        ConditionExpression: string; ExpressionAttributeNames: AttributeNames; ExpressionAttributeValues: AttributeValues
+    }>(resolve => new ConditionsGenerator(conditions).on('done', data => resolve(data)))
 }
