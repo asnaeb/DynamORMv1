@@ -1,4 +1,6 @@
-import type {ConditionSymbols, UpdateSymbols, QuerySymbols, QueryObject, Update, Condition} from '../types/Internal'
+import type {QueryObject, QuerySymbols} from '../types/Query'
+import type {Condition, ConditionSymbols} from '../types/Condition'
+import type {Update, UpdateSymbols} from '../types/Update'
 import {QUERY, CONDITION, UPDATE} from '../private/Symbols'
 
 export function isQuerySymbol(key: PropertyKey): key is QuerySymbols {

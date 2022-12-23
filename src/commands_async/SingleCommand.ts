@@ -1,3 +1,4 @@
+import {AsyncArray} from '@asn.aeb/async-array'
 import {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
@@ -21,7 +22,7 @@ export abstract class SingleCommand<T extends DynamORMTable, O extends ServiceOu
                     response.error = <Error>error
                 }
 
-                this.emit(Command.responsesEvent, [response])
+                this.emit(Command.responsesEvent, new AsyncArray(response))
             }
 
             sendCommand()

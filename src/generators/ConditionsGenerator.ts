@@ -1,19 +1,29 @@
-import type {Condition} from '../types/Internal'
+import type {Condition} from '../types/Condition'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {AttributeNames, AttributeValues} from '../types/Internal'
+import type {AttributeNames} from '../types/Native'
 import {CONDITION} from '../private/Symbols'
 import {alphaNumeric, isObject} from '../utils/General'
 import {isConditionObject} from '../validation/symbols'
 import {EventEmitter} from 'events'
+import {AttributeValue} from '@aws-sdk/client-dynamodb'
+
+const doneEvent = Symbol('done')
 
 export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
-    #attributeNames: AttributeNames = {}
-    #attributeValues: AttributeValues = {}
+    #attributeNames: AttributeNames
+    #attributeValues: Record<string, AttributeValue>
     #conditionExpressions: string[][] = []
     #block: string [] = []
 
-    constructor(conditions: Condition<T>[]) {
+    constructor(
+        conditions: Condition<T>[], 
+        attributeNames?: AttributeNames, 
+        attributeValues?:  Record<string, AttributeValue>
+    ) {
         super({captureRejections: true})
+
+        this.#attributeNames = attributeNames ?? {}
+        this.#attributeValues = attributeValues ?? {}
 
         this.on('error', e => console.log(e))
 
@@ -29,7 +39,7 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
                 const ExpressionAttributeValues = this.#attributeValues
                 const ExpressionAttributeNames = this.#attributeNames
 
-                return this.emit('done', {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
+                return this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
             }
 
             const keys = Object.keys(object)
@@ -156,8 +166,17 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
     }
 }
 
-export async function generateCondition<T extends DynamORMTable>(conditions: Condition<T>[]) {
+export async function generateCondition<T extends DynamORMTable>(
+    conditions: Condition<T>[],
+    attributeNames?: AttributeNames, 
+    attributeValues?:  Record<string, AttributeValue>
+) {
     return new Promise<{
-        ConditionExpression: string; ExpressionAttributeNames: AttributeNames; ExpressionAttributeValues: AttributeValues
-    }>(resolve => new ConditionsGenerator(conditions).on('done', data => resolve(data)))
+        ConditionExpression: string; 
+        ExpressionAttributeNames: AttributeNames; 
+        ExpressionAttributeValues: Record<string, AttributeValue>
+    }>(resolve => {
+        new ConditionsGenerator(conditions, attributeNames, attributeValues)
+        .on(doneEvent, data => resolve(data))
+    })
 }

@@ -1,13 +1,13 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import {KeyType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
-import {DynamoDBTypeAlias} from '../types/Internal'
-import {SharedInfo} from '../interfaces/SharedInfo'
-import {CreatePrimaryKeyParams} from '../interfaces/CreatePrimaryKeyParams'
+import type {SharedInfo} from '../interfaces/SharedInfo'
+import type {CreatePrimaryKeyParams} from '../interfaces/CreatePrimaryKeyParams'
+import {KeyType} from '@aws-sdk/client-dynamodb'
+import {DynamoDBScalarType, DynamoDBType} from '../types/Native'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
     KeyType: KeyType
-    AttributeType: ScalarAttributeType
+    AttributeType: DynamoDBScalarType
     AttributeName?: string
 }
 
@@ -31,17 +31,17 @@ function decorator<T>(params: FactoryParams) {
 
 export function HashKey(SharedInfo: SharedInfo) {
     return {
-        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.S})},
-        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.N})},
-        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.HASH, AttributeType: ScalarAttributeType.B})}
+        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.S})},
+        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.N})},
+        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.B})}
     }
 }
 
 export function RangeKey(SharedInfo: SharedInfo) {
     return {
-        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.S})},
-        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.N})},
-        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: ScalarAttributeType.B})},
+        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.S})},
+        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.N})},
+        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.B})},
     }
 }
 

@@ -2,19 +2,18 @@ import {DynamORMTable} from '../table/DynamORMTable'
 import {CommandsArray} from './CommandsArray'
 import {BatchGetCommand, GetCommand, GetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {Constructor} from '../types/Utils'
-import {Key} from '../types/Internal'
+import {Key} from "../types/Key"
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {splitToChunks} from '../utils/General'
 import {AsyncArray} from '@asn.aeb/async-array'
 
 export class Get<T extends DynamORMTable> extends CommandsArray<T, GetCommandOutput> {
-    constructor(table: Constructor<T>, keys: Key[], ConsistentRead: boolean) {
+    constructor(table: Constructor<T>, keys: AsyncArray<Key>, ConsistentRead: boolean) {
         super(table)
 
         const keysLength = keys.length
 
         if (ConsistentRead) {
-            AsyncArray.from(keys).map(Key => new GetCommand({
+            keys.async.map(Key => new GetCommand({
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                 TableName: this.tableName,
                 Key,
@@ -44,10 +43,10 @@ export class Get<T extends DynamORMTable> extends CommandsArray<T, GetCommandOut
             // iterateKeys()
         } else {
             if (keys.length > 25) {
-                splitToChunks(keys, 25)
+                keys.async.splitToChunks(25)
                 
                 .then(async chunks => {
-                    const commands = await AsyncArray.from(chunks).map(Keys => new BatchGetCommand({
+                    const commands = await chunks.async.map(Keys => new BatchGetCommand({
                         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                         RequestItems: {
                             [this.tableName]: {Keys}
@@ -81,15 +80,16 @@ export class Get<T extends DynamORMTable> extends CommandsArray<T, GetCommandOut
 
                 //     iterateChunks()
                 // })
-            } else
-                this.emit(CommandsArray.commandsEvent, [
-                    new BatchGetCommand({
-                        ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
-                        RequestItems: {
-                            [this.tableName]: {Keys: keys}
-                        }
-                    })
-                ], keysLength)
+            } else {
+                const command = new BatchGetCommand({
+                    ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
+                    RequestItems: {
+                        [this.tableName]: {Keys: keys}
+                    }
+                })
+                
+                this.emit(CommandsArray.commandsEvent, new AsyncArray(command), keysLength)
+            }
         }
     }
 

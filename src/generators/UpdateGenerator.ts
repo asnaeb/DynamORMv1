@@ -2,12 +2,14 @@ import {UpdateCommand, type UpdateCommandInput} from '@aws-sdk/lib-dynamodb'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {EventEmitter} from 'node:events'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {AttributeNames, AttributeValues, Condition, Update, Key} from '../types/Internal'
+import {AttributeNames, AttributeValues} from '../types/Native'
+import {Key} from "../types/Key"
+import {Condition} from '../types/Condition'
+import {Update} from '../types/Update'
 import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE} from '../private/Symbols'
 import {generateCondition} from './ConditionsGenerator'
-import {GenerateUpdateParams} from '../interfaces/GenerateUpdateParams'
 
 interface ExpressionsMap {
     SET: string[]
@@ -119,20 +121,24 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         } satisfies Omit<UpdateCommandInput,'TableName' | 'Key'>
     }
 
-    #addCondition(conditions: Condition<T>[]) {
-        return generateCondition(conditions).then(data => {
-            const first = this.#commands.at(0)
+    async #addCondition(conditions: Condition<T>[]) {
+        const {
+            ConditionExpression, 
+            ExpressionAttributeNames, 
+            ExpressionAttributeValues
+        } = await generateCondition(conditions)
+        
+        const first = this.#commands.at(0)
 
-            if (first) {
-                first.input.ExpressionAttributeNames ??= {}
-                first.input.ExpressionAttributeValues ??= {}
-                first.input.ConditionExpression = data.ConditionExpression
-                Object.assign(first.input.ExpressionAttributeNames, data.ExpressionAttributeNames)
-                Object.assign(first.input.ExpressionAttributeValues, data.ExpressionAttributeValues)
+        if (first) {
+            first.input.ExpressionAttributeNames ??= {}
+            first.input.ExpressionAttributeValues ??= {}
+            first.input.ConditionExpression = ConditionExpression
+            Object.assign(first.input.ExpressionAttributeNames, ExpressionAttributeNames)
+            Object.assign(first.input.ExpressionAttributeValues, ExpressionAttributeValues)
 
-                return this.emit(doneEvent, this.#commands)
-            }
-        })
+            return this.emit(doneEvent, this.#commands)
+        }
     }
 
     #handleUpdate(object: {[k: symbol]: unknown}, 

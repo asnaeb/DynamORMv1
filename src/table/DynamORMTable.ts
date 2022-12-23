@@ -1,31 +1,30 @@
-import type {QueryObject, PrimaryKeys, ValidRecord} from '../types/Internal'
 import type {Constructor} from '../types/Utils'
-import {Query} from '../commands/Query'
+import type {NativeOnly} from '../types/Native'
+import type {QueryObject} from '../types/Query'
+import type {PrimaryKeys} from '../types/Key'
+import type {CreateTableParams} from '../interfaces/CreateTableParams'
+import type {QueryOptions} from '../interfaces/QueryOptions'
+import type {ScanOptions} from '../interfaces/ScanOptions'
+import type {Condition} from '../types/Condition'
+import {Query} from '../commands_async/Query'
 import {CreateTable} from '../commands_async/CreateTable'
 import {DeleteTable} from '../commands_async/DeleteTable'
 import {DescribeTable} from '../commands_async/DescribeTable'
 import {Put} from '../commands_async/Put'
-import {Delete as DeleteAsync} from '../commands_async/Delete'
-import {Delete} from '../commands/Delete'
-import {Save} from '../commands/Save'
-import {Scan} from '../commands/Scan'
-import {Response} from '../commands/Response'
-import {TableBatchPut} from '../commands/TableBatchPut'
+import {Delete} from '../commands_async/Delete'
+import {Scan} from '../commands_async/Scan'
 import {isQueryObject} from '../validation/symbols'
-import {mergeNumericPropsSync, isObject} from '../utils/General'
+import {isObject} from '../utils/General'
 import {Serializer} from '../serializer/Serializer'
-import {CreateTableParams} from '../interfaces/CreateTableParams'
-import {QueryParams} from '../interfaces/QueryParams'
-import {QueryOptions} from '../interfaces/QueryOptions'
-import {ScanOptions} from '../interfaces/ScanOptions'
-import {ResponseInfo} from '../interfaces/ResponseInfo'
 import {Select} from './Select'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
 import {BatchWriteSingle} from '../commands_async/BatchWriteSingle'
+import {AsyncArray} from '@asn.aeb/async-array'
+import {Save} from '../commands_async/Save'
 
 export abstract class DynamORMTable {
-    public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: ValidRecord<T>) {
+    public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: NativeOnly<T>) {
         const instance = new (<new (...args: any) => T>this)()
 
         if (isObject(attributes))
@@ -35,7 +34,7 @@ export abstract class DynamORMTable {
         return instance
     }
 
-    public static async createTable({TableClass, ProvisionedThroughput, StreamViewType}: CreateTableParams = {}) {
+    public static async createTable({ProvisionedThroughput, TableClass, StreamViewType}: CreateTableParams = {}) {
         return new CreateTable(this, ProvisionedThroughput, TableClass, StreamViewType).response
     }
 
@@ -52,64 +51,54 @@ export abstract class DynamORMTable {
     }
 
     public static async scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
-        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
-        const {output, error} = await new Scan({Target: this, Limit, ConsistentRead, IndexName}).send()
-        return new Response({
-            Data: output?.Items?.map(i => serializer?.deserialize(i)),
-            Errors: error ? [error] : [],
-            Info: {
-                ConsumedCapacity: output?.ConsumedCapacity,
-                ScannedCount: output?.ScannedCount,
-                Count: output?.Count,
-            }
-        })
+        return new Scan(this, undefined, Limit, ConsistentRead, IndexName).response
     }
 
     public static query<T extends DynamORMTable>(
         HashValue: string | number,
         Options?: QueryOptions
-    ): Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
+    ): Query<T>['response']
     public static query<T extends DynamORMTable>(
         HashValue: string | number,
         RangeQuery: QueryObject<string | number>,
         Options?: QueryOptions
-    ): Promise<Response<T[], ResponseInfo & {ScannedCount?: number}>>
+    ): Query<T>['response']
     public static async query<T extends DynamORMTable>(
         this: Constructor<T>,
         H: string | number,
         Q?: QueryObject<string | number> | QueryOptions,
         O?: QueryOptions
     ) {
-        const serializer = TABLE_DESCR(this).get<Serializer<T>>(SERIALIZER)
-        const Params: QueryParams<any> = {
-            Target: this,
-            HashValue: H
-        }
+        const args: [
+            hashValue: string | number,
+            rangeQuery?: QueryObject<string | number>,
+            filter?: Condition<T>[],
+            indexName?: string,
+            limit?: number,
+            scanIndexFwd?: boolean,
+            consistendRead?: boolean
+        ] = [H]
 
         if (Q) {
             if (isQueryObject(Q)) {
-                Params.RangeQuery = Q
-                Params.ScanIndexForward = O?.ScanIndexForward
-                Params.ConsistentRead = O?.ConsistentRead
-                Params.Limit = O?.Limit
+                args[1] = Q
+                args[2] = undefined
+                args[3] = O?.IndexName
+                args[4] = O?.Limit,
+                args[5] = O?.ScanIndexForward
+                args[6] = O?.ConsistentRead
             }
             else {
-                Params.ScanIndexForward = Q?.ScanIndexForward
-                Params.ConsistentRead = Q?.ConsistentRead
-                Params.Limit = Q?.Limit
+                args[1] = undefined
+                args[2] = undefined,
+                args[3] = Q.IndexName
+                args[4] = Q.Limit,
+                args[5] = Q.ScanIndexForward
+                args[6] = Q.ConsistentRead
             }
         }
 
-        const {output, error} = await new Query(Params).send()
-
-        return new Response({
-            Data: output?.Items?.map(i => serializer?.deserialize(i)),
-            Errors: error ? [error] : undefined,
-            Info: {
-                ConsumedCapacity: output?.ConsumedCapacity,
-                ScannedCount: output?.ScannedCount,
-            }
-        })
+        return new Query(this, ...args).response
     }
 
     // public static filter<T extends DynamORMTable>(this: Constructor<T>, filter: Condition<T>) {
@@ -165,36 +154,27 @@ export abstract class DynamORMTable {
     }
 
     public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
-        return new BatchWriteSingle(this, elements, 'BatchPut').response
+        return new BatchWriteSingle(this, AsyncArray.to(elements), 'BatchPut').response
     }
 
     public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: PrimaryKeys<T>) {
         return new Select(this, keys)
     }
 
-    public async save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
-        const Target = this.constructor as Constructor<T>
-        const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
-        const {Key, Attributes} = serializer?.serialize(this)
+    public save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
+        const table = this.constructor as Constructor<T>
+        
+        if (!overwrite) return new Put(table, [this]).response
 
-        let result
-
-        if (overwrite) {
-            if (Key)
-                result = await new Save({Target, Key, Attributes}).send()
-            else {
-                // TODO Log warning
-            }
-        } else
-            return new Put(Target, [this]).response
+        return new Save(table, this).response
     }
 
-    public async delete<T extends DynamORMTable>(this: T) {
-        const Target = this.constructor as Constructor<T>
-        const serializer = TABLE_DESCR(Target).get<Serializer<T>>(SERIALIZER)!
+    public delete<T extends DynamORMTable>(this: T) {
+        const table = this.constructor as Constructor<T>
+        const serializer = TABLE_DESCR(table).get<Serializer<T>>(SERIALIZER)!
         const {Key} = serializer?.serialize(this)
 
-        return new DeleteAsync(Target, [Key!])
+        return new Delete(table, new AsyncArray(Key!)).response
     }
 
     public get raw() {

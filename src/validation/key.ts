@@ -1,6 +1,6 @@
 import type {AttributeDefinition, GlobalSecondaryIndex, KeySchemaElement, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {ScalarAttributeType} from '@aws-sdk/client-dynamodb'
-import type {Key} from '../types/Internal'
+import type {Key} from '../types/Key'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 import {TABLE_DESCR} from '../private/Weakmaps'

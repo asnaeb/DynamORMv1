@@ -1,17 +1,18 @@
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {DeleteCommand, type DeleteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {Condition, Key} from '../types/Internal'
+import type {Condition} from '../types/Condition'
+import type {Key} from "../types/Key"
 import type {Constructor} from '../types/Utils'
 import {CommandsArray} from './CommandsArray'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {AsyncArray} from '@asn.aeb/async-array'
 
 export class Delete<T extends DynamORMTable> extends CommandsArray<T, DeleteCommandOutput> {
-    public constructor(table: Constructor<T>, keys: Key[], conditions?: Condition<T>[]) {
+    public constructor(table: Constructor<T>, keys: AsyncArray<Key>, conditions?: Condition<T>[]) {
         super(table)
 
-        AsyncArray.from(keys).map(async Key => {
+        keys.async.map(async Key => {
             const command = new DeleteCommand({
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                 ReturnValues: ReturnValue.ALL_OLD,
@@ -20,10 +21,15 @@ export class Delete<T extends DynamORMTable> extends CommandsArray<T, DeleteComm
             })
 
             if (conditions?.length) {
-                const data = await generateCondition(conditions)
-                command.input.ExpressionAttributeNames = data.ExpressionAttributeNames
-                command.input.ExpressionAttributeValues = data.ExpressionAttributeValues
-                command.input.ConditionExpression = data.ConditionExpression
+                const {
+                    ExpressionAttributeNames,
+                    ExpressionAttributeValues,
+                    ConditionExpression
+                } = await generateCondition(conditions)
+
+                command.input.ExpressionAttributeNames = ExpressionAttributeNames
+                command.input.ExpressionAttributeValues = ExpressionAttributeValues
+                command.input.ConditionExpression = ConditionExpression
             }
 
             return command

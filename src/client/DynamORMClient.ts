@@ -4,11 +4,11 @@ import {Connect} from '../decorators/Connect'
 import {LegacyConnect} from '../decorators/legacy/Connect'
 import {HashKey, RangeKey} from '../decorators/PrimaryKey'
 import {ListTables} from '../commands/ListTables'
-import {BatchWrite} from '../commands/BatchWrite'
-import {BatchGet} from '../commands/BatchGet'
+//import {BatchWrite} from '../commands/BatchWrite'
+//import {BatchGet} from '../commands/BatchGet'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {TransactWrite} from '../commands/TransactWrite'
-import {TransactGet} from '../commands/TransactGet'
+//import {TransactWrite} from '../commands/TransactWrite'
+//import {TransactGet} from '../commands/TransactGet'
 import {LocalIndex, GlobalIndex} from '../decorators/SecondaryIndex'
 import {TimeToLive} from '../decorators/TimeToLive'
 import {Attribute} from '../decorators/Attribute'
@@ -18,10 +18,10 @@ import {LegacyTimeToLive} from '../decorators/legacy/TimeToLive'
 import {SharedInfo} from '../interfaces/SharedInfo'
 
 export class DynamORMClient {
-    readonly #Config: DynamoDBClientConfig
-    readonly #Client: DynamoDBClient
-    readonly #DocumentClient: DynamoDBDocumentClient
-    readonly #SharedInfo: SharedInfo = {}
+    readonly #config: DynamoDBClientConfig
+    readonly #client: DynamoDBClient
+    readonly #documentClient: DynamoDBDocumentClient
+    readonly #sharedInfo: SharedInfo = {}
 
     public get Table() {
         return Object.freeze(DynamORMTable)
@@ -30,9 +30,9 @@ export class DynamORMClient {
     public get Legacy() {
         return Object.freeze({
             Connect: LegacyConnect({
-              Client: this.#Client,
-              DocumentClient: this.#DocumentClient,
-              ClientConfig: this.#Config,
+              Client: this.#client,
+              DocumentClient: this.#documentClient,
+              ClientConfig: this.#config,
             }),
             HashKey: LegacyHashKey,
             RangeKey: LegacyRangeKey,
@@ -43,33 +43,33 @@ export class DynamORMClient {
 
     public get Connect() {
         return Connect({
-            Client: this.#Client,
-            DocumentClient: this.#DocumentClient,
-            ClientConfig: this.#Config,
-            SharedInfo: this.#SharedInfo
+            Client: this.#client,
+            DocumentClient: this.#documentClient,
+            ClientConfig: this.#config,
+            SharedInfo: this.#sharedInfo
         })
     }
 
     public get HashKey() {
-        return HashKey(this.#SharedInfo)
+        return HashKey(this.#sharedInfo)
     }
 
     public get RangeKey() {
-        return RangeKey(this.#SharedInfo)
+        return RangeKey(this.#sharedInfo)
     }
 
     public get TimeToLive() {
-        return TimeToLive(this.#SharedInfo)
+        return TimeToLive(this.#sharedInfo)
     }
 
     public get Attribute() {
-        return Attribute(this.#SharedInfo)
+        return Attribute(this.#sharedInfo)
     }
 
     public constructor(dynamoDBClientConfig: DynamoDBClientConfig) {
-        this.#Config = dynamoDBClientConfig
-        this.#Client = new DynamoDBClient(this.#Config)
-        this.#DocumentClient = DynamoDBDocumentClient.from(this.#Client, {
+        this.#config = dynamoDBClientConfig
+        this.#client = new DynamoDBClient(this.#config)
+        this.#documentClient = DynamoDBDocumentClient.from(this.#client, {
             marshallOptions: {
                 convertClassInstanceToMap: true,
                 removeUndefinedValues: true,
@@ -78,36 +78,36 @@ export class DynamORMClient {
     }
 
     public get createLocalIndex() {
-        return LocalIndex(this.#SharedInfo)
+        return LocalIndex(this.#sharedInfo)
     }
 
     public get createGlobalIndex() {
-        return GlobalIndex(this.#SharedInfo)
+        return GlobalIndex(this.#sharedInfo)
     }
 
     public get listTables() {
-        return ({Limit}: {Limit?: number} = {}) => new ListTables(this.#Client, Limit).send()
+        return ({Limit}: {Limit?: number} = {}) => new ListTables(this.#client, Limit).send()
     }
 
-    public get createBatchWrite() {
-        return () => new BatchWrite(this.#DocumentClient)
-    }
+    // public get createBatchWrite() {
+    //     return () => new BatchWrite(this.#DocumentClient)
+    // }
 
-    public get createBatchGet() {
-        return () => new BatchGet(this.#DocumentClient)
-    }
+    // public get createBatchGet() {
+    //     return () => new BatchGet(this.#DocumentClient)
+    // }
 
-    public get createTransactWrite() {
-        return () => new TransactWrite(this.#DocumentClient)
-    }
+    // public get createTransactWrite() {
+    //     return () => new TransactWrite(this.#DocumentClient)
+    // }
 
-    public get createTransactGet() {
-        return () => new TransactGet(this.#DocumentClient)
-    }
+    // public get createTransactGet() {
+    //     return () => new TransactGet(this.#DocumentClient)
+    // }
 
     public get destroy() {
-        return async () => {
-            await this.#Client.destroy()
+        return () => {
+            this.#client.destroy()
             console.warn('DynamoDBClient destroyed.')
         }
     }

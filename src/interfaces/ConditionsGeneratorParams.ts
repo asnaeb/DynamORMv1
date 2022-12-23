@@ -1,5 +1,6 @@
 import {DynamORMTable} from '../table/DynamORMTable'
-import {AttributeNames, AttributeValues, Condition} from '../types/Internal'
+import {AttributeNames, AttributeValues} from '../types/Native'
+import {Condition} from '../types/Condition'
 
 /************************** GENERATORS **************************/
 export interface ConditionsGeneratorParams<T extends DynamORMTable> {

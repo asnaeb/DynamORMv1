@@ -14,7 +14,7 @@ import {
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {ConnectionParams} from '../interfaces/ConnectionParams'
-import {Serializer} from '../serializer/SerializerAsync'
+import {Serializer} from '../serializer/Serializer'
 
 function decoratorFactory({TableName, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {

@@ -12,10 +12,11 @@ export abstract class CommandsArray<T extends DynamORMTable, O extends ServiceOu
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(CommandsArray.commandsEvent, async (commands: any[], length?: number) => {
-            const promises = await AsyncArray.from(commands).map(command => this.client.send(command))
-            const settled = await Promise.allSettled(promises) 
-            const responses = await AsyncArray.from(settled).map(data => {
+        this.once(CommandsArray.commandsEvent, async (commands: AsyncArray<any>, length?: number) => {
+            const promises = await commands.async.map(command => this.client.send(command))
+            const settled = await Promise.allSettled(promises as ServiceOutputTypes[])
+            
+            const responses = await AsyncArray.to(settled).async.map(data => {
                 if (data.status === 'fulfilled')
                     return {output: data.value}
                 

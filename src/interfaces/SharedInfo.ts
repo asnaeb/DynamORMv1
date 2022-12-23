@@ -2,10 +2,9 @@ import {
     AttributeDefinition,
     GlobalSecondaryIndex,
     KeySchemaElement,
-    LocalSecondaryIndex,
-    ScalarAttributeType
+    LocalSecondaryIndex
 } from '@aws-sdk/client-dynamodb'
-import {DynamoDBTypeAlias} from '../types/Internal'
+import {DynamoDBType} from '../types/Native'
 
 export interface SharedInfo {
     KeySchema?: KeySchemaElement[]
@@ -16,7 +15,7 @@ export interface SharedInfo {
     GlobalSecondaryIndexesCount?: number
     Attributes?: {
         [p: string]: {
-            AttributeType: DynamoDBTypeAlias | ScalarAttributeType | 'ANY',
+            AttributeType: DynamoDBType | 'ANY',
             AttributeName?: string
         }
     }

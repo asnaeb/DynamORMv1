@@ -1,3 +1,11 @@
+import type {ResolvedOutput} from '../interfaces/ResolvedOutput'
+import type {DynamORMTable} from '../table/DynamORMTable'
+import type {Constructor} from '../types/Utils'
+
+import {
+    AsyncArray
+} from '@asn.aeb/async-array'
+
 import {
     paginateQuery,
     paginateScan,
@@ -7,11 +15,9 @@ import {
     ScanCommandOutput
 } from '@aws-sdk/lib-dynamodb'
 
-import {DynamORMTable} from '../table/DynamORMTable'
-import {Constructor} from '../types/Utils'
-import {Command} from './Command'
-
-type Responses<T> = {output?: T; error?: Error}[]
+import {
+    Command
+} from './Command'
 
 export abstract class PaginateCommand
     <
@@ -33,7 +39,7 @@ export abstract class PaginateCommand
             if (command instanceof QueryCommand)
                 paginator = paginateQuery
 
-            const responses: Responses<ScanCommandOutput | QueryCommandOutput> = []
+            const responses: ResolvedOutput<ScanCommandOutput | QueryCommandOutput>[] = new AsyncArray()
 
             const paginate = async () => {
                 const pages = paginator({client: this.documentClient}, command.input)

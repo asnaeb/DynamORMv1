@@ -1,18 +1,18 @@
 import type {GlobalSecondaryIndex} from '@aws-sdk/client-dynamodb'
-import {KeyType, ProjectionType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
+import {KeyType, ProjectionType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
 import {alphaNumericDotDash} from '../utils/General'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {DynamoDBTypeAlias} from '../types/Internal'
 import {SharedInfo} from '../interfaces/SharedInfo'
 import {CreateSecondaryIndexParams} from '../interfaces/CreateSecondaryIndexParams'
 import {LocalIndexParams} from '../interfaces/LocalIndexParams'
 import {GlobalIndexParams} from '../interfaces/GlobalIndexParams'
+import {DynamoDBScalarType, DynamoDBType} from '../types/Native'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
     Kind: 'Local' | 'Global'
-    AttributeType: ScalarAttributeType
+    AttributeType: DynamoDBScalarType
     KeyType: KeyType
     AttributeName?: string
     IndexName?: string
@@ -54,9 +54,9 @@ export function LocalIndex(SharedInfo: SharedInfo) {
         return {
             get LocalRange() {
                 return {
-                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S})},
-                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B})}
+                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S})},
+                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B})}
                 }
             }
         }
@@ -85,16 +85,16 @@ export function GlobalIndex(SharedInfo: SharedInfo) {
         return {
             get GlobalHash() {
                 return {
-                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S, KeyType: KeyType.HASH})},
-                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N, KeyType: KeyType.HASH})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B, KeyType: KeyType.HASH})}
+                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.HASH})},
+                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.HASH})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.HASH})}
                 }
             },
             get GlobalRange() {
                 return {
-                    get S() {return decorator<string>({...params, AttributeType: ScalarAttributeType.S, KeyType: KeyType.RANGE})},
-                    get N() {return decorator<number>({...params, AttributeType: ScalarAttributeType.N, KeyType: KeyType.RANGE})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: ScalarAttributeType.B, KeyType: KeyType.RANGE})}
+                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.RANGE})},
+                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.RANGE})},
+                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.RANGE})}
                 }
             },
             get IndexName() {

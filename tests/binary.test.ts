@@ -70,11 +70,11 @@ describe('Binary data and primary key', () => {
     })
 
     it('Retrieve item and write buffer to file', async () => {
-        const {Data} = await BinaryTest.select({example: ['.txt', '.jpg']}).get()
+        const {Items} = await BinaryTest.select({example: ['.txt', '.jpg']}).get()
 
         const path = './tests.resources/'
 
-        if (Data) for (const file of Data) await file.writeFileToDisk(path)
+        if (Items) for (const file of Items) await file.writeFileToDisk(path)
 
         const rl = readline.createInterface(process.stdin, process.stdout)
         const answer = await rl.question('Are the correct files present in ./tests.resources? y/n ')

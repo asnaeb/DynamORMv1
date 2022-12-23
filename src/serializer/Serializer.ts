@@ -1,107 +1,123 @@
+import {AsyncArray} from '@asn.aeb/async-array'
+import type {KeySchemaElement} from '@aws-sdk/client-dynamodb'
 import type {Constructor} from '../types/Utils'
-import type {AttributeValue, KeySchemaElement} from '@aws-sdk/client-dynamodb'
-import {ScalarAttributeType} from '@aws-sdk/client-dynamodb'
+import type {SharedInfo} from '../interfaces/SharedInfo'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {ATTRIBUTES, KEY_SCHEMA} from '../private/Symbols'
-import {DynamoDBRecord, DynamoDBTypeAlias, Key, PrimaryKeys} from '../types/Internal'
+import {AttributeValues} from '../types/Native'
+import {Key} from "../types/Key"
 import {isObject, removeUndefined} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
-import {SharedInfo} from '../interfaces/SharedInfo'
 import {isValidKeyType, isValidType} from '../validation/type'
-import {isValidKey} from '../validation/key'
+import {DynamoDBType} from '../types/Native'
 
 export class Serializer<T extends DynamORMTable> {
-    #Table: Constructor<T>
-    #KeySchema?: KeySchemaElement[]
-    #Attributes: SharedInfo['Attributes']
+    #table: Constructor<T>
+    #keySchema?: KeySchemaElement[]
+    #attributes: SharedInfo['Attributes']
 
-    public constructor(Table: Constructor<T>) {
-        this.#Table = Table
-        this.#KeySchema = TABLE_DESCR(Table).get<KeySchemaElement[]>(KEY_SCHEMA)
-        this.#Attributes = TABLE_DESCR(this.#Table).get(ATTRIBUTES)
+    public constructor(table: Constructor<T>) {
+        this.#table = table
+        this.#keySchema = TABLE_DESCR(table).get<KeySchemaElement[]>(KEY_SCHEMA)
+        this.#attributes = TABLE_DESCR(this.#table).get(ATTRIBUTES)
     }
 
     #finalizeValue(key: string, value: unknown) {
-        let type: DynamoDBTypeAlias | ScalarAttributeType | 'ANY' | undefined
+        let type: DynamoDBType | 'ANY' | undefined
 
-        if (this.#Attributes) for (const [, {AttributeName, AttributeType}] of Object.entries(this.#Attributes))
+        if (this.#attributes) for (const [, {AttributeName, AttributeType}] of Object.entries(this.#attributes))
             if (key === AttributeName) {
                 type = AttributeType
+
                 break
             }
 
         if (type) switch (type) {
-                case DynamoDBTypeAlias.S:
-                    if (typeof value === 'string')
-                        return value
-                    if (typeof value === 'number')
-                        return value.toString()
-                    break
+            case DynamoDBType.S:
+                if (typeof value === 'string')
+                    return value
 
-                case DynamoDBTypeAlias.N:
-                    if (typeof value === 'number' || typeof value === 'bigint')
-                        return value
-                    if (typeof value === 'string' && !Number.isNaN(+value))
-                        return +value
-                    break
+                if (typeof value === 'number')
+                    return value.toString()
 
-                case DynamoDBTypeAlias.B:
-                    if (value instanceof Uint8Array)
-                        return value
-                    if (typeof value === 'string')
-                        return Buffer.from(value, 'base64')
-                    break
+                break
 
-                case DynamoDBTypeAlias.BOOL:
-                    if (typeof value === 'boolean')
-                        return value
-                    break
+            case DynamoDBType.N:
+                if (typeof value === 'number' || typeof value === 'bigint')
+                    return value
 
-                case DynamoDBTypeAlias.SS:
-                    if (value instanceof Set && Array.from(value).every(v => typeof v === 'string'))
-                        return value
-                    break
+                if (typeof value === 'string' && !Number.isNaN(+value))
+                    return +value
 
-                case DynamoDBTypeAlias.NS:
-                    if (value instanceof Set && Array.from(value).every(v => typeof v === 'number'))
-                        return value
-                    break
+                break
 
-                case DynamoDBTypeAlias.BS:
-                    if (value instanceof Set && Array.from(value).every(v => v instanceof Uint8Array))
-                        return value
-                    break
+            case DynamoDBType.B:
+                if (value instanceof Uint8Array)
+                    return value
 
-                case DynamoDBTypeAlias.L:
-                    if (value instanceof Array && value.every(v => isValidType(v)))
-                        return value
-                    break
+                if (typeof value === 'string')
+                    return Buffer.from(value, 'base64')
 
-                case DynamoDBTypeAlias.M:
-                    if (isObject(value) && isValidType(value))
-                        return value
-                    break
+                break
 
-                case DynamoDBTypeAlias.NULL:
-                    if (value === null)
-                        return value
-                    break
+            case DynamoDBType.BOOL:
+                if (typeof value === 'boolean')
+                    return value
 
-                case 'ANY':
-                    if (isValidType(value))
-                        return value
+                break
+
+            case DynamoDBType.SS:
+                if (value instanceof Set && Array.from(value).every(v => typeof v === 'string'))
+                    return value
+
+                break
+
+            case DynamoDBType.NS:
+                if (value instanceof Set && Array.from(value).every(v => typeof v === 'number'))
+                    return value
+
+                break
+
+            case DynamoDBType.BS:
+                if (value instanceof Set && Array.from(value).every(v => v instanceof Uint8Array))
+                    return value
+
+                break
+
+            case DynamoDBType.L:
+                if (value instanceof Array && value.every(v => isValidType(v)))
+                    return value
+
+                break
+
+            case DynamoDBType.M:
+                if (isObject(value) && isValidType(value))
+                    return value
+
+                break
+
+            case DynamoDBType.NULL:
+                if (value === null)
+                    return value
+
+                break
+
+            case 'ANY':
+                if (isValidType(value))
+                    return value
+
                 break
         }
 
-        return DynamORMError.invalidConversion(this.#Table, key, value, type ?? 'undefined')
+        return DynamORMError.invalidConversion(this.#table, key, value, type ?? 'undefined')
     }
 
     #extractKey<T extends Record<PropertyKey, any>>(element: T) {
         let key: Key = {}
 
         for (const [k, v] of Object.entries(element))
-            if (this.#KeySchema?.some(({AttributeName}) => k === AttributeName))
+            if (this.#keySchema?.some(({AttributeName}) => k === AttributeName))
                 Object.assign(key, {[k]: v})
 
         if (Object.keys(key).length > 0 && Object.keys(key).length <= 2)
@@ -109,10 +125,10 @@ export class Serializer<T extends DynamORMTable> {
     }
 
     #excludeKey<T extends Record<PropertyKey, any>>(element: T) {
-        let attributes: DynamoDBRecord = {}
+        let attributes: AttributeValues = {}
 
         for (const [k, v] of Object.entries(element))
-            if (this.#KeySchema?.every(({AttributeName}) => k !== AttributeName))
+            if (this.#keySchema?.every(({AttributeName}) => k !== AttributeName))
                 Object.assign(attributes, {[k]: v})
 
         if (Object.keys(attributes).length)
@@ -120,11 +136,11 @@ export class Serializer<T extends DynamORMTable> {
     }
 
     public serialize<T extends Record<PropertyKey, any>>(element: T, preserve?: 'preserve') {
-        const attributes: DynamoDBRecord = {}
+        const attributes: AttributeValues = {}
 
-        if (this.#Attributes) for (let [k, v] of Object.entries(element)) {
-            if (k in this.#Attributes) {
-                const name = this.#Attributes[k].AttributeName
+        if (this.#attributes) for (let [k, v] of Object.entries(element)) {
+            if (k in this.#attributes) {
+                const name = this.#attributes[k].AttributeName
 
                 if (name !== undefined && v !== undefined) {
                     if (!preserve)
@@ -142,43 +158,135 @@ export class Serializer<T extends DynamORMTable> {
         }
     }
 
-    public deserialize(element: Record<string, AttributeValue>) {
-        const instance = new (<new (...args: any) => T>this.#Table)()
+    public deserialize(element: AttributeValues) {
+        const instance = new (<new (...args: any) => T>this.#table)()
 
-        if (this.#Attributes) for (const [k, value] of Object.entries(element))
-            for (const [$k, {AttributeName}] of Object.entries(this.#Attributes))
+        if (this.#attributes) for (const [k, value] of Object.entries(element))
+            for (const [$k, {AttributeName}] of Object.entries(this.#attributes))
                 if (k === AttributeName || k === $k)
                     Object.assign(instance, {[$k]: value})
 
         return instance
     }
 
-    public generateKeys(keys: PrimaryKeys<T>) {
-        const generatedKeys: Key[] = []
+    // public generateKeys(keys: PrimaryKeys<T>) {
+    //     const keysLength = keys.length
+    //     const generatedKeys: Key[] = []
 
-        const hashKey = this.#KeySchema?.[0]?.AttributeName
-        const rangeKey = this.#KeySchema?.[1]?.AttributeName
+    //     const hashKey = this.#keySchema?.[0]?.AttributeName
+    //     const rangeKey = this.#keySchema?.[1]?.AttributeName
 
-        for (const key of keys) {
+    //     return new Promise<Key[]>(resolve => {
+    //         const iterateKeys = (i = 0) => {
+    //             if (i === keysLength)
+    //                 return resolve(generatedKeys)
+
+    //             const key = keys[i]
+
+    //             if (key instanceof DynamORMTable) {
+    //                 const {Key} = this.serialize(key)
+
+    //                 if (Key)
+    //                     generatedKeys.push(Key)
+
+    //                 setImmediate(iterateKeys, ++i)
+    //             } else if (isObject(key)) {
+    //                 if (hashKey && rangeKey) {
+    //                     const entries = Object.entries(key)
+    //                     const entriesLength = entries.length
+
+    //                     const iterateKey = (f = 0) => {
+    //                         if (f === entriesLength)
+    //                             return setImmediate(iterateKeys, ++i)
+
+    //                         const [hashValue, rangeValue] = entries[f]
+
+    //                         if (Array.isArray(rangeValue)) {
+    //                             const rangeValueLength = rangeValue.length
+
+    //                             const iterateRangeValue = (j = 0) => {
+    //                                 if (j === rangeValueLength)
+    //                                     return setImmediate(iterateKey, ++f)
+
+    //                                 const rangeValueItem = rangeValue[j]
+
+    //                                 const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
+    //                                 const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValueItem)
+
+    //                                 if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
+    //                                     generatedKeys.push({
+    //                                         [hashKey]: convertedHashValue,
+    //                                         [rangeKey]: convertedRangeValue
+    //                                     })
+
+    //                                 setImmediate(iterateRangeValue, ++j)
+    //                             }
+
+    //                             iterateRangeValue()
+    //                         } else {
+    //                             const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
+    //                             const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValue)
+
+    //                             if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
+    //                                 generatedKeys.push({
+    //                                     [hashKey]: convertedHashValue,
+    //                                     [rangeKey]: convertedRangeValue
+    //                                 })
+
+    //                             setImmediate(iterateKey, ++f)
+    //                         }
+    //                     }
+
+    //                     iterateKey()
+    //                 } else {
+    //                     console.warn('invalid key', key)
+    //                     setImmediate(iterateKeys, ++i)
+    //                 }
+    //             } else {
+    //                 if (hashKey && !rangeKey) {
+    //                     const convertedHashValue = this.#finalizeValue(hashKey, key)
+
+    //                     if (isValidKeyType(convertedHashValue))
+    //                         generatedKeys.push({
+    //                             [hashKey]: convertedHashValue
+    //                         })
+    //                 } else
+    //                     console.warn('invalid key', key) //TODO proper error logging
+
+    //                 setImmediate(iterateKeys, ++i)
+    //             }
+    //         }
+
+    //         iterateKeys()
+    //     })
+    // }
+
+    public async generateKeys(keys: AsyncArray<unknown>) {
+        const hashKey = this.#keySchema?.[0]?.AttributeName
+        const rangeKey = this.#keySchema?.[1]?.AttributeName
+        
+        const generatedKeys: AsyncArray<Key> = new AsyncArray()
+
+        await keys.async.forEach(async key => {
             if (key instanceof DynamORMTable) {
                 const {Key} = this.serialize(key)
-
-                if (Key)
-                    generatedKeys.push(Key)
-            } else if (isObject(key)) {
-                for (const [hashValue, rangeValue] of Object.entries(key)) {
-                    if (hashKey && rangeKey) {
+                if (Key) generatedKeys.push(Key)
+            } 
+            
+            else if (isObject(key)) {
+                if (hashKey && rangeKey) {
+                    await AsyncArray.to(Object.entries(key)).async.forEach(async ([hashValue, rangeValue]) => {
                         if (Array.isArray(rangeValue)) {
-                            for (const iRangeValue of rangeValue) {
+                            await AsyncArray.to(rangeValue).async.forEach(rangeValueItem => {
                                 const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
-                                const convertedRangeValue = this.#finalizeValue(rangeKey, iRangeValue)
+                                const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValueItem)
 
                                 if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
                                     generatedKeys.push({
                                         [hashKey]: convertedHashValue,
                                         [rangeKey]: convertedRangeValue
                                     })
-                            }
+                            })
                         } else {
                             const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
                             const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValue)
@@ -189,24 +297,24 @@ export class Serializer<T extends DynamORMTable> {
                                     [rangeKey]: convertedRangeValue
                                 })
                         }
-                    } else {
-                        const invalidKey = {
-                            [hashKey ?? 'undefined']: this.#finalizeValue(hashKey ?? 'undefined', hashValue),
-                            [rangeKey ?? 'undefined']: this.#finalizeValue(hashKey ?? 'undefined', rangeValue)
-                        }
-                        DynamORMError.invalidKey(this.#Table, invalidKey)
-                    }
-                }
-            } else {
-                if (hashKey) {
-                    const convertedHashValue = this.#finalizeValue(hashKey, key)
-                    if (isValidKeyType(convertedHashValue)) generatedKeys.push({
-                        [hashKey]: convertedHashValue
                     })
-                }
+                } else
+                    console.warn('invalid key', key)
             }
-        }
 
-        return generatedKeys//.filter(k => isValidKey(this.#Table, k))
+            else {
+                if (hashKey && !rangeKey) {
+                    const convertedHashValue = this.#finalizeValue(hashKey, key)
+
+                    if (isValidKeyType(convertedHashValue))
+                        generatedKeys.push({
+                            [hashKey]: convertedHashValue
+                        })
+                } else
+                    console.warn('invalid key', key) //TODO proper error logging
+            }
+        })
+
+        return generatedKeys
     }
 }

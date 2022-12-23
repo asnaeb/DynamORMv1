@@ -12,7 +12,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@asn.aeb/async-array": "^1.4.7",
+    "@asn.aeb/async-array": "../AsyncArray",
     "@aws-sdk/client-dynamodb": "^3.231.0",
     "@aws-sdk/lib-dynamodb": "^3.231.0"
   },

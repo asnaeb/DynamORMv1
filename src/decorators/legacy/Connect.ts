@@ -4,7 +4,7 @@ import {TABLE_DESCR} from '../../private/Weakmaps'
 import {CLIENT, CLIENT_CONFIG, DOCUMENT_CLIENT, SERIALIZER, TABLE_NAME} from '../../private/Symbols'
 import {alphaNumericDotDash} from '../../utils/General'
 import {ConnectionParams} from '../../interfaces/ConnectionParams'
-import {Serializer} from '../../serializer/SerializerAsync'
+import {Serializer} from '../../serializer/Serializer'
 
 function legacyDecoratorFactory({TableName, ClientConfig, Client, DocumentClient}: Omit<ConnectionParams, 'SharedInfo'>) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T) {

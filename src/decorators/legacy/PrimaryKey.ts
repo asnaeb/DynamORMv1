@@ -1,22 +1,23 @@
 import {TABLE_DESCR} from '../../private/Weakmaps'
 import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
-import {KeyType, ScalarAttributeType} from '@aws-sdk/client-dynamodb'
+import {KeyType} from '@aws-sdk/client-dynamodb'
 import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
 import {SharedInfo} from '../../interfaces/SharedInfo'
+import {DynamoDBScalarType, DynamoDBType} from '../../types/Native'
 
 export const LegacyHashKey = {
-    get S() {return legacyDecorator<string>(KeyType.HASH, ScalarAttributeType.S)},
-    get N() {return legacyDecorator<number>(KeyType.HASH, ScalarAttributeType.N)},
-    get B() {return legacyDecorator<Uint8Array>(KeyType.HASH, ScalarAttributeType.B)}
+    get S() {return legacyDecorator<string>(KeyType.HASH, DynamoDBType.S)},
+    get N() {return legacyDecorator<number>(KeyType.HASH, DynamoDBType.N)},
+    get B() {return legacyDecorator<Uint8Array>(KeyType.HASH, DynamoDBType.B)}
 }
 export const LegacyRangeKey = {
-    get S() {return legacyDecorator<string>(KeyType.RANGE, ScalarAttributeType.S)},
-    get N() {return legacyDecorator<number>(KeyType.RANGE, ScalarAttributeType.N)},
-    get B() {return legacyDecorator<Uint8Array>(KeyType.RANGE, ScalarAttributeType.B)}
+    get S() {return legacyDecorator<string>(KeyType.RANGE, DynamoDBType.S)},
+    get N() {return legacyDecorator<number>(KeyType.RANGE, DynamoDBType.N)},
+    get B() {return legacyDecorator<Uint8Array>(KeyType.RANGE, DynamoDBType.B)}
 }
 
-function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: ScalarAttributeType, MappedAttributeName?: string) {
+function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: DynamoDBScalarType, MappedAttributeName?: string) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
@@ -35,7 +36,7 @@ function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: ScalarAttrib
     }
 }
 
-function legacyDecorator<T>(KeyType: KeyType, AttributeType: ScalarAttributeType) {
+function legacyDecorator<T>(KeyType: KeyType, AttributeType: DynamoDBScalarType) {
     return function({AttributeName}: {AttributeName?: string} = {}) {
         return legacyDecoratorFactory<T>(KeyType, AttributeType, AttributeName)
     }

@@ -1,6 +1,7 @@
 import {DynamORMTable} from '../table/DynamORMTable'
 import {CommandParams} from './CommandParams'
-import {Condition, QueryObject} from '../types/Internal'
+import {Condition} from '../types/Condition'
+import {QueryObject} from '../types/Query'
 
 export interface QueryParams<T extends DynamORMTable> extends CommandParams<T> {
     HashValue: string | number
