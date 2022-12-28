@@ -1,5 +1,5 @@
 import type {Constructor} from '../types/Utils'
-import type {NativeOnly} from '../types/Native'
+import type {AttributeValues, NativeOnly} from '../types/Native'
 import type {QueryObject} from '../types/Query'
 import type {PrimaryKeys} from '../types/Key'
 import type {CreateTableParams} from '../interfaces/CreateTableParams'
@@ -19,7 +19,7 @@ import {Serializer} from '../serializer/Serializer'
 import {Select} from './Select'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
-import {BatchWriteSingle} from '../commands_async/BatchWriteSingle'
+import {TableBatchWrite} from '../commands_async/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {Save} from '../commands_async/Save'
 
@@ -34,15 +34,15 @@ export abstract class DynamORMTable {
         return instance
     }
 
-    public static async createTable({ProvisionedThroughput, TableClass, StreamViewType}: CreateTableParams = {}) {
+    public static createTable({ProvisionedThroughput, TableClass, StreamViewType}: CreateTableParams = {}) {
         return new CreateTable(this, ProvisionedThroughput, TableClass, StreamViewType).response
     }
 
-    public static async deleteTable() {
+    public static deleteTable() {
         return new DeleteTable(this).response
     }
 
-    public static async describeTable() {
+    public static describeTable() {
         return new DescribeTable(this).response
     }
 
@@ -50,7 +50,7 @@ export abstract class DynamORMTable {
         // TODO Implement UpdateTable method
     }
 
-    public static async scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
+    public static scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
         return new Scan(this, undefined, Limit, ConsistentRead, IndexName).response
     }
 
@@ -63,7 +63,7 @@ export abstract class DynamORMTable {
         RangeQuery: QueryObject<string | number>,
         Options?: QueryOptions
     ): Query<T>['response']
-    public static async query<T extends DynamORMTable>(
+    public static query<T extends DynamORMTable>(
         this: Constructor<T>,
         H: string | number,
         Q?: QueryObject<string | number> | QueryOptions,
@@ -154,13 +154,16 @@ export abstract class DynamORMTable {
     }
 
     public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
-        return new BatchWriteSingle(this, AsyncArray.to(elements), 'BatchPut').response
+        return new TableBatchWrite(this, AsyncArray.to(elements), 'Put').response
     }
 
     public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: PrimaryKeys<T>) {
         return new Select(this, keys)
     }
 
+    public save<T extends DynamORMTable>(): Save<T>['response']
+    public save<T extends DynamORMTable, B extends boolean>({overwrite}: {overwrite: B}): 
+    [B] extends [true] ? Save<T>['response'] : Put<T>['response']
     public save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
         const table = this.constructor as Constructor<T>
         
@@ -182,8 +185,8 @@ export abstract class DynamORMTable {
 
         for (const [k, v] of Object.entries(Item))
             if (v instanceof Uint8Array)
-                Item[k] = Buffer.from(v).toString('base64')
+                (<any>Item)[k] = Buffer.from(v).toString('base64')
 
-        return Item
+        return Item as unknown as AttributeValues
     }
 }

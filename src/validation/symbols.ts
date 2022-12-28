@@ -8,7 +8,6 @@ export function isQuerySymbol(key: PropertyKey): key is QuerySymbols {
 }
 
 export function isQueryObject(object: any): object is QueryObject<any> {
-    //return Object.getOwnPropertySymbols(object).every(k => isQuerySymbol(k))
     return Reflect.ownKeys(object).every(k => isQuerySymbol(k))
 }
 
@@ -16,7 +15,7 @@ export function isConditionSymbol(key: PropertyKey): key is ConditionSymbols {
     return typeof key === 'symbol' && Object.entries(CONDITION).some(([, s]) => s === key)
 }
 
-export function isConditionObject(object: any): object is Condition<any> {
+export function isConditionObject(object: any): object is {[K in ConditionSymbols]: unknown} {
     return Reflect.ownKeys(object).every(k => isConditionSymbol(k))
 }
 
@@ -24,6 +23,6 @@ export function isUpdateSymbol(key: PropertyKey): key is UpdateSymbols {
     return typeof key === 'symbol' && Object.entries(UPDATE).some(([, s]) => s === key)
 }
 
-export function isUpdateObject(object: any): object is Update<any> {
+export function isUpdateObject(object: any): object is {[K in UpdateSymbols]: unknown} {
     return Reflect.ownKeys(object).every(k => isUpdateSymbol(k))
 }

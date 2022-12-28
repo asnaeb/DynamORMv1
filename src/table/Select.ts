@@ -8,9 +8,9 @@ import {Serializer} from '../serializer/Serializer'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
 import {Update} from '../commands_async/Update'
-import {Get} from '../commands_async/Get'
+import {TableBatchGet} from '../commands_async/TableBatchGet'
 import {Delete} from '../commands_async/Delete'
-import {BatchWriteSingle} from '../commands_async/BatchWriteSingle'
+import {TableBatchWrite} from '../commands_async/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
 
 const keysEvent = Symbol('keys')
@@ -31,11 +31,13 @@ export class Select<T extends DynamORMTable> {
 
         this.#table = table
         this.#serializer = serializer
-        this.#serializer.generateKeys($keys).then(generatedKeys => this.#emitter.emit(keysEvent, generatedKeys))
+        this.#serializer.generateKeys($keys)
+        .then(generatedKeys => this.#emitter.emit(keysEvent, generatedKeys))
     }
 
     #or(condition: Condition<T>) {
-        this.#conditions.push(condition)
+        const {Item} = this.#serializer.serialize(condition, 'preserve')
+        this.#conditions.push(Item)
         return Object.freeze({
             or: this.#or,
             update: this.update.bind(this),
@@ -44,9 +46,9 @@ export class Select<T extends DynamORMTable> {
     }
 
     public get({ConsistentRead}: {ConsistentRead?: boolean} = {}) {
-        return new Promise<Awaited<Get<T>['response']>>(resolve => {
+        return new Promise<Awaited<TableBatchGet<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new Get(this.#table, keys, !!ConsistentRead).response)
+                resolve(new TableBatchGet(this.#table, keys, !!ConsistentRead).response)
             })
         })
     }
@@ -68,15 +70,16 @@ export class Select<T extends DynamORMTable> {
     }
 
     public batchDelete() {
-        return new Promise<Awaited<BatchWriteSingle<T>['response']>>(resolve => {
+        return new Promise<Awaited<TableBatchWrite<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new BatchWriteSingle(this.#table, keys, 'BatchDelete').response)
+                resolve(new TableBatchWrite(this.#table, keys, 'Delete').response)
             })
         })
     }
 
     public if(condition: Condition<T>) {
-        this.#conditions.push(condition)
+        const {Item} = this.#serializer.serialize(condition, 'preserve')
+        this.#conditions.push(Item)
         return Object.freeze({
             or: this.#or.bind(this),
             update: this.update.bind(this),

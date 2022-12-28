@@ -103,10 +103,13 @@ export function mergeNumericProps<T extends Record<string, any>>(responses: T[])
             if (!(k in main))
                 if (isObject(response[k]))
                     Object.assign(main, {[k]: {}})
+
                 else if (typeof response[k] !== 'number')
                     main[k] = response[k]
+
             if (isObject(response[k]))
                 traverse(main[k], response[k])
+                
             else if (typeof response[k] === 'number') {
                 main[k] ??= <any>0;
                 (<any>main)[k] += response[k]
@@ -116,7 +119,7 @@ export function mergeNumericProps<T extends Record<string, any>>(responses: T[])
 
     return new Promise<T>(resolve => {
         function iterateResponses(i = 0) {
-            if (i === responsesLength && Object.keys(ResponseInfo).length)
+            if (i === responsesLength)
                 return resolve(ResponseInfo)
 
             traverse(ResponseInfo, responses[i])

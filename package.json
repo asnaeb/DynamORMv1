@@ -4,20 +4,24 @@
   "engines": {
     "node": ">=18.12.1"
   },
+  "types": "bundle/index.d.ts",
   "scripts": {
     "build": "tsc",
     "build-test-env": "tsc --project ./tests/env/tsconfig.json",
     "build-tests": "tsc --project ./tests/tsconfig.json",
     "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
+    "prebundle": "tsc --project ./tsconfig.declarations.json",
+    "bundle": "esbuild src/index.ts --bundle --packages=external --platform=node --target=node16 --outdir=bundle",
     "watch": "tsc --watch"
   },
   "dependencies": {
     "@asn.aeb/async-array": "../AsyncArray",
-    "@aws-sdk/client-dynamodb": "^3.231.0",
-    "@aws-sdk/lib-dynamodb": "^3.231.0"
+    "@aws-sdk/client-dynamodb": "^3.238.0",
+    "@aws-sdk/lib-dynamodb": "^3.238.0"
   },
   "devDependencies": {
     "@types/node": "^18.11.17",
-    "typescript": "npm:@typescript-deploys/pr-build@5.0.0-pr-50820-31"
+    "esbuild": "^0.16.10",
+    "typescript": "https://typescript.visualstudio.com/cf7ac146-d525-443c-b23c-0d58337efebc/_apis/build/builds/140520/artifacts?artifactName=tgz&fileId=28C08DA085FB3678734A64D646B1A9699DEB2DE046BDFE1966FDD2FE8D6054B902&fileName=/typescript-5.0.0-insiders.20221215.tgz"
   }
 }

@@ -3,9 +3,9 @@ import {UpdateCommand, UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 import {alphaNumeric} from '../utils/General'
-import {SingleCommand} from './SingleCommand'
+import {TableCommandSingle} from './TableCommandSingle'
 
-export class Save<T extends DynamORMTable> extends SingleCommand<T, UpdateCommandOutput> {
+export class Save<T extends DynamORMTable> extends TableCommandSingle<T, UpdateCommandOutput> {
     public constructor(table: Constructor<T>, element: T) {
         super(table)
 
@@ -34,10 +34,10 @@ export class Save<T extends DynamORMTable> extends SingleCommand<T, UpdateComman
             command.input.UpdateExpression = 'SET ' + UpdateExpressions.join(', ')
         }
 
-        this.emit(SingleCommand.commandEvent, command)
+        this.emit(TableCommandSingle.commandEvent, command)
     }
 
     public get response() {
-        return this.make_response(['ConsumedCapacity'], 'SuccessfulSaves')
+        return this.make_response(['ConsumedCapacity'], 'SuccessfulSaves', undefined)
     }
 }

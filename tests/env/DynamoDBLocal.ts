@@ -3,14 +3,19 @@ import {spawn, type ChildProcess} from 'node:child_process'
 export class DynamoDBLocal {
     #dynamodb?: ChildProcess
 
-    async start() {
+    constructor() {
+        process.on('exit', () => this.kill())
+    }
+
+    public start() {
         const args = [
             '-Djava.library.path=./DynamoDBLocal_lib',
             '-jar ./DynamoDBLocal.jar',
-            '-inMemory'
+            '-inMemory',
+            '-delayTransientStatuses'
         ]
 
-        this.#dynamodb = spawn('java', args, {cwd: './dynamodb_local', shell: true})
+        this.#dynamodb = spawn('java', args, {cwd: './tests/env/dynamodb_local', shell: true})
 
         return new Promise((resolve, reject) => {
             let stdout = ''
@@ -26,7 +31,7 @@ export class DynamoDBLocal {
         })
     }
 
-    kill() {
+    public kill() {
         this.#dynamodb?.kill()
         return new Promise(res => this.#dynamodb?.on('exit', code => {
             res(code)

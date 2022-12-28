@@ -16,21 +16,21 @@ import {
 } from '@aws-sdk/lib-dynamodb'
 
 import {
-    Command
-} from './Command'
+    TableCommand
+} from './TableCommand'
 
-export abstract class PaginateCommand
+export abstract class TablePaginateCommand
     <
         T extends DynamORMTable, 
         O extends ScanCommandOutput | QueryCommandOutput
     >
-    extends Command<T, O> {
+    extends TableCommand<T, O> {
     protected static commandEvent = Symbol('command')
 
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(PaginateCommand.commandEvent, (command: ScanCommand | QueryCommand) => {
+        this.once(TablePaginateCommand.commandEvent, (command: ScanCommand | QueryCommand) => {
             let paginator: typeof paginateScan | typeof paginateQuery
 
             if (command instanceof ScanCommand)
@@ -54,7 +54,7 @@ export abstract class PaginateCommand
                     responses.push({error})
                 }
 
-                this.emit(Command.responsesEvent, responses)
+                this.emit(TableCommand.responsesEvent, responses)
             }
 
             paginate()

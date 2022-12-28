@@ -4,9 +4,9 @@ import {generateCondition} from '../generators/ConditionsGenerator'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Condition} from '../types/Condition'
 import {Constructor} from '../types/Utils'
-import {PaginateCommand} from './PaginateCommand'
+import {TablePaginateCommand} from './TablePaginateCommand'
 
-export class Scan<T extends DynamORMTable> extends PaginateCommand<T, ScanCommandOutput> {
+export class Scan<T extends DynamORMTable> extends TablePaginateCommand<T, ScanCommandOutput> {
     constructor(
         table: Constructor<T>, 
         filter?: Condition<T>[],
@@ -32,11 +32,11 @@ export class Scan<T extends DynamORMTable> extends PaginateCommand<T, ScanComman
                 command.input.ExpressionAttributeValues = ExpressionAttributeValues
                 command.input.FilterExpression = ConditionExpression
 
-                this.emit(PaginateCommand.commandEvent, command)
+                this.emit(TablePaginateCommand.commandEvent, command)
 
             }) 
         } else
-            this.emit(PaginateCommand.commandEvent, command)
+            this.emit(TablePaginateCommand.commandEvent, command)
     }
 
     public get response() {

@@ -1,11 +1,24 @@
 import type {Condition} from '../types/Condition'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {AttributeNames} from '../types/Native'
+import type {AttributeValue} from '@aws-sdk/client-dynamodb'
+import {AsyncArray} from '@asn.aeb/async-array'
+import {EventEmitter} from 'node:events'
 import {CONDITION} from '../private/Symbols'
 import {alphaNumeric, isObject} from '../utils/General'
 import {isConditionObject} from '../validation/symbols'
-import {EventEmitter} from 'events'
-import {AttributeValue} from '@aws-sdk/client-dynamodb'
+
+type GeneratorParams<T> = [
+    conditions: Condition<T>[],
+    attributeNames?: AttributeNames, 
+    attributeValues?:  Record<string, AttributeValue>
+]
+
+interface ConditionProps {
+    ConditionExpression: string; 
+    ExpressionAttributeNames: AttributeNames; 
+    ExpressionAttributeValues: Record<string, AttributeValue>
+}
 
 const doneEvent = Symbol('done')
 
@@ -13,13 +26,9 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
     #attributeNames: AttributeNames
     #attributeValues: Record<string, AttributeValue>
     #conditionExpressions: string[][] = []
-    #block: string [] = []
+    #tmp_block: string[] = []
 
-    constructor(
-        conditions: Condition<T>[], 
-        attributeNames?: AttributeNames, 
-        attributeValues?:  Record<string, AttributeValue>
-    ) {
+    constructor(...[conditions, attributeNames, attributeValues]: GeneratorParams<T>) {
         super({captureRejections: true})
 
         this.#attributeNames = attributeNames ?? {}
@@ -27,39 +36,13 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
 
         this.on('error', e => console.log(e))
 
-        const conditionsLength = conditions.length
+        const it = async (condition: Condition<T>, path: string[], top = true) => {
+            const keys = AsyncArray.to(Object.keys(condition))
 
-        const iterateCondition = (i = 0, object = conditions[i], path: string[] = [], top = true) => {
-            if (i === conditionsLength && top) {
-                const p = this.#conditionExpressions.length > 1 ? '(' : ''
-                const q = this.#conditionExpressions.length > 1 ? ')' : ''
-                const andBlocks = this.#conditionExpressions.map(block => p + block.join(` AND `) + q)
+            if (top) this.#tmp_block = []
 
-                const ConditionExpression = andBlocks.join(` OR `)
-                const ExpressionAttributeValues = this.#attributeValues
-                const ExpressionAttributeNames = this.#attributeNames
-
-                return this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
-            }
-
-            const keys = Object.keys(object)
-            const keysLength = keys.length
-
-            if (top)
-                this.#block = []
-
-            const iterateConditionKey = (j = 0) => {
-                if (j === keysLength) {
-                    if (top) {
-                        this.#conditionExpressions.push(this.#block)
-                        return setImmediate(iterateCondition, ++i)
-                    }
-
-                    return
-                }
-
-                const key = keys[j]
-                const value = object[<keyof T>key]
+            await keys.async.forEach(async key => {
+                const value = condition[<keyof T>key]
 
                 const $key = alphaNumeric(key)
                 const $path = path.length ? [...path, $key] : [$key]
@@ -70,16 +53,81 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
                     if (isConditionObject(value))
                         this.#handleCondition(value, $path)
                     else
-                        iterateCondition(0, value, $path, false) // setImmediate?
+                        await it(value, $path, false) // setImmediate?
                 }
 
-                setImmediate(iterateConditionKey, ++j)
-            }
+            })
 
-            iterateConditionKey()
+            if (top) this.#conditionExpressions.push(this.#tmp_block)
         }
 
-        iterateCondition()
+        AsyncArray.to(conditions).async.forEach(condition => it(condition, []))
+
+        .then(() => {
+            const open = this.#conditionExpressions.length > 1 ? '(' : ''
+            const clos = this.#conditionExpressions.length > 1 ? ')' : ''
+            const andBlocks = this.#conditionExpressions.map(block => open + block.join(` AND `) + clos)
+
+            const ConditionExpression = andBlocks.join(` OR `)
+            const ExpressionAttributeValues = this.#attributeValues
+            const ExpressionAttributeNames = this.#attributeNames
+
+            this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
+        })
+
+        // const conditionsLength = conditions.length
+
+        // const iterateCondition = (i = 0, object = conditions[i], path: string[] = [], top = true) => {
+        //     if (i === conditionsLength && top) {
+        //         const p = this.#conditionExpressions.length > 1 ? '(' : ''
+        //         const q = this.#conditionExpressions.length > 1 ? ')' : ''
+        //         const andBlocks = this.#conditionExpressions.map(block => p + block.join(` AND `) + q)
+
+        //         const ConditionExpression = andBlocks.join(` OR `)
+        //         const ExpressionAttributeValues = this.#attributeValues
+        //         const ExpressionAttributeNames = this.#attributeNames
+
+        //         return this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
+        //     }
+
+        //     const keys = Object.keys(object)
+        //     const keysLength = keys.length
+
+        //     if (top)
+        //         this.#block = []
+
+        //     const iterateConditionKey = (j = 0) => {
+        //         if (j === keysLength) {
+        //             if (top) {
+        //                 this.#conditionExpressions.push(this.#block)
+        //                 return setImmediate(iterateCondition, ++i)
+        //             }
+
+        //             return
+        //         }
+
+        //         const key = keys[j]
+        //         const value = object[<keyof T>key]
+
+        //         const $key = alphaNumeric(key)
+        //         const $path = path.length ? [...path, $key] : [$key]
+
+        //         Object.assign(this.#attributeNames, {[`#${$key}`]: key})
+
+        //         if (isObject(value)) {
+        //             if (isConditionObject(value))
+        //                 this.#handleCondition(value, $path)
+        //             else
+        //                 iterateCondition(0, value, $path, false) // setImmediate?
+        //         }
+
+        //         setImmediate(iterateConditionKey, ++j)
+        //     }
+
+        //     iterateConditionKey()
+        // }
+
+        // iterateCondition()
     }
 
     #handleCondition(object: {[k: symbol]: any /* unknown */}, path: string[]) {
@@ -110,7 +158,7 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
                             Object.assign(this.#attributeValues, {[attributeValue]: v})
                             attributeValues.push(attributeValue)
                         })
-                        this.#block.push(`${attributeName} BETWEEN ${attributeValues[0]} AND ${attributeValues[1]}`)
+                        this.#tmp_block.push(`${attributeName} BETWEEN ${attributeValues[0]} AND ${attributeValues[1]}`)
                     }
                     break
                 case CONDITION.CONTAINS:
@@ -118,14 +166,14 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
                         value.forEach((v, i) => {
                             attributeValue = makeAttributeValue(i, 'contains')
                             Object.assign(this.#attributeValues, {[attributeValue]: v})
-                            this.#block.push(`contains(${attributeName}, ${attributeValue})`)
+                            this.#tmp_block.push(`contains(${attributeName}, ${attributeValue})`)
                         })
                     }
                     break
                 case CONDITION.BEGINS_WITH:
                     attributeValue = makeAttributeValue('beginsWith')
                     Object.assign(this.#attributeValues, {[attributeValue]: value})
-                    this.#block.push(`begins_with(${attributeName}, ${attributeValue})`)
+                    this.#tmp_block.push(`begins_with(${attributeName}, ${attributeValue})`)
                     break
                 case CONDITION.IN:
                     if (value instanceof Array) {
@@ -135,48 +183,39 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
                             Object.assign(this.#attributeValues, {[attributeValue]: v})
                             attributeValues.push(attributeValue)
                         })
-                        this.#block.push(`${attributeName} IN (${attributeValues.join(', ')})`)
+                        this.#tmp_block.push(`${attributeName} IN (${attributeValues.join(', ')})`)
                     }
                     break
                 case CONDITION.ATTRIBUTE_EXISTS:
                     if (value)
-                        this.#block.push(`attribute_exists(${attributeName})`)
+                        this.#tmp_block.push(`attribute_exists(${attributeName})`)
                     else
-                        this.#block.push(`attribute_not_exists(${attributeName})`)
+                        this.#tmp_block.push(`attribute_not_exists(${attributeName})`)
                     break
                 case CONDITION.ATTRIBUTE_TYPE:
                     attributeValue = makeAttributeValue('attributeType')
                     Object.assign(this.#attributeValues, {[attributeValue]: value})
-                    this.#block.push(`attribute_type(${attributeName}, ${attributeValue})`)
+                    this.#tmp_block.push(`attribute_type(${attributeName}, ${attributeValue})`)
                     break
                 case CONDITION.SIZE: {
                     const operator = Object.keys(value)[0]
                     attributeValue = makeAttributeValue('size')
                     Object.assign(this.#attributeValues, {[attributeValue]: value[operator]})
-                    this.#block.push(`size(${attributeName}) ${operator} ${attributeValue}`)
+                    this.#tmp_block.push(`size(${attributeName}) ${operator} ${attributeValue}`)
                     break
                 }
                 default:
                     attributeValue = makeAttributeValue('condition')
                     Object.assign(this.#attributeValues, {[attributeValue]: value})
-                    this.#block.push(`${attributeName} ${key.description} ${attributeValue}`)
+                    this.#tmp_block.push(`${attributeName} ${key.description} ${attributeValue}`)
                     break
             }
         }
     }
 }
 
-export async function generateCondition<T extends DynamORMTable>(
-    conditions: Condition<T>[],
-    attributeNames?: AttributeNames, 
-    attributeValues?:  Record<string, AttributeValue>
-) {
-    return new Promise<{
-        ConditionExpression: string; 
-        ExpressionAttributeNames: AttributeNames; 
-        ExpressionAttributeValues: Record<string, AttributeValue>
-    }>(resolve => {
-        new ConditionsGenerator(conditions, attributeNames, attributeValues)
-        .on(doneEvent, data => resolve(data))
+export function generateCondition<T extends DynamORMTable>(...args: GeneratorParams<T>) {
+    return new Promise<ConditionProps>(resolve => {
+        new ConditionsGenerator(...args).on(doneEvent, data => resolve(data))
     })
 }

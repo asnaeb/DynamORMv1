@@ -7,11 +7,11 @@ import {Condition} from '../types/Condition'
 import {Update as TUpdate} from '../types/Update'
 import {generateUpdate} from '../generators/UpdateGenerator'
 import {alphaNumeric, mergeNumericProps} from '../utils/General'
-import {Command} from './Command'
+import {TableCommand} from './TableCommand'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput'
 
-export class Update<T extends DynamORMTable> extends Command<T, UpdateCommandOutput> {
+export class Update<T extends DynamORMTable> extends TableCommand<T, UpdateCommandOutput> {
     constructor(table: Constructor<T>, keys: AsyncArray<Key>, updates: TUpdate<T>, conditions?: Condition<T>[]) {
         super(table)
 
@@ -20,6 +20,8 @@ export class Update<T extends DynamORMTable> extends Command<T, UpdateCommandOut
 
         const hash = this.keySchema[0]?.AttributeName
         const range = this.keySchema[1]?.AttributeName
+
+        updates = this.serializer.serialize(updates, 'preserve').Item
 
         keys.async.map(async key => {
             const commands = await generateUpdate(this.tableName, key, updates, conditions)
@@ -73,7 +75,7 @@ export class Update<T extends DynamORMTable> extends Command<T, UpdateCommandOut
 
         .then(async promises => {
             const responses = await Promise.all(promises as any[])
-            this.emit(Command.responsesEvent, AsyncArray.to(responses))
+            this.emit(TableCommand.responsesEvent, AsyncArray.to(responses))
         })
 
         // const iterateKeys = async (i = 0) => {

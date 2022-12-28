@@ -2,20 +2,20 @@ import {PutCommand, type PutCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {CommandsArray} from './CommandsArray'
+import {TableCommandPool} from './TableCommandPool'
 import {AttributeNames} from '../types/Native'
 import {Constructor} from '../types/Utils'
 import {alphaNumeric} from '../utils/General'
 
-export class Put<T extends DynamORMTable> extends CommandsArray<T, PutCommandOutput> {
+export class Put<T extends DynamORMTable> extends TableCommandPool<T, PutCommandOutput> {
     constructor(table: Constructor<T>, items: T[]) {
         super(table)
 
         // const commands: PutCommand[] = []
         // const itemsLength = items.length
 
-        const hashKey = this.keySchema?.[0]?.AttributeName
-        const rangeKey = this.keySchema?.[1]?.AttributeName
+        const hashKey = this.keySchema[0]?.AttributeName
+        const rangeKey = this.keySchema[1]?.AttributeName
 
         let ExpressionAttributeNames: AttributeNames | undefined
         let ConditionExpression: string | undefined
@@ -25,7 +25,7 @@ export class Put<T extends DynamORMTable> extends CommandsArray<T, PutCommandOut
             const $key = alphaNumeric(key)
             
             ExpressionAttributeNames = {[`#${$key}`]: key}
-            ConditionExpression = `attribute_exists(#${$key})`
+            ConditionExpression = `attribute_not_exists(#${$key})`
         }
 
         AsyncArray.to(items).async.map(item => {
@@ -40,7 +40,7 @@ export class Put<T extends DynamORMTable> extends CommandsArray<T, PutCommandOut
             })
         })
 
-        .then(commands => this.emit(CommandsArray.commandsEvent, commands))
+        .then(commands => this.emit(Put.commandsEvent, commands))
 
         // const iterateItems = (i = 0) => {
         //     if (i === itemsLength)
@@ -63,6 +63,6 @@ export class Put<T extends DynamORMTable> extends CommandsArray<T, PutCommandOut
     }
 
     public get response() {
-        return this.make_response([], 'SuccessfulPuts', 'FailedPuts')
+        return this.make_response(['ConsumedCapacity'], 'SuccessfulPuts', 'FailedPuts')
     }
 }

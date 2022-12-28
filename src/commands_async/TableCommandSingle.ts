@@ -2,15 +2,18 @@ import {AsyncArray} from '@asn.aeb/async-array'
 import {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
-import {Command} from './Command'
+import {TableCommand} from './TableCommand'
 
-export abstract class SingleCommand<T extends DynamORMTable, O extends ServiceOutputTypes> extends Command<T, O> {
+export abstract class TableCommandSingle<
+    T extends DynamORMTable,
+    O extends ServiceOutputTypes
+> extends TableCommand<T, O> {
     protected static commandEvent = Symbol('command')
 
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(SingleCommand.commandEvent, command => {
+        this.once(TableCommandSingle.commandEvent, command => {
             const sendCommand = async () => {
                 const response: {output?: O, error?: Error} = {}
 
@@ -22,7 +25,7 @@ export abstract class SingleCommand<T extends DynamORMTable, O extends ServiceOu
                     response.error = <Error>error
                 }
 
-                this.emit(Command.responsesEvent, new AsyncArray(response))
+                this.emit(TableCommand.responsesEvent, new AsyncArray(response))
             }
 
             sendCommand()

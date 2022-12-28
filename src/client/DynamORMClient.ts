@@ -4,8 +4,8 @@ import {Connect} from '../decorators/Connect'
 import {LegacyConnect} from '../decorators/legacy/Connect'
 import {HashKey, RangeKey} from '../decorators/PrimaryKey'
 import {ListTables} from '../commands/ListTables'
-//import {BatchWrite} from '../commands/BatchWrite'
-//import {BatchGet} from '../commands/BatchGet'
+//import {BatchWrite} from '../commands_async/BatchWrite'
+import {BatchGet} from '../commands_async/BatchGet'
 import {DynamORMTable} from '../table/DynamORMTable'
 //import {TransactWrite} from '../commands/TransactWrite'
 //import {TransactGet} from '../commands/TransactGet'
@@ -93,9 +93,9 @@ export class DynamORMClient {
     //     return () => new BatchWrite(this.#DocumentClient)
     // }
 
-    // public get createBatchGet() {
-    //     return () => new BatchGet(this.#DocumentClient)
-    // }
+    public get createBatchGet() {
+        return () => new BatchGet(this.#documentClient)
+    }
 
     // public get createTransactWrite() {
     //     return () => new TransactWrite(this.#DocumentClient)

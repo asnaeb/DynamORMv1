@@ -1,29 +1,31 @@
-import type {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
+import {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
 import {AsyncArray} from '@asn.aeb/async-array'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
-import {Command} from './Command'
+import {TableCommand} from './TableCommand'
+import {ResolvedOutput} from '../interfaces/ResolvedOutput'
 
-//type Responses<T> = {output?: T; error?: Error}[]
-
-export abstract class CommandsArray<T extends DynamORMTable, O extends ServiceOutputTypes> extends Command<T, O> {
+export abstract class TableCommandPool<
+    T extends DynamORMTable, 
+    O extends ServiceOutputTypes
+> extends TableCommand<T, O> {
     protected static commandsEvent = Symbol('commands')
 
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(CommandsArray.commandsEvent, async (commands: AsyncArray<any>, length?: number) => {
-            const promises = await commands.async.map(command => this.client.send(command))
-            const settled = await Promise.allSettled(promises as ServiceOutputTypes[])
+        this.once(TableCommandPool.commandsEvent, async (commands: AsyncArray<any>, length?: number) => {
+            const promises = await commands.async.map(command => this.client.send(command), false)
+            const settled = await Promise.allSettled(promises as Promise<ServiceOutputTypes>[])
             
-            const responses = await AsyncArray.to(settled).async.map(data => {
+            const responses = await AsyncArray.to(settled).async.map(async data => {
                 if (data.status === 'fulfilled')
                     return {output: data.value}
                 
                 return {error: data.reason}
             })
 
-            this.emit(Command.responsesEvent, responses, length)
+            this.emit(TableCommand.responsesEvent, responses, length)
 
             // const commandsLength = commands.length
             // const responses: Responses<O> = []

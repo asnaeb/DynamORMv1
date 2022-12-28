@@ -4,11 +4,11 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Condition} from '../types/Condition'
 import type {Key} from "../types/Key"
 import type {Constructor} from '../types/Utils'
-import {CommandsArray} from './CommandsArray'
+import {TableCommandPool} from './TableCommandPool'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {AsyncArray} from '@asn.aeb/async-array'
 
-export class Delete<T extends DynamORMTable> extends CommandsArray<T, DeleteCommandOutput> {
+export class Delete<T extends DynamORMTable> extends TableCommandPool<T, DeleteCommandOutput> {
     public constructor(table: Constructor<T>, keys: AsyncArray<Key>, conditions?: Condition<T>[]) {
         super(table)
 
@@ -35,7 +35,7 @@ export class Delete<T extends DynamORMTable> extends CommandsArray<T, DeleteComm
             return command
         })
 
-        .then(commands => this.emit(CommandsArray.commandsEvent, commands))
+        .then(commands => this.emit(TableCommandPool.commandsEvent, commands))
 
         // const keysLength = keys.length
         // const commands: DeleteCommand[] = []

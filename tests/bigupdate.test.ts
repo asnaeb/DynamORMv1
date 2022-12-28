@@ -7,16 +7,16 @@ const DB = new DynamoDBLocal()
 
 @Connect()
 class UpdateTest extends Table {
-    @HashKey.S()
+    @HashKey.S({AttributeName: 'SomeHashKey'})
     hash = 'hash'
 
-    @RangeKey.N()
+    @RangeKey.N({AttributeName: 'SomeRangeKey'})
     range = NaN
 
     @Attribute()
     str?: string
 
-    @Attribute()
+    @Attribute({AttributeName: 'SomeAttribute'})
     a?: {x?: string[]; y?: Set<string>; z?: string}
 }
 
@@ -36,28 +36,34 @@ const server = createServer(async (req, res) => {
         case '/async': {
             const c = await UpdateTest.createTable()
             const p = await UpdateTest.batchPut(...items)
-            const d = await UpdateTest.select({hash: 8}).delete()
-            const u = await UpdateTest.select({hash: 7}).update({a: {z: Overwrite('as')}})
+            const z = await UpdateTest.put(items[0])
+            const d = await UpdateTest.select({hash: 8})
+            .if({a: {z: BeginsWith('helz')}})
+            .or({a: {z: BeginsWith('baz')}})
+            .delete()
+            const u = await UpdateTest.select({hash: 7}).update({a: {z: Overwrite('qwe')}})
             const g = await UpdateTest.select({hash: [7, 8, 9, 34, 87, 98]}).get()
             const s = await UpdateTest.scan()
             const q = await UpdateTest.query('hash', Between(3, 6))
             const x = await UpdateTest.deleteTable()
             res.writeHead(200, {'Content-Type': 'application/json'})
-            res.write('Create\n')
+            res.write('{"command": "createTable"}\n')
             res.write(JSON.stringify(c))
-            res.write('\nPut\n')
+            res.write('{"command": "batchPut"}\n')
             res.write(JSON.stringify(p))
-            res.write('\nDelete\n')
+            res.write('{"command": "put"}\n')
+            res.write(JSON.stringify(z))
+            res.write('{"command": "delete"}\n')
             res.write(JSON.stringify(d))
-            res.write('\nUpdate\n')
+            res.write('{"command": "update"}\n')
             res.write(JSON.stringify(u))
-            res.write('\nGet\n')
+            res.write('{"command": "get"}\n')
             res.write(JSON.stringify(g))
-            res.write('\nScan\n')
+            res.write('{"command": "scan"}\n')
             res.write(JSON.stringify(s))
-            res.write('\nQuery\n')
+            res.write('{"command": "query"}\n')
             res.write(JSON.stringify(q))
-            res.write('\nDrop\n')
+            res.write('{"command": "deleteTable"}\n')
             res.write(JSON.stringify(x))
             res.end()
             break

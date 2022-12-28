@@ -1,13 +1,17 @@
 import { spawn } from 'node:child_process';
 export class DynamoDBLocal {
     #dynamodb;
-    async start() {
+    constructor() {
+        process.on('exit', () => this.kill());
+    }
+    start() {
         const args = [
             '-Djava.library.path=./DynamoDBLocal_lib',
             '-jar ./DynamoDBLocal.jar',
-            '-inMemory'
+            '-inMemory',
+            '-delayTransientStatuses'
         ];
-        this.#dynamodb = spawn('java', args, { cwd: './dynamodb_local', shell: true });
+        this.#dynamodb = spawn('java', args, { cwd: './tests/env/dynamodb_local', shell: true });
         return new Promise((resolve, reject) => {
             let stdout = '';
             this.#dynamodb?.stdout?.on('data', data => {
@@ -30,3 +34,4 @@ export class DynamoDBLocal {
         }));
     }
 }
+//# sourceMappingURL=DynamoDBLocal.js.map

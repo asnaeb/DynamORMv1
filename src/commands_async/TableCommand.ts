@@ -9,6 +9,7 @@ import type {
 
 import type {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
+import {AsyncArray} from '@asn.aeb/async-array'
 import {EventEmitter} from 'node:events'
 import {DynamORMError} from '../errors/DynamORMError'
 import {TABLE_DESCR} from '../private/Weakmaps'
@@ -17,11 +18,10 @@ import {Serializer} from '../serializer/Serializer'
 import {Constructor} from '../types/Utils'
 import {TResponse, Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
-import {AsyncArray} from '@asn.aeb/async-array'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput' 
 import {AttributeValues} from '../types/Native'
 
-export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTypes> extends EventEmitter {
+export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOutputTypes> extends EventEmitter {
     protected static responsesEvent = Symbol('responses')
 
     protected readonly tableName: string
@@ -38,6 +38,8 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
 
     protected constructor(protected readonly table: Constructor<T>) {
         super({captureRejections: true})
+
+        this.on('error', e => this.logError(e))
 
         const wm = TABLE_DESCR(table)
 
@@ -77,8 +79,15 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
     >
     (infoKeys: Y, successKey?: S, failKey?: F, dataKey?: D) {
         return new Promise<TResponse<T[], D, I>>(resolve => {
-            this.once(Command.responsesEvent, (responses: AsyncArray<ResolvedOutput<O>>, originLength?: number) => {
-                responses.async.reduce(async ({data, errors, infos}, {output, error}) => {
+            this.once(TableCommand.responsesEvent, async (
+                responses: AsyncArray<ResolvedOutput<O>>, 
+                originLength?: number
+            ) => {
+                const {
+                    data, 
+                    errors, 
+                    infos
+                } = await responses.async.reduce(async ({data, errors, infos}, {output, error}) => {
                     if (error) {
                         errors ??= []
                         errors.push(error)
@@ -88,8 +97,14 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
                     }
 
                     if (output) {
-                        for (const key of infoKeys)
-                            infos.push(<I>{[key]: output[key]})
+                        for (const key of infoKeys) {
+                            const outputInfo = output[key]
+                            
+                            if (Array.isArray(outputInfo))
+                                infos.push(<I>{[key]: outputInfo[0]})
+                            else
+                                infos.push(<I>{[key]: outputInfo})
+                        }
 
                         if ('Responses' in output && !Array.isArray(output.Responses)) {
                             const items = output.Responses?.[this.tableName]
@@ -104,7 +119,7 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
                                 }
 
                                 await AsyncArray.to(items).async.forEach(item => {
-                                    data.push(this.serializer.deserialize(item as unknown as AttributeValues))
+                                    data?.push(this.serializer.deserialize(item as any))
                                     if (successKey) infos.push(<I>{[successKey]: 1})
                                 })
                             }
@@ -113,11 +128,13 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
                         else if (dataKey && output[dataKey]) {
                             const outputData = output[dataKey]
 
-                            if (Array.isArray(outputData))
+                            if (Array.isArray(outputData)) {
+                                data ??= []
                                 await AsyncArray.to(outputData).async.forEach(item => {
-                                    data.push(this.serializer.deserialize(item))
+                                    data?.push(this.serializer.deserialize(item))
                                     if (successKey) infos.push(<I>{[successKey]: 1})
                                 })
+                            }
                             else {
                                 data ??= []
                                 data.push(this.serializer.deserialize(<AttributeValues>outputData))
@@ -135,13 +152,12 @@ export abstract class Command<T extends DynamORMTable, O extends ServiceOutputTy
                     }
 
                     return {data, errors, infos}
-                }, {data: <T[]>[], errors: <Error[]>[], infos: <I[]>[]})
+                }, {data: <T[] | undefined>undefined, errors: <Error[]>[], infos: <I[]>[]})
 
-                .then(async ({data, errors, infos}) => {
-                    const info = await mergeNumericProps(infos)
-                    const response = Response<T[], D, I>(data, info, errors)
-                    return resolve(response)
-                })
+                const info = await mergeNumericProps(infos)
+                const response = Response<T[], D, I>(data, info, errors)
+                
+                return resolve(response)
 
                 // let data: T[], errors: Error[]
 

@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "crud",
+            "program": "${workspaceFolder}/tests/crud.test.js",
+            "preLaunchTask": "build-tests",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "node"
+        },
+        {
             "type": "node",
             "request": "launch",
             "name": "bigupdate",
@@ -13,9 +23,26 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/tests/bigupdate.test.js",
-            "outFiles": [
-                "${workspaceFolder}/**/*.js"
-            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "batchget",
+            "preLaunchTask": "build-tests" ,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/tests/batchget.test.js",
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "errors",
+            "preLaunchTask": "build-tests" ,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/tests/error.test.js",
         }
     ]
 }

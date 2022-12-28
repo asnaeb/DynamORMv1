@@ -6,9 +6,9 @@ import {DynamORMTable} from '../table/DynamORMTable'
 import {Condition} from '../types/Condition'
 import {QueryObject} from '../types/Query'
 import {Constructor} from '../types/Utils'
-import {PaginateCommand} from './PaginateCommand'
+import {TablePaginateCommand} from './TablePaginateCommand'
 
-export class Query<T extends DynamORMTable> extends PaginateCommand<T, QueryCommandOutput> {
+export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, QueryCommandOutput> {
     constructor(
         table: Constructor<T>,
         hashValue: string | number,
@@ -76,7 +76,7 @@ export class Query<T extends DynamORMTable> extends PaginateCommand<T, QueryComm
                     command.input.FilterExpression = ConditionExpression
                 }
                 
-                this.emit(PaginateCommand.commandEvent, command)
+                this.emit(TablePaginateCommand.commandEvent, command)
             })
         }
     }

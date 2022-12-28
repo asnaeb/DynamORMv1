@@ -32,42 +32,63 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
     }
     return useValue ? value : void 0;
 };
+import { createBatchGet, Connect, HashKey, Table } from './env/DynamORM.js';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-import { Connect, Table, HashKey, Attribute, RangeKey } from './env/DynamORM.js';
-const db = new DynamoDBLocal();
-let MappedTest = (() => {
-    let _classDecorators = [Connect({ TableName: 'Mapped.Names.Table' })];
+let A = (() => {
+    let _classDecorators = [Connect({ TableName: 'TableA' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
     let _instanceExtraInitializers = [];
-    let _a_decorators;
-    let _a_initializers = [];
-    let _b_decorators;
-    let _b_initializers = [];
-    let _c_decorators;
-    let _c_initializers = [];
-    var MappedTest = class extends Table {
+    let _hash_decorators;
+    let _hash_initializers = [];
+    var A = class extends Table {
         static {
-            _a_decorators = [HashKey.S({ AttributeName: 'The-Hash' })];
-            _b_decorators = [RangeKey.N({ AttributeName: 'The-Range' })];
-            _c_decorators = [Attribute.S({ AttributeName: 'First-Attribute' })];
-            __esDecorate(null, null, _a_decorators, { kind: "field", name: "a", static: false, private: false, access: { get() { return this.a; }, set(value) { this.a = value; } } }, _a_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _b_decorators, { kind: "field", name: "b", static: false, private: false, access: { get() { return this.b; }, set(value) { this.b = value; } } }, _b_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _c_decorators, { kind: "field", name: "c", static: false, private: false, access: { get() { return this.c; }, set(value) { this.c = value; } } }, _c_initializers, _instanceExtraInitializers);
+            _hash_decorators = [HashKey.N()];
+            __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false, access: { get() { return this.hash; }, set(value) { this.hash = value; } } }, _hash_initializers, _instanceExtraInitializers);
             __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
-            MappedTest = _classThis = _classDescriptor.value;
+            A = _classThis = _classDescriptor.value;
             __runInitializers(_classThis, _classExtraInitializers);
         }
-        a = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _a_initializers, void 0));
-        b = __runInitializers(this, _b_initializers, void 0);
-        c = __runInitializers(this, _c_initializers, void 0);
+        hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, 0));
     };
-    return MappedTest = _classThis;
+    return A = _classThis;
 })();
-await db.start();
-await MappedTest.createTable();
-await MappedTest.make({ a: 'hello', b: 1, c: '33' }).save();
-//const {Data} = await MappedTest.select({hello: 1}).get()
-//console.log(Data?.[0].raw)
-await db.kill();
+let B = (() => {
+    let _classDecorators_1 = [Connect({ TableName: 'TableB' })];
+    let _classDescriptor_1;
+    let _classExtraInitializers_1 = [];
+    let _classThis_1;
+    let _instanceExtraInitializers_1 = [];
+    let _hash_decorators;
+    let _hash_initializers = [];
+    var B = class extends Table {
+        static {
+            _hash_decorators = [HashKey.N()];
+            __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false, access: { get() { return this.hash; }, set(value) { this.hash = value; } } }, _hash_initializers, _instanceExtraInitializers_1);
+            __esDecorate(null, _classDescriptor_1 = { value: this }, _classDecorators_1, { kind: "class", name: this.name }, null, _classExtraInitializers_1);
+            B = _classThis_1 = _classDescriptor_1.value;
+            __runInitializers(_classThis_1, _classExtraInitializers_1);
+        }
+        hash = (__runInitializers(this, _instanceExtraInitializers_1), __runInitializers(this, _hash_initializers, 0));
+    };
+    return B = _classThis_1;
+})();
+try {
+    await new DynamoDBLocal().start();
+}
+catch (err) {
+    console.log(err);
+}
+const a = Array(300).fill(0).map((e, i) => A.make({ hash: i }));
+const b = Array(300).fill(0).map((e, i) => B.make({ hash: i }));
+const aa = await Promise.all([A.createTable(), B.createTable()]);
+const bb = await Promise.all([A.batchPut(...a), B.batchPut(...b)]);
+const batchGet = createBatchGet();
+batchGet.selectTable(A).requestKeys(...Array(210).keys());
+batchGet.selectTable(B).requestKeys(...Array(250).keys());
+const response = await batchGet.run();
+console.log(response.Info?.get(A));
+console.log(response.Info?.get(B));
+process.exit();
+//# sourceMappingURL=batchget.test.js.map

@@ -34,7 +34,7 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
 };
 import { Attribute, Connect, HashKey, RangeKey, Table } from './env/DynamORM.js';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-import { Between, Overwrite } from '../lib/operators/Functions.js';
+import { BeginsWith, Between, Overwrite } from '../lib/operators/Functions.js';
 import { createServer } from 'http';
 const DB = new DynamoDBLocal();
 let UpdateTest = (() => {
@@ -53,10 +53,10 @@ let UpdateTest = (() => {
     let _a_initializers = [];
     var UpdateTest = class extends Table {
         static {
-            _hash_decorators = [HashKey.S()];
-            _range_decorators = [RangeKey.N()];
+            _hash_decorators = [HashKey.S({ AttributeName: 'SomeHashKey' })];
+            _range_decorators = [RangeKey.N({ AttributeName: 'SomeRangeKey' })];
             _str_decorators = [Attribute()];
-            _a_decorators = [Attribute()];
+            _a_decorators = [Attribute({ AttributeName: 'SomeAttribute' })];
             __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false, access: { get() { return this.hash; }, set(value) { this.hash = value; } } }, _hash_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _range_decorators, { kind: "field", name: "range", static: false, private: false, access: { get() { return this.range; }, set(value) { this.range = value; } } }, _range_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false, access: { get() { return this.str; }, set(value) { this.str = value; } } }, _str_initializers, _instanceExtraInitializers);
@@ -85,28 +85,34 @@ const server = createServer(async (req, res) => {
         case '/async': {
             const c = await UpdateTest.createTable();
             const p = await UpdateTest.batchPut(...items);
-            const d = await UpdateTest.select({ hash: 8 }).delete();
-            const u = await UpdateTest.select({ hash: 7 }).update({ a: { z: Overwrite('as') } });
+            const z = await UpdateTest.put(items[0]);
+            const d = await UpdateTest.select({ hash: 8 })
+                .if({ a: { z: BeginsWith('helz') } })
+                .or({ a: { z: BeginsWith('baz') } })
+                .delete();
+            const u = await UpdateTest.select({ hash: 7 }).update({ a: { z: Overwrite('qwe') } });
             const g = await UpdateTest.select({ hash: [7, 8, 9, 34, 87, 98] }).get();
             const s = await UpdateTest.scan();
             const q = await UpdateTest.query('hash', Between(3, 6));
             const x = await UpdateTest.deleteTable();
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.write('Create\n');
+            res.write('{"command": "createTable"}\n');
             res.write(JSON.stringify(c));
-            res.write('\nPut\n');
+            res.write('{"command": "batchPut"}\n');
             res.write(JSON.stringify(p));
-            res.write('\nDelete\n');
+            res.write('{"command": "put"}\n');
+            res.write(JSON.stringify(z));
+            res.write('{"command": "delete"}\n');
             res.write(JSON.stringify(d));
-            res.write('\nUpdate\n');
+            res.write('{"command": "update"}\n');
             res.write(JSON.stringify(u));
-            res.write('\nGet\n');
+            res.write('{"command": "get"}\n');
             res.write(JSON.stringify(g));
-            res.write('\nScan\n');
+            res.write('{"command": "scan"}\n');
             res.write(JSON.stringify(s));
-            res.write('\nQuery\n');
+            res.write('{"command": "query"}\n');
             res.write(JSON.stringify(q));
-            res.write('\nDrop\n');
+            res.write('{"command": "deleteTable"}\n');
             res.write(JSON.stringify(x));
             res.end();
             break;
@@ -123,3 +129,4 @@ const server = createServer(async (req, res) => {
 server.listen(3000, 'localhost', () => console.log('listening..'));
 process.on('exit', () => DB.kill());
 //await DB.kill()
+//# sourceMappingURL=bigupdate.test.js.map

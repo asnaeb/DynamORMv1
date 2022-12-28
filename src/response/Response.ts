@@ -1,5 +1,3 @@
-import {removeUndefined} from '../utils/General'
-
 export interface IResponse<T, I> {Items?: T; Info?: I; Errors?: Error[]; OK: boolean}
 
 export type TResponse<T, D, I> = Omit<IResponse<T, I>, 'Items' | 'Info'> &
@@ -9,11 +7,10 @@ export type TResponse<T, D, I> = Omit<IResponse<T, I>, 'Items' | 'Info'> &
 export function Response<T, D, I>(data?: T, info?: I, errors?: Error[]) {
     const response: IResponse<T, I> = {OK: false}
 
-    if (Array.isArray(data) && data.length)
-        response.Items = data
+    response.Items = data
 
-    if (info && Object.keys(info).length)
-        response.Info = removeUndefined(info)
+    if (info && (Object.keys(info).length || info instanceof Map))
+        response.Info = info
 
     if (Array.isArray(errors) && errors.length)
         response.Errors = errors

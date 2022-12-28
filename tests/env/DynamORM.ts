@@ -12,7 +12,7 @@ export const {
     createLocalIndex,
     destroy,
     listTables,
-    // createBatchGet,
+    createBatchGet,
     // createBatchWrite,
     // createTransactGet,
     // createTransactWrite

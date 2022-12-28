@@ -124,3 +124,4 @@ describe('Binary data and primary key', () => {
         process.exit(0);
     });
 });
+//# sourceMappingURL=binary.test.js.map

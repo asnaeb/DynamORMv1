@@ -1,6 +1,5 @@
 import { DynamORMClient } from '../../lib/client/DynamORMClient.js';
-export const { Connect, HashKey, RangeKey, Attribute, TimeToLive, Table, Legacy, createGlobalIndex, createLocalIndex, destroy, listTables,
-// createBatchGet,
+export const { Connect, HashKey, RangeKey, Attribute, TimeToLive, Table, Legacy, createGlobalIndex, createLocalIndex, destroy, listTables, createBatchGet,
 // createBatchWrite,
 // createTransactGet,
 // createTransactWrite
@@ -12,3 +11,4 @@ export const { Connect, HashKey, RangeKey, Attribute, TimeToLive, Table, Legacy,
         accessKeyId: ''
     }
 });
+//# sourceMappingURL=DynamORM.js.map

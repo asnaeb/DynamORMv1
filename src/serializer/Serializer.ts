@@ -29,7 +29,6 @@ export class Serializer<T extends DynamORMTable> {
         if (this.#attributes) for (const [, {AttributeName, AttributeType}] of Object.entries(this.#attributes))
             if (key === AttributeName) {
                 type = AttributeType
-
                 break
             }
 
@@ -68,7 +67,7 @@ export class Serializer<T extends DynamORMTable> {
                 break
 
             case DynamoDBType.SS:
-                if (value instanceof Set && Array.from(value).every(v => typeof v === 'string'))
+                if (value instanceof Set && Array.from(value).every(v => typeof v === 'string')) // TODO check perf
                     return value
 
                 break
@@ -136,7 +135,7 @@ export class Serializer<T extends DynamORMTable> {
     }
 
     public serialize<T extends Record<PropertyKey, any>>(element: T, preserve?: 'preserve') {
-        const attributes: AttributeValues = {}
+        const attributes = {}
 
         if (this.#attributes) for (let [k, v] of Object.entries(element)) {
             if (k in this.#attributes) {
@@ -152,7 +151,7 @@ export class Serializer<T extends DynamORMTable> {
         }
 
         return {
-            Item: removeUndefined(attributes),
+            Item: <T>removeUndefined(attributes),
             Key: this.#extractKey(attributes),
             Attributes: this.#excludeKey(attributes)
         }

@@ -2,12 +2,13 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node16",
-    "target": "ES2018",
+    "target": "ES2020",
     "lib": ["ES2020"],
     "strict": true,
     "noImplicitOverride": true,
     "declaration": true,
     "outDir": "lib",
+    "sourceMap": true
   },
   "include": ["src"],
   "exclude": ["lib", "node_modules"]

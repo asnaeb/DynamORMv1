@@ -23,7 +23,7 @@ export type L = NativeType[]
 export type NativeType = S | N | B | BOOL | NULL | L | SS | NS | BS | M | undefined
 
 export type AttributeNames = Record<string, string>
-export type AttributeValues = Record<string, NativeType>
+export type AttributeValues = Record<string, NativeType> 
 
 export enum DynamoDBType {
     S = 'S',

@@ -10,6 +10,7 @@ import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE} from '../private/Symbols'
 import {generateCondition} from './ConditionsGenerator'
+import {AsyncArray} from '@asn.aeb/async-array'
 
 interface ExpressionsMap {
     SET: string[]
@@ -28,44 +29,21 @@ type UpdateParams<T extends DynamORMTable> = [
 const doneEvent = Symbol('done')
 
 class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
-    #commands: UpdateCommand[] = []
+    #commands = new AsyncArray<UpdateCommand>()
 
     constructor(TableName: string, Key: Key, updates: Update<T>, conditions?: Condition<T>[]) {
         super({captureRejections: true})
 
         this.on('error', e => console.log(e))
 
-        const iterateUpdate = (update = updates, path: string[] = [], top = true) => {
-            const keys = Object.keys(update)
-            const keysLength = keys.length
+        const it = async (update: Update<T>, path: string[] = [], top = true) => {
+            const keys = AsyncArray.to(Object.keys(update))
 
             const attributeNames: AttributeNames = {}
             const attributeValues: AttributeValues = {}
             const expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
-            
-            const iterateUpdateKey = (i = 0) => {
-                if (i === keysLength) {
-                    const command = new UpdateCommand({
-                        ...this.#generateInput(attributeNames, attributeValues, expressionsMap),
-                        TableName,
-                        Key
-                    })
 
-                    this.#commands.push(command)
-
-                    if (top) {
-                        this.#commands.reverse()
-
-                        if (conditions?.length)
-                            return this.#addCondition(conditions)
-
-                        return this.emit(doneEvent, this.#commands)
-                    }
-
-                    return
-                }
-
-                const key = keys[i]
+            await keys.async.forEach(key => {
                 const value = update[<keyof T>key]
 
                 let $path, $key = alphaNumeric(key)
@@ -87,21 +65,101 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
 
                         Object.assign(attributeValues, {[`:${$key}_object_map`]: {}})
                         expressionsMap.SET.push(setExpr)
-                        iterateUpdate(<Update<T>>value, $path, false)
+                        it(<Update<T>>value, $path, false)
                     }
                 } else if (value === REMOVE)
                     expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
+            })
 
-                setImmediate(iterateUpdateKey, ++i)
+            const command = new UpdateCommand({
+                ...this.#generateInput(attributeNames, attributeValues, expressionsMap),
+                TableName,
+                Key
+            })
+
+            this.#commands.unshift(command)
+
+            if (top) {
+                if (conditions?.length)
+                    await this.#addCondition(conditions)
+
+                this.emit(doneEvent, this.#commands)
             }
-
-            iterateUpdateKey()
         }
 
-        iterateUpdate()
+        it(updates)
+
+        // const iterateUpdate = (update = updates, path: string[] = [], top = true) => {
+        //     const keys = Object.keys(update)
+        //     const keysLength = keys.length
+
+        //     const attributeNames: AttributeNames = {}
+        //     const attributeValues: AttributeValues = {}
+        //     const expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
+            
+        //     const iterateUpdateKey = (i = 0) => {
+        //         if (i === keysLength) {
+        //             const command = new UpdateCommand({
+        //                 ...this.#generateInput(attributeNames, attributeValues, expressionsMap),
+        //                 TableName,
+        //                 Key
+        //             })
+
+        //             this.#commands.push(command)
+
+        //             if (top) {
+        //                 this.#commands.reverse()
+
+        //                 if (conditions?.length)
+        //                     return this.#addCondition(conditions)
+
+        //                 return this.emit(doneEvent, this.#commands)
+        //             }
+
+        //             return
+        //         }
+
+        //         const key = keys[i]
+        //         const value = update[<keyof T>key]
+
+        //         let $path, $key = alphaNumeric(key)
+
+        //         Object.assign(attributeNames, {[`#${$key}`]: key})
+
+        //         if (path?.length) {
+        //             $path = [...path, $key]
+        //             for (const k of path)
+        //                 Object.assign(attributeNames, {[`#${k}`]: k})
+        //         } else
+        //             $path = [$key]
+
+        //         if (isObject(value)) {
+        //             if (isUpdateObject(value))
+        //                 this.#handleUpdate(value, $path, attributeValues, expressionsMap)
+        //             else {
+        //                 const setExpr = `#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`
+
+        //                 Object.assign(attributeValues, {[`:${$key}_object_map`]: {}})
+        //                 expressionsMap.SET.push(setExpr)
+        //                 iterateUpdate(<Update<T>>value, $path, false)
+        //             }
+        //         } else if (value === REMOVE)
+        //             expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
+
+        //         setImmediate(iterateUpdateKey, ++i)
+        //     }
+
+        //     iterateUpdateKey()
+        // }
+
+        // iterateUpdate()
     }
 
-    #generateInput(attributeNames: AttributeNames, attributeValues: AttributeValues, expressionsMap: ExpressionsMap) {
+    #generateInput(
+        attributeNames: AttributeNames, 
+        attributeValues: AttributeValues, 
+        expressionsMap: ExpressionsMap
+    ) {
         const SET = expressionsMap.SET.join(', ')
         const ADD = expressionsMap.ADD.join(', ')
         const DELETE = expressionsMap.DELETE.join(', ')
@@ -136,15 +194,15 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
             first.input.ConditionExpression = ConditionExpression
             Object.assign(first.input.ExpressionAttributeNames, ExpressionAttributeNames)
             Object.assign(first.input.ExpressionAttributeValues, ExpressionAttributeValues)
-
-            return this.emit(doneEvent, this.#commands)
         }
     }
 
-    #handleUpdate(object: {[k: symbol]: unknown}, 
+    #handleUpdate(
+        object: {[k: symbol]: unknown}, 
         path: string[], 
         attributeValues: AttributeValues,
-        expressionsMap: ExpressionsMap) {
+        expressionsMap: ExpressionsMap
+    ) {
         const attributeName = `#${path.join('.#')}`
         const key = Object.getOwnPropertySymbols(object)[0]
         const value = object[key]
@@ -198,6 +256,8 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         }
 }
 
-export function generateUpdate<T extends DynamORMTable>(...args: UpdateParams<T>): Promise<UpdateCommand[]> {
-    return new Promise<UpdateCommand[]>(resolve => new UpdateGenerator(...args).once(doneEvent, data => resolve(data)))
+export function generateUpdate<T extends DynamORMTable>(...args: UpdateParams<T>) {
+    return new Promise<AsyncArray<UpdateCommand>>(resolve => {
+        new UpdateGenerator(...args).once(doneEvent, data => resolve(data))
+    })
 }

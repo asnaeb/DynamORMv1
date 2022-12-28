@@ -1,9 +1,9 @@
 import {BillingMode, CreateTableCommand, CreateTableCommandOutput, ProvisionedThroughput, StreamViewType, TableClass} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
-import {SingleCommand} from './SingleCommand'
+import {TableCommandSingle} from './TableCommandSingle'
 
-export class CreateTable<T extends DynamORMTable> extends SingleCommand<T, CreateTableCommandOutput> {
+export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, CreateTableCommandOutput> {
     public constructor(
         table: Constructor<T>, 
         ProvisionedThroughput?: ProvisionedThroughput, 
@@ -12,7 +12,7 @@ export class CreateTable<T extends DynamORMTable> extends SingleCommand<T, Creat
     ) {
         super(table)
 
-        this.emit(SingleCommand.commandEvent, new CreateTableCommand({
+        this.emit(TableCommandSingle.commandEvent, new CreateTableCommand({
             TableName: this.tableName,
             AttributeDefinitions: this.attributeDefinitions,
             KeySchema: this.keySchema,
@@ -29,6 +29,6 @@ export class CreateTable<T extends DynamORMTable> extends SingleCommand<T, Creat
     }
 
     public get response() {
-        return this.make_response(['TableDescription'], 'Created')
+        return this.make_response(['TableDescription'], 'Created', undefined)
     }
 }
