@@ -93,7 +93,7 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
                         errors.push(error)
 
                         if (failKey)
-                            infos.push(<I>{[failKey]: 1})
+                            infos.push(<I>{[failKey]: originLength ?? 1})
                     }
 
                     if (output) {
@@ -122,6 +122,10 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
                                     data?.push(this.serializer.deserialize(item as any))
                                     if (successKey) infos.push(<I>{[successKey]: 1})
                                 })
+                            }
+
+                            else if (originLength && failKey) {
+                                infos.push(<I>{[failKey]: originLength})
                             }
                         }
 
@@ -152,100 +156,12 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
                     }
 
                     return {data, errors, infos}
-                }, {data: <T[] | undefined>undefined, errors: <Error[]>[], infos: <I[]>[]})
+                }, {data: dataKey ? <T[]>[] : undefined, errors: <Error[]>[], infos: <I[]>[]})
 
                 const info = await mergeNumericProps(infos)
                 const response = Response<T[], D, I>(data, info, errors)
                 
                 return resolve(response)
-
-                // let data: T[], errors: Error[]
-
-                // const responsesLength = responses.length
-                // const infos: I[] = []
-
-                // const iterateItems = (
-                //     items: Record<string, AttributeValue>[], 
-                //     length: number, 
-                //     cb: (i?: number) => Promise<NodeJS.Immediate | void>, 
-                //     i: number, 
-                //     j: number = 0
-                // ) => {
-                //     if (j === length)
-                //         return setImmediate(cb, i+1)
-
-                //     const item = items[j]
-
-                //     data.push(this.serializer.deserialize(item))
-                //     if (successKey) infos.push(<I>{[successKey]: 1})
-
-                //     setImmediate(iterateItems, items, length, cb, i, ++j)
-                // }
-
-                // const iterateResponses = async (i = 0) => {
-                //     if (i === responsesLength) {
-                //         const info = await mergeNumericProps(infos)
-                //         const response = _Response<T[], D, I>(data, info, errors)
-                //         return resolve(response)
-                //     }
-
-                //     const {output, error} = responses[i]
-
-                //     if (error) {
-                //         errors ??= []
-                //         errors.push(error)
-
-                //         if (failKey)
-                //             infos.push(<I>{[failKey]: 1})
-                //     }
-
-                //     if (output) {
-                //         for (const key of infoKeys)
-                //             infos.push(<I>{[key]: output[key]})
-
-                //         // BatchGet
-                //         if ('Responses' in output && !Array.isArray(output.Responses)) {
-                //             const items = output.Responses?.[this.tableName]
-                //             const itemsLength = items?.length
-
-                //             if (itemsLength) {
-                //                 data ??= []
-
-                //                 if (originLength && failKey) {
-                //                     const failedLength = originLength - itemsLength
-
-                //                     if (failedLength) infos.push(<I>{[failKey]: failedLength})
-                //                 }
-
-                //                 return iterateItems(items, itemsLength, iterateResponses, i)
-                //             }
-                //         }
-
-                //         else if (dataKey && output[dataKey]) {
-                //             const outputData = output[dataKey]
-
-                //             if (Array.isArray(outputData))
-                //                 return iterateItems(outputData, outputData.length, iterateResponses, i)
-                //             else {
-                //                 data ??= []
-                //                 data.push(this.serializer.deserialize(<Record<string, AttributeValue>>outputData))
-
-                //                 if (successKey)
-                //                     infos.push(<I>{[successKey]: 1})
-                //             }
-                //         }
-
-                //         else if (dataKey && !output[dataKey] && failKey)
-                //             infos.push(<I>{[failKey]: 1})
-
-                //         else if (successKey)
-                //             infos.push(<I>{[successKey]: 1})
-                //     }
-
-                //     setImmediate(iterateResponses, ++i)
-                // }
-
-                // iterateResponses()
             })
         })
     }

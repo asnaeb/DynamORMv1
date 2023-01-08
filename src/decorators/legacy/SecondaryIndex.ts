@@ -9,7 +9,7 @@ import {CreateSecondaryIndexParams} from '../../interfaces/CreateSecondaryIndexP
 import {LocalIndexParams} from '../../interfaces/LocalIndexParams'
 import {GlobalIndexParams} from '../../interfaces/GlobalIndexParams'
 import {SharedInfo} from '../../interfaces/SharedInfo'
-import {DynamoDBScalarType, DynamoDBType} from '../../types/Native'
+import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../../types/Native'
 
 interface LegacyFactoryParams {
     Kind: 'Local' | 'Global'
@@ -25,7 +25,12 @@ function decoratorFactory<Z>({AttributeType, MappedAttributeName, ...params}: Le
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
-        const AttributeDefinitions = {[params.KeyType]: {AttributeName: MappedAttributeName ?? <string>AttributeName, AttributeType}}
+        const AttributeDefinitions = {
+            [params.KeyType]: {
+                AttributeName: MappedAttributeName ?? <string>AttributeName, 
+                AttributeType
+            }
+        }
 
         if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
             TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
@@ -55,19 +60,21 @@ export function LegacyLocalIndex() {
         }
 
         return {
-            get LocalRange() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B})}
-                }
+            LocalRange: {
+                S: decorator<S>({...params, AttributeType: DynamoDBType.S}),
+                N: decorator<N>({...params, AttributeType: DynamoDBType.N}),
+                B: decorator<B>({...params, AttributeType: DynamoDBType.B})
             }
         }
     }
 }
 
 export function LegacyGlobalIndex() {
-    return function({IndexName, ProjectedAttributes, ProvisionedThroughput}: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
+    return function({
+        IndexName, 
+        ProjectedAttributes, 
+        ProvisionedThroughput
+    }: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
         const params = {
             Kind: 'Global' as const,
             IndexName,
@@ -76,26 +83,29 @@ export function LegacyGlobalIndex() {
         }
 
         return {
-            get GlobalHash() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.HASH})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.HASH})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.HASH})}
-                }
+            GlobalHash: {
+                S: decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.HASH}),
+                N: decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.HASH}),
+                B: decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.HASH})
             },
-            get GlobalRange() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.RANGE})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.RANGE})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.RANGE})}
-                }
+            GlobalRange: {
+                S: decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.RANGE}),
+                N: decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.RANGE}),
+                B: decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.RANGE})
             }
         }
     }
 }
 
-export function AddIndexInfo(target: any, {Kind, AttributeDefinitions, IndexName, ProjectedAttributes, ProvisionedThroughput, UID}:
-                                 Omit<CreateSecondaryIndexParams, 'SharedInfo'>) {
+export function AddIndexInfo(
+    target: any, {
+        Kind, 
+        AttributeDefinitions, 
+        IndexName, 
+        ProjectedAttributes, 
+        ProvisionedThroughput, 
+        UID
+    }: Omit<CreateSecondaryIndexParams, 'SharedInfo'>) {
     const wm = TABLE_DESCR(target)
     const secondaryIndex: GlobalSecondaryIndex = {
         KeySchema: undefined,
@@ -108,10 +118,10 @@ export function AddIndexInfo(target: any, {Kind, AttributeDefinitions, IndexName
         secondaryIndex.IndexName = alphaNumericDotDash(IndexName)
     else {
         secondaryIndex.IndexName = `Dynam0RM.${Kind}Index`
+
         if (UID !== undefined && Kind === 'Global')
             secondaryIndex.IndexName += `.${UID}`
-        else
-        if (AttributeDefinitions.RANGE?.AttributeName)
+        else if (AttributeDefinitions.RANGE?.AttributeName)
             secondaryIndex.IndexName += `.${AttributeDefinitions.RANGE.AttributeName}.range`
     }
 
@@ -129,7 +139,8 @@ export function AddIndexInfo(target: any, {Kind, AttributeDefinitions, IndexName
                 ProjectionType: ProjectionType.INCLUDE,
                 NonKeyAttributes: ProjectedAttributes as string[]
             }
-        } else if (ProjectedAttributes === ProjectionType.KEYS_ONLY)
+        } 
+        else if (ProjectedAttributes === ProjectionType.KEYS_ONLY)
             secondaryIndex.Projection = {ProjectionType: ProjectionType.KEYS_ONLY}
     }
 

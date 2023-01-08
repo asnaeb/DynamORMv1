@@ -2,12 +2,12 @@ import {AsyncArray} from '@asn.aeb/async-array'
 import type {KeySchemaElement} from '@aws-sdk/client-dynamodb'
 import type {Constructor} from '../types/Utils'
 import type {SharedInfo} from '../interfaces/SharedInfo'
+import type {Key} from '../types/Key'
+import type {AttributeValues} from '../types/Native'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {ATTRIBUTES, KEY_SCHEMA} from '../private/Symbols'
-import {AttributeValues} from '../types/Native'
-import {Key} from "../types/Key"
-import {isObject, removeUndefined} from '../utils/General'
+import {isObject} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
 import {isValidKeyType, isValidType} from '../validation/type'
 import {DynamoDBType} from '../types/Native'
@@ -151,7 +151,7 @@ export class Serializer<T extends DynamORMTable> {
         }
 
         return {
-            Item: <T>removeUndefined(attributes),
+            Item: <T>attributes,
             Key: this.#extractKey(attributes),
             Attributes: this.#excludeKey(attributes)
         }
@@ -167,98 +167,6 @@ export class Serializer<T extends DynamORMTable> {
 
         return instance
     }
-
-    // public generateKeys(keys: PrimaryKeys<T>) {
-    //     const keysLength = keys.length
-    //     const generatedKeys: Key[] = []
-
-    //     const hashKey = this.#keySchema?.[0]?.AttributeName
-    //     const rangeKey = this.#keySchema?.[1]?.AttributeName
-
-    //     return new Promise<Key[]>(resolve => {
-    //         const iterateKeys = (i = 0) => {
-    //             if (i === keysLength)
-    //                 return resolve(generatedKeys)
-
-    //             const key = keys[i]
-
-    //             if (key instanceof DynamORMTable) {
-    //                 const {Key} = this.serialize(key)
-
-    //                 if (Key)
-    //                     generatedKeys.push(Key)
-
-    //                 setImmediate(iterateKeys, ++i)
-    //             } else if (isObject(key)) {
-    //                 if (hashKey && rangeKey) {
-    //                     const entries = Object.entries(key)
-    //                     const entriesLength = entries.length
-
-    //                     const iterateKey = (f = 0) => {
-    //                         if (f === entriesLength)
-    //                             return setImmediate(iterateKeys, ++i)
-
-    //                         const [hashValue, rangeValue] = entries[f]
-
-    //                         if (Array.isArray(rangeValue)) {
-    //                             const rangeValueLength = rangeValue.length
-
-    //                             const iterateRangeValue = (j = 0) => {
-    //                                 if (j === rangeValueLength)
-    //                                     return setImmediate(iterateKey, ++f)
-
-    //                                 const rangeValueItem = rangeValue[j]
-
-    //                                 const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
-    //                                 const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValueItem)
-
-    //                                 if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
-    //                                     generatedKeys.push({
-    //                                         [hashKey]: convertedHashValue,
-    //                                         [rangeKey]: convertedRangeValue
-    //                                     })
-
-    //                                 setImmediate(iterateRangeValue, ++j)
-    //                             }
-
-    //                             iterateRangeValue()
-    //                         } else {
-    //                             const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
-    //                             const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValue)
-
-    //                             if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
-    //                                 generatedKeys.push({
-    //                                     [hashKey]: convertedHashValue,
-    //                                     [rangeKey]: convertedRangeValue
-    //                                 })
-
-    //                             setImmediate(iterateKey, ++f)
-    //                         }
-    //                     }
-
-    //                     iterateKey()
-    //                 } else {
-    //                     console.warn('invalid key', key)
-    //                     setImmediate(iterateKeys, ++i)
-    //                 }
-    //             } else {
-    //                 if (hashKey && !rangeKey) {
-    //                     const convertedHashValue = this.#finalizeValue(hashKey, key)
-
-    //                     if (isValidKeyType(convertedHashValue))
-    //                         generatedKeys.push({
-    //                             [hashKey]: convertedHashValue
-    //                         })
-    //                 } else
-    //                     console.warn('invalid key', key) //TODO proper error logging
-
-    //                 setImmediate(iterateKeys, ++i)
-    //             }
-    //         }
-
-    //         iterateKeys()
-    //     })
-    // }
 
     public async generateKeys(keys: AsyncArray<unknown>) {
         const hashKey = this.#keySchema?.[0]?.AttributeName

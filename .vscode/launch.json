@@ -8,6 +8,7 @@
             "name": "crud",
             "program": "${workspaceFolder}/tests/crud.test.js",
             "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -19,6 +20,7 @@
             "request": "launch",
             "name": "bigupdate",
             "preLaunchTask": "build-tests" ,
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
             "skipFiles": [
                 "<node_internals>/**"
             ],
@@ -28,17 +30,56 @@
             "type": "node",
             "request": "launch",
             "name": "batchget",
-            "preLaunchTask": "build-tests" ,
+            "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/tests/batchget.test.js",
+            "console": "integratedTerminal",
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "transaction",
+            "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/tests/transaction.test.js",
+            "console": "integratedTerminal",
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "indexes",
+            "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/tests/indexes.test.js",
+            "console": "integratedTerminal",
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "updategen",
+            "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/tests/update.test.js",
+            "console": "integratedTerminal",
         },
         {
             "type": "node",
             "request": "launch",
             "name": "errors",
-            "preLaunchTask": "build-tests" ,
+            "preLaunchTask": "build-tests",
+            "env": {"AWS_ENDPOINT": "http://localhost:8000"},
             "skipFiles": [
                 "<node_internals>/**"
             ],

@@ -1,7 +1,6 @@
 import { DynamORMClient } from '../../lib/client/DynamORMClient.js';
-export const { Connect, HashKey, RangeKey, Attribute, TimeToLive, Table, Legacy, createGlobalIndex, createLocalIndex, destroy, listTables, createBatchGet,
-// createBatchWrite,
-// createTransactGet,
+export { DynamORMTable as Table } from '../../lib/table/DynamORMTable.js';
+export const { Connect, HashKey, RangeKey, Attribute, TimeToLive, Legacy, GlobalIndex, LocalIndex, destroy, ListTables, BatchGet, BatchWrite, TransactGet,
 // createTransactWrite
  } = new DynamORMClient({
     region: 'eu-central-1',

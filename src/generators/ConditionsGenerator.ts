@@ -1,6 +1,6 @@
 import type {Condition} from '../types/Condition'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {AttributeNames} from '../types/Native'
+import type {AttributeNames, Native} from '../types/Native'
 import type {AttributeValue} from '@aws-sdk/client-dynamodb'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {EventEmitter} from 'node:events'
@@ -42,7 +42,7 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
             if (top) this.#tmp_block = []
 
             await keys.async.forEach(async key => {
-                const value = condition[<keyof T>key]
+                const value = condition[<keyof Native<T>>key]
 
                 const $key = alphaNumeric(key)
                 const $path = path.length ? [...path, $key] : [$key]
@@ -68,66 +68,16 @@ export class ConditionsGenerator<T extends DynamORMTable> extends EventEmitter {
             const clos = this.#conditionExpressions.length > 1 ? ')' : ''
             const andBlocks = this.#conditionExpressions.map(block => open + block.join(` AND `) + clos)
 
-            const ConditionExpression = andBlocks.join(` OR `)
-            const ExpressionAttributeValues = this.#attributeValues
-            const ExpressionAttributeNames = this.#attributeNames
+            let ConditionExpression
+            let ExpressionAttributeValues 
+            let ExpressionAttributeNames
+
+            if (andBlocks.length) ConditionExpression = andBlocks.join(` OR `)
+            if (Object.keys(this.#attributeNames).length) ExpressionAttributeNames = this.#attributeNames
+            if (Object.keys(this.#attributeValues).length) ExpressionAttributeValues = this.#attributeValues
 
             this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
         })
-
-        // const conditionsLength = conditions.length
-
-        // const iterateCondition = (i = 0, object = conditions[i], path: string[] = [], top = true) => {
-        //     if (i === conditionsLength && top) {
-        //         const p = this.#conditionExpressions.length > 1 ? '(' : ''
-        //         const q = this.#conditionExpressions.length > 1 ? ')' : ''
-        //         const andBlocks = this.#conditionExpressions.map(block => p + block.join(` AND `) + q)
-
-        //         const ConditionExpression = andBlocks.join(` OR `)
-        //         const ExpressionAttributeValues = this.#attributeValues
-        //         const ExpressionAttributeNames = this.#attributeNames
-
-        //         return this.emit(doneEvent, {ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues})
-        //     }
-
-        //     const keys = Object.keys(object)
-        //     const keysLength = keys.length
-
-        //     if (top)
-        //         this.#block = []
-
-        //     const iterateConditionKey = (j = 0) => {
-        //         if (j === keysLength) {
-        //             if (top) {
-        //                 this.#conditionExpressions.push(this.#block)
-        //                 return setImmediate(iterateCondition, ++i)
-        //             }
-
-        //             return
-        //         }
-
-        //         const key = keys[j]
-        //         const value = object[<keyof T>key]
-
-        //         const $key = alphaNumeric(key)
-        //         const $path = path.length ? [...path, $key] : [$key]
-
-        //         Object.assign(this.#attributeNames, {[`#${$key}`]: key})
-
-        //         if (isObject(value)) {
-        //             if (isConditionObject(value))
-        //                 this.#handleCondition(value, $path)
-        //             else
-        //                 iterateCondition(0, value, $path, false) // setImmediate?
-        //         }
-
-        //         setImmediate(iterateConditionKey, ++j)
-        //     }
-
-        //     iterateConditionKey()
-        // }
-
-        // iterateCondition()
     }
 
     #handleCondition(object: {[k: symbol]: any /* unknown */}, path: string[]) {

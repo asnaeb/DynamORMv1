@@ -36,8 +36,8 @@ await LegacyTest.make({a: 'asnaeb', b: 0, c: new Uint8Array([1, 2, 3])}).save()
 
 await LegacyTest.select({asnaeb: 0}).update({e: Increment(40)})
 
-const {Data} = await LegacyTest.select({asnaeb: 0}).get()
+const {Items} = await LegacyTest.select({asnaeb: 0}).get()
 
-console.log(Data?.[0])
+console.log(Items?.[0])
 
 await DB.kill()

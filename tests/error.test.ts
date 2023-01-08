@@ -1,4 +1,4 @@
-import {Connect, HashKey, Attribute, Table} from './env/DynamORM.js'
+import {Connect, HashKey, Attribute, Table} from '../lib/index.js'
 import {DynamoDBLocal} from './env/DynamoDBLocal.js'
 
 const db = new DynamoDBLocal()

@@ -1,110 +1,290 @@
-// import type {DynamORMTable} from '../table/DynamORMTable'
-// import type {Constructor} from '../types/Utils'
-// import type {Condition, PrimaryKeys, Update as TUpdate} from '../types/Internal'
-// import type {TransactWriteCommandInput} from '@aws-sdk/lib-dynamodb'
-// import {type DynamoDBDocumentClient, TransactWriteCommand} from '@aws-sdk/lib-dynamodb'
-// import {Put} from './Put'
-// import {Delete} from './Delete'
-// import {Update} from './Update'
-// import {Serializer} from '../serializer/Serializer'
-// import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {
+    DynamoDBDocumentClient,
+    TransactWriteCommand,
+    TransactWriteCommandInput,
+    TransactWriteCommandOutput,
+} from '@aws-sdk/lib-dynamodb'
 
-// export class TransactWrite {
-//     readonly #TransactWrite: TransactWriteCommandInput = {
-//         TransactItems: [],
-//         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
-//     }
-//     readonly #Client: DynamoDBDocumentClient
+import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {ClientCommand} from './ClientCommand'
+import {DynamORMTable} from '../table/DynamORMTable'
+import {Key, PrimaryKeys} from '../types/Key'
+import {Condition} from '../types/Condition'
+import {Update} from '../types/Update'
+import {TABLE_DESCR} from '../private/Weakmaps'
+import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
+import type {Serializer} from '../serializer/Serializer'
+import {AsyncArray} from '@asn.aeb/async-array'
+import {generateUpdate} from '../generators/UpdateGenerator'
+import {generateCondition} from '../generators/ConditionsGenerator'
+import {Response} from '../response/Response'
 
-//     public constructor(Client: DynamoDBDocumentClient) {
-//         this.#Client = Client
-//     }
+interface IRequest<T extends typeof DynamORMTable> {
+    table: T
+}
+interface UpdateRequest<T extends typeof DynamORMTable> extends IRequest<T> {
+    update: Update<InstanceType<T>>
+    keys: PrimaryKeys<InstanceType<T>>
+    conditions?: Condition<InstanceType<T>>[]
+}
+interface PutRequest<T extends typeof DynamORMTable> extends IRequest<T> {
+    items: InstanceType<T>[]
+}
+interface DeleteRequest<T extends typeof DynamORMTable> extends IRequest<T> {
+    keys: PrimaryKeys<InstanceType<T>>
+    delete: true
+    conditions?: Condition<InstanceType<T>>[]
+}
+interface CheckRequest<T extends typeof DynamORMTable> extends IRequest<T> {
+    keys: PrimaryKeys<InstanceType<T>>
+    conditions: Condition<InstanceType<T>>[]
+    check: true
+}
+interface RunIn {
+    run(): ReturnType<TransactWrite['run']>
+    in<T extends typeof DynamORMTable>(table: T): Chain<T>
+}
 
-//     #filterKeys<T extends DynamORMTable>(table: Constructor<T>, keys: PrimaryKeys<T>) {
-//         let generatedKeys = new Serializer(table).generateKeys(keys)
-//         if (generatedKeys.length > 100) {
-//             //TODO Log Warning
-//             return generatedKeys.slice(0, 99)
-//         }
-//         return generatedKeys
-//     }
+type Request<T extends typeof DynamORMTable = typeof DynamORMTable> =
+    | PutRequest<T>
+    | DeleteRequest<T>
+    | UpdateRequest<T>
+    | CheckRequest<T>
 
-//     #addPut<T extends DynamORMTable>(Target: Constructor<T>, {serialize}: Serializer<T>, items: T[]) {
-//         if (this.#TransactWrite.TransactItems?.length! < 100) {
-//             items.forEach(i => this.#TransactWrite.TransactItems?.push({
-//                 Put: new Put({Target, Item: serialize(i)}).commandInput
-//             }))
-//         } else {
-//             // TODO Log warning
-//         }
-//     }
+interface Chain<T extends typeof DynamORMTable> {
+    put(...items: InstanceType<T>[]): Chain<T> & RunIn
+    select(...keys: PrimaryKeys<InstanceType<T>>): {
+        update(update: Update<InstanceType<T>>): Chain<T>  & RunIn
+        delete(): Chain<T> & RunIn
+        if(condition: Condition<InstanceType<T>>): {
+            check(): Chain<T> & RunIn
+            update(update: Update<InstanceType<T>>): Chain<T> & RunIn
+            delete(): Chain<T> & RunIn
+            or(condition: Condition<InstanceType<T>>): {
+                or(condition: Condition<InstanceType<T>>): 
+                    ReturnType<ReturnType<ReturnType<Chain<T>['select']>['if']>['or']>
+                check(): Chain<T> & RunIn
+                update(update: Update<InstanceType<T>>): Chain<T> & RunIn
+                delete(): Chain<T> & RunIn
+            }
+        }
+    }
+}
 
-//     #addDelete<T extends DynamORMTable>(Target: Constructor<T>, keys: PrimaryKeys<T>, Conditions?: Condition<T>[]) {
-//         if (this.#TransactWrite.TransactItems?.length! < 100) {
-//             this.#filterKeys(Target, keys).forEach(Key => this.#TransactWrite.TransactItems?.push({
-//                 Delete: new Delete({Target, Key, Conditions}).commandInput
-//             }))
-//         } else {
-//             // TODO Log warning
-//         }
-//     }
+export class TransactWrite extends ClientCommand {
+    #requests: Request[] = []
+    #input: TransactWriteCommandInput = {
+        ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
+        ClientRequestToken: this.token,
+        TransactItems: []
+    }
 
-//     #addUpdate<T extends DynamORMTable>(Target: Constructor<T>,
-//         {serialize}: Serializer<T>,
-//         keys: PrimaryKeys<T>,
-//         UpdateObject: TUpdate<T>,
-//         Conditions?: Condition<T>[]) {
-//         if (this.#TransactWrite.TransactItems?.length! < 100) {
-//             this.#filterKeys(Target, keys).forEach(Key =>
-//                 new Update({
-//                     Target,
-//                     Key,
-//                     UpdateObject: serialize(UpdateObject, 'preserve'),
-//                     Conditions: Conditions?.map(c => serialize(c))
-//                 }).commandInput.forEach(i =>
-//                     this.#TransactWrite.TransactItems?.push({Update: i as Required<typeof i>})))
-//         } else {
-//             // TODO Log warning
-//         }
-//     }
+    public constructor(client: DynamoDBDocumentClient, private token?: string) {
+        super(client)
+    }
 
-//     public selectTable<T extends DynamORMTable>(table: Constructor<T>) {
-//         const serializer = new Serializer(table)
-//         return {
-//             addPutRequest: (...items: T[]) => this.#addPut(table, serializer, items),
-//             selectKeys: (...keys: PrimaryKeys<T>) => {
-//                 const conditions: Condition<T>[] = []
-//                 const commands = {
-//                     addDeleteRequest: () => this.#addDelete(table, keys, conditions),
-//                     addUpdateRequest: (update: TUpdate<T>) => this.#addUpdate(table, serializer, keys, update, conditions)
-//                 }
-//                 const or = (condition: Condition<T>) => {
-//                     conditions.push(condition)
-//                     return {or, ...commands}
-//                 }
-//                 return {
-//                     ...commands,
-//                     if(condition: Condition<T>) {
-//                         conditions.push(condition)
-//                         return {or, ...commands}
-//                     }
-//                 }
-//             }
-//         }
-//     }
+    async #addRequest(request: Request) {
+        const TableName = TABLE_DESCR(request.table).get<string>(TABLE_NAME)
+        const serializer = TABLE_DESCR(request.table).get<Serializer<any>>(SERIALIZER)
 
-//     public async write() {
-//         try {
-//             return {
-//                 ok: true,
-//                 output: await this.#Client.send(new TransactWriteCommand(this.#TransactWrite))
-//             }
-//         }
-//         catch (error) {
-//             return {
-//                 ok: false,
-//                 error
-//             }
-//         }
-//     }
-// }
+        if (!serializer || !TableName)
+            throw 'something went wrong'
+
+        if ('items' in request) {
+            for (const item of request.items) {
+                const {Item} = serializer.serialize(item)
+
+                this.#input.TransactItems?.push({
+                    Put: {TableName, Item}
+                })
+            }
+
+            return
+        }
+
+        let keys!: AsyncArray<Key>
+
+        if ('keys' in request) {
+            const $keys = AsyncArray.to(request.keys)
+
+            keys = await serializer.generateKeys($keys)
+        }
+
+        if ('update' in request) {
+            for (const Key of keys) {
+                const commands = await generateUpdate(
+                    TableName,
+                    Key,
+                    request.update,
+                    request.conditions,
+                    false
+                )
+
+                for (const {input} of commands)
+                    this.#input.TransactItems?.push({
+                        Update: {
+                            TableName,
+                            Key: input.Key,
+                            ExpressionAttributeNames: input.ExpressionAttributeNames,
+                            ExpressionAttributeValues: input.ExpressionAttributeValues,
+                            ConditionExpression: input.ConditionExpression,
+                            UpdateExpression: input.UpdateExpression
+                        }
+                    })
+            }
+        }
+
+        if ('delete' in request) {
+            let ConditionExpression
+            let ExpressionAttributeNames
+            let ExpressionAttributeValues
+
+            if (request.conditions?.length) {
+                const condition = await generateCondition(request.conditions)
+                ConditionExpression = condition.ConditionExpression
+                ExpressionAttributeNames = condition.ExpressionAttributeNames
+                ExpressionAttributeValues = condition.ExpressionAttributeValues
+            }
+
+            for (const Key of keys) {
+                this.#input.TransactItems?.push({
+                    Delete: {
+                        TableName,
+                        Key,
+                        ExpressionAttributeNames,
+                        ExpressionAttributeValues,
+                        ConditionExpression
+                    }
+                })
+            }
+        }
+
+        if ('check' in request) {
+            const {
+                ConditionExpression,
+                ExpressionAttributeNames,
+                ExpressionAttributeValues
+            } = await generateCondition(request.conditions)
+
+            for (const Key of keys)
+                this.#input.TransactItems?.push({
+                    ConditionCheck: {
+                        TableName,
+                        Key,
+                        ExpressionAttributeNames,
+                        ExpressionAttributeValues,
+                        ConditionExpression
+                    }
+                })
+        }
+    }
+
+    public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
+        const conditions: Condition<InstanceType<T>>[] = []
+
+        const check = (keys: PrimaryKeys<InstanceType<T>>) => ({
+            check: () => {
+                this.#requests.push({table, keys, conditions, check: true})
+                return {
+                    ...this.in(table),
+                    run: this.run.bind(this),
+                    in: this.in.bind(this)
+                }
+            }
+        })
+
+        const update_delete = (keys: PrimaryKeys<InstanceType<T>>) => ({
+            update: (update: Update<InstanceType<T>>) => {
+                this.#requests.push({table, keys, update, conditions})
+                return {
+                    ...this.in(table),
+                    run: this.run.bind(this),
+                    in: this.in.bind(this)
+                }
+            },
+            delete: () => {
+                this.#requests.push({table, keys, conditions, delete: true})
+                return {
+                    ...this.in(table),
+                    run: this.run.bind(this),
+                    in: this.in.bind(this)
+                }
+            }
+        })
+
+        const or = (keys: PrimaryKeys<InstanceType<T>>) => {
+            const or = (condition: Condition<InstanceType<T>>) => {
+                conditions.push(condition)
+                return {
+                    or,
+                    ...update_delete(keys),
+                    ...check(keys)
+                }
+            }
+            return {
+                or,
+                ...update_delete(keys),
+                ...check(keys)
+            }
+        }
+
+        return {
+            put: (...items: InstanceType<T>[]) => {
+                this.#requests.push({table, items})
+                return {
+                    ...this.in(table),
+                    run: this.run.bind(this),
+                    in: this.in.bind(this)
+                }
+            },
+            select: (...keys: PrimaryKeys<InstanceType<T>>) => ({
+                if: (condition: Condition<InstanceType<T>>) => {
+                    conditions.push(condition)
+                    return {
+                        ...check(keys),
+                        ...update_delete(keys),
+                        ...or(keys)
+                    }
+                },
+                ...update_delete(keys)
+            })
+        }
+    }
+
+    public async run() {
+        const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
+        const errors: Error[] = []
+        const promises = this.#requests.map(r => this.#addRequest(r))
+
+        this.#input.TransactItems = []
+        await Promise.all(promises)
+
+        try {
+            const response = await this.client.send(new TransactWriteCommand(this.#input))
+
+            if (response.ConsumedCapacity) for (const ConsumedCapacity of response.ConsumedCapacity) {
+                for (const {table} of this.#requests) {
+                    const tableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
+
+                    if (ConsumedCapacity.TableName === tableName)
+                        infos.set(table, {ConsumedCapacity})
+                }
+            }
+        }
+
+        catch (error: any) {
+            errors.push(error)
+        }
+
+        return Response<
+            never,
+            undefined,
+            Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>
+        >(undefined, infos.size ? infos : undefined, errors)
+    }
+
+    public clear() {
+        this.#input.TransactItems = []
+        this.#requests = []
+    }
+}

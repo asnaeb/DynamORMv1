@@ -17,7 +17,7 @@ export type NULL = null
 export type SS = Set<S>
 export type NS = Set<N>
 export type BS = Set<B>
-export type M = {[key: string]: NativeType} | (new <T extends M>(...args: any) => T)
+export type M = {[key: string]: NativeType} | InstanceType<(new <T extends {}>(...args: any) => T)>
 export type L = NativeType[]
 
 export type NativeType = S | N | B | BOOL | NULL | L | SS | NS | BS | M | undefined
@@ -40,4 +40,4 @@ export enum DynamoDBType {
 
 export type DynamoDBScalarType = DynamoDBType.S | DynamoDBType.N | DynamoDBType.B
 
-export type NativeOnly<T> = {[K in keyof T as T[K] extends NativeType ? K : never]?: T[K]}
+export type Native<T> = {[K in keyof T as T[K] extends NativeType ? K : never]?: T[K]}

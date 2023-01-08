@@ -4,11 +4,10 @@ import {Connect} from '../decorators/Connect'
 import {LegacyConnect} from '../decorators/legacy/Connect'
 import {HashKey, RangeKey} from '../decorators/PrimaryKey'
 import {ListTables} from '../commands/ListTables'
-//import {BatchWrite} from '../commands_async/BatchWrite'
-import {BatchGet} from '../commands_async/BatchGet'
-import {DynamORMTable} from '../table/DynamORMTable'
-//import {TransactWrite} from '../commands/TransactWrite'
-//import {TransactGet} from '../commands/TransactGet'
+import {BatchWrite} from '../commands/BatchWrite'
+import {BatchGet} from '../commands/BatchGet'
+import {TransactWrite} from '../commands/TransactWrite'
+import {TransactGet} from '../commands/TransactGet'
 import {LocalIndex, GlobalIndex} from '../decorators/SecondaryIndex'
 import {TimeToLive} from '../decorators/TimeToLive'
 import {Attribute} from '../decorators/Attribute'
@@ -23,12 +22,8 @@ export class DynamORMClient {
     readonly #documentClient: DynamoDBDocumentClient
     readonly #sharedInfo: SharedInfo = {}
 
-    public get Table() {
-        return Object.freeze(DynamORMTable)
-    }
-
     public get Legacy() {
-        return Object.freeze({
+        return {
             Connect: LegacyConnect({
               Client: this.#client,
               DocumentClient: this.#documentClient,
@@ -38,7 +33,7 @@ export class DynamORMClient {
             RangeKey: LegacyRangeKey,
             Attribute: LegacyAttribute,
             TimeToLive: LegacyTimeToLive
-        })
+        }
     }
 
     public get Connect() {
@@ -77,33 +72,33 @@ export class DynamORMClient {
         })
     }
 
-    public get createLocalIndex() {
+    public get LocalIndex() {
         return LocalIndex(this.#sharedInfo)
     }
 
-    public get createGlobalIndex() {
+    public get GlobalIndex() {
         return GlobalIndex(this.#sharedInfo)
     }
 
-    public get listTables() {
-        return ({Limit}: {Limit?: number} = {}) => new ListTables(this.#client, Limit).send()
+    public get ListTables() {
+        return ({Limit}: {Limit?: number} = {}) => new ListTables(this.#client, Limit).run()
     }
 
-    // public get createBatchWrite() {
-    //     return () => new BatchWrite(this.#DocumentClient)
-    // }
+    public get BatchWrite() {
+        return () => new BatchWrite(this.#documentClient)
+    }
 
-    public get createBatchGet() {
+    public get BatchGet() {
         return () => new BatchGet(this.#documentClient)
     }
 
-    // public get createTransactWrite() {
-    //     return () => new TransactWrite(this.#DocumentClient)
-    // }
+    public get TransactWrite() {
+        return (token?: string) => new TransactWrite(this.#documentClient, token)
+    }
 
-    // public get createTransactGet() {
-    //     return () => new TransactGet(this.#DocumentClient)
-    // }
+    public get TransactGet() {
+        return () => new TransactGet(this.#documentClient)
+    }
 
     public get destroy() {
         return () => {

@@ -17,18 +17,24 @@ import {Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {TablesMap} from '../types/TablesMap'
 
-type GetRequest<T extends typeof DynamORMTable> = {table: T, keys: PrimaryKeys<InstanceType<T>>}
+interface GetRequest {table: typeof DynamORMTable, keys: PrimaryKeys<DynamORMTable>}
+interface Chain<T extends typeof DynamORMTable> {
+    get(...keys: PrimaryKeys<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
+        in<T extends typeof DynamORMTable>(table: T): Chain<T>
+        run(): ReturnType<BatchGet['run']>
+    }
+}
 
-export class BatchGet extends ClientCommand<BatchGetCommandOutput> {
-    #pool: AsyncArray<BatchGetCommandInput> = new AsyncArray()
-    #requests: AsyncArray<GetRequest<typeof DynamORMTable>> = new AsyncArray()
+export class BatchGet extends ClientCommand {
+    #pool = new AsyncArray<BatchGetCommandInput>()
+    #requests = new AsyncArray<GetRequest>()
 
     public constructor(client: DynamoDBDocumentClient) {
         super(client)
     }
 
-    async #addRequest<T extends typeof DynamORMTable>({table, keys}: GetRequest<T>) {
-        const serializer = TABLE_DESCR(table).get<Serializer<InstanceType<T>>>(SERIALIZER)
+    async #addRequest({table, keys}: GetRequest) {
+        const serializer = TABLE_DESCR(table).get<Serializer<DynamORMTable>>(SERIALIZER)
         const tableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
 
         if (!serializer || !tableName) 
@@ -83,10 +89,11 @@ export class BatchGet extends ClientCommand<BatchGetCommandOutput> {
         })
     }
 
-    public selectTable<T extends typeof DynamORMTable>(table: T) {
+    public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
         return {
-            requestKeys: (...keys: PrimaryKeys<InstanceType<T>>) => {
+            get: (...keys: PrimaryKeys<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
+                return {in: this.in.bind(this), run: this.run.bind(this)}
             }
         }
     }
@@ -96,37 +103,42 @@ export class BatchGet extends ClientCommand<BatchGetCommandOutput> {
         const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
         const errors: Error[] = []
 
-        await this.#requests.async.forEach(async ({table, keys}) => {
-            items.set(table, [])
-            infos.set(table, {})
-            await this.#addRequest({table, keys})
-        })
+        const requests = await this.#requests.async.map(r => this.#addRequest(r), false)
+        
+        await Promise.all(requests)
 
         const promises = await this.#pool.async.map(input => {
             return this.client.send(new BatchGetCommand(input))
         }, false) as Promise<BatchGetCommandOutput>[]
 
+        this.#pool = new AsyncArray()
+
         const settled = await Promise.allSettled(promises)
+
+        // TODO Implement retries
         
         await AsyncArray.to(settled).async.forEach(async data => {
             if (data.status === 'fulfilled') {
-                for (const [k, v] of items) {
-                    const tableName = TABLE_DESCR(k).get(TABLE_NAME)!
+                for (const {table} of this.#requests) {
+                    const tableName = TABLE_DESCR(table).get(TABLE_NAME)!
                     const consumedCapacities = data.value.ConsumedCapacity
                     const responses = data.value.Responses?.[tableName]
 
                     if (consumedCapacities) 
                         for (const ConsumedCapacity of consumedCapacities)
                             if (ConsumedCapacity.TableName === tableName) { 
-                                const actual = infos.get(k) ?? {}
+                                const actual = infos.get(table) ?? {}
                                 const merged = await mergeNumericProps([actual, {ConsumedCapacity}])
                                 
-                                infos.set(k, merged)
+                                infos.set(table, merged)
                             }
 
-                    if (responses) {
-                        const serializer = TABLE_DESCR(k).get(SERIALIZER)
-                        v.push(...responses.map(e => serializer.deserialize(e)))
+                    if (responses?.length) {
+                        const serializer = TABLE_DESCR(table).get(SERIALIZER)
+                        const serialized = responses.map(e => serializer.deserialize(e))
+
+                        if (!items.has(table)) items.set(table, [])
+                        items.get(table)!.push(...serialized)
                     }
                 }
             }
@@ -134,7 +146,11 @@ export class BatchGet extends ClientCommand<BatchGetCommandOutput> {
             else errors.push(data.reason)
         })
 
-        return Response(items, infos, errors)
+        return Response(items, infos.size ? infos : undefined, errors)
     }
 
+    public clear() {
+        this.#pool = new AsyncArray()
+        this.#requests = new AsyncArray()
+    }
 }

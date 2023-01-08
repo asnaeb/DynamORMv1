@@ -7,7 +7,7 @@ import {SharedInfo} from '../interfaces/SharedInfo'
 import {CreateSecondaryIndexParams} from '../interfaces/CreateSecondaryIndexParams'
 import {LocalIndexParams} from '../interfaces/LocalIndexParams'
 import {GlobalIndexParams} from '../interfaces/GlobalIndexParams'
-import {DynamoDBScalarType, DynamoDBType} from '../types/Native'
+import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../types/Native'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -21,12 +21,20 @@ interface FactoryParams {
     UID?: number
 }
 
-function decoratorFactory<X>({AttributeType, KeyType, AttributeName, SharedInfo,...params}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+function decoratorFactory<X>({
+    AttributeType, 
+    KeyType, 
+    AttributeName, 
+    SharedInfo,
+    ...params
+}: FactoryParams) {
+    return function<T extends X | undefined>(
+        _: undefined, 
+        {name}: ClassFieldDecoratorContext<DynamORMTable, T>
+    ) {
         const AttributeDefinitions = {[KeyType]: {AttributeName: AttributeName ?? name, AttributeType}}
 
         name = String(name)
-
         SharedInfo.Attributes ??= {}
         SharedInfo.Attributes[name] = {AttributeType}
         SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
@@ -42,7 +50,10 @@ function decorator<T>(params: FactoryParams) {
 }
 
 export function LocalIndex(SharedInfo: SharedInfo) {
-    return function({IndexName, ProjectedAttributes}: Omit<LocalIndexParams, 'SharedInfo'> = {}) {
+    return function({
+        IndexName, 
+        ProjectedAttributes
+    }: Omit<LocalIndexParams, 'SharedInfo'> = {}) {
         const params = {
             SharedInfo,
             IndexName,
@@ -52,19 +63,19 @@ export function LocalIndex(SharedInfo: SharedInfo) {
         }
 
         return {
-            get LocalRange() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B})}
-                }
-            }
+            S: decorator<S>({...params, AttributeType: DynamoDBType.S}),
+            N: decorator<N>({...params, AttributeType: DynamoDBType.N}),
+            B: decorator<B>({...params, AttributeType: DynamoDBType.B})
         }
     }
 }
 
 export function GlobalIndex(SharedInfo: SharedInfo) {
-    return function({IndexName, ProjectedAttributes, ProvisionedThroughput}: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
+    return function({
+        IndexName, 
+        ProjectedAttributes, 
+        ProvisionedThroughput
+    }: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
         let UID = 0
         let _IndexName: string | undefined
 
@@ -83,29 +94,53 @@ export function GlobalIndex(SharedInfo: SharedInfo) {
         }
 
         return {
-            get GlobalHash() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.HASH})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.HASH})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.HASH})}
-                }
+            GlobalHash: {
+                S: decorator<S>({
+                    ...params, 
+                    AttributeType: DynamoDBType.S, 
+                    KeyType: KeyType.HASH
+                }),
+                N: decorator<N>({
+                    ...params, 
+                    AttributeType: DynamoDBType.N, 
+                    KeyType: KeyType.HASH
+                }),
+                B: decorator<B>({
+                    ...params, 
+                    AttributeType: DynamoDBType.B, 
+                    KeyType: KeyType.HASH
+                })
             },
-            get GlobalRange() {
-                return {
-                    get S() {return decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.RANGE})},
-                    get N() {return decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.RANGE})},
-                    get B() {return decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.RANGE})}
-                }
-            },
-            get IndexName() {
-                return _IndexName
+            GlobalRange: {
+                S: decorator<S>({
+                    ...params, 
+                    AttributeType: DynamoDBType.S, 
+                    KeyType: KeyType.RANGE
+                }),
+                N: decorator<N>({
+                    ...params, 
+                    AttributeType: DynamoDBType.N, 
+                    KeyType: KeyType.RANGE
+                }),
+                B: decorator<B>({
+                    ...params, 
+                    AttributeType: DynamoDBType.B, 
+                    KeyType: KeyType.RANGE
+                })
             }
         }
     }
 }
 
-export function AddIndexInfo({SharedInfo, Kind, AttributeDefinitions, IndexName, ProjectedAttributes, ProvisionedThroughput, UID}:
-    CreateSecondaryIndexParams) {
+export function AddIndexInfo({
+    SharedInfo, 
+    Kind, 
+    AttributeDefinitions, 
+    IndexName, 
+    ProjectedAttributes, 
+    ProvisionedThroughput, 
+    UID
+}: CreateSecondaryIndexParams) {
     const secondaryIndex: GlobalSecondaryIndex = {
         KeySchema: undefined,
         IndexName: undefined,
@@ -180,12 +215,13 @@ export function AddIndexInfo({SharedInfo, Kind, AttributeDefinitions, IndexName,
             secondaryIndex.KeySchema ??= []
             secondaryIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
 
-            if (SharedInfo.GlobalSecondaryIndexes?.length) for (const globalIndex of SharedInfo.GlobalSecondaryIndexes) {
-                if (globalIndex?.IndexName === secondaryIndex.IndexName && globalIndex.KeySchema?.length) {
-                    globalIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
-                    isEqual = true
+            if (SharedInfo.GlobalSecondaryIndexes?.length) 
+                for (const globalIndex of SharedInfo.GlobalSecondaryIndexes) {
+                    if (globalIndex?.IndexName === secondaryIndex.IndexName && globalIndex.KeySchema?.length) {
+                        globalIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
+                        isEqual = true
+                    }
                 }
-            }
         }
 
         if (!isEqual && !SharedInfo.GlobalSecondaryIndexes?.some(i => isDeepStrictEqual(i, secondaryIndex))) {

@@ -7,7 +7,7 @@ export type TResponse<T, D, I> = Omit<IResponse<T, I>, 'Items' | 'Info'> &
 export function Response<T, D, I>(data?: T, info?: I, errors?: Error[]) {
     const response: IResponse<T, I> = {OK: false}
 
-    response.Items = data
+    if (data) response.Items = data
 
     if (info && (Object.keys(info).length || info instanceof Map))
         response.Info = info

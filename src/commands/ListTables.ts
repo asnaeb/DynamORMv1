@@ -1,35 +1,31 @@
-import type {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
-import {type DynamoDBClient, paginateListTables} from '@aws-sdk/client-dynamodb'
+import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
+import {paginateListTables} from '@aws-sdk/client-dynamodb'
+import {Response} from '../response/Response'
 
 export class ListTables {
-    readonly #Client: DynamoDBClient
-    readonly #Limit?: number
-    public constructor(Client: DynamoDBDocumentClient, Limit?: number) {
-        this.#Client = Client
-        this.#Limit = Limit
-    }
+    constructor(
+        private client: DynamoDBDocumentClient, 
+        private limit?: number
+    ) {}
 
-    public async send() {
+    public async run() {
+        const list: string[] = []
+        const errors: Error[] = []
+        const paginator = paginateListTables(
+            {client: this.client}, 
+            {Limit: this.limit}
+        )
+
         try {
-            let output, index = 0
-            const paginator = paginateListTables({client: this.#Client}, {Limit: this.#Limit})
-            for await (const page of paginator) {
-                if (index === 0) output = page
-                else {
-                    if (page.TableNames) output?.TableNames?.push(...page.TableNames)
-                }
-                index++
-            }
-            return {
-                ok: true,
-                output
-            }
+            for await (const page of paginator)
+                if (page.TableNames) 
+                    list.push(...page.TableNames)
         }
+
         catch (error: any) {
-            return {
-                ok: false,
-                error
-            }
+            errors.push(error)
         }
+
+        return Response(list, {Count: list.length}, errors)
     }
 }

@@ -11,7 +11,8 @@
     "build-tests": "tsc --project ./tests/tsconfig.json",
     "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
     "prebundle": "tsc --project ./tsconfig.declarations.json",
-    "bundle": "esbuild src/index.ts --bundle --packages=external --platform=node --target=node16 --outdir=bundle",
+    "bundle": "esbuild src/index.ts src/operators.ts --bundle --packages=external --platform=node --target=node16 --outdir=bundle",
+    "clean": "rm -r bundle && rm -r lib",
     "watch": "tsc --watch"
   },
   "dependencies": {

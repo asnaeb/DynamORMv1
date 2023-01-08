@@ -164,4 +164,4 @@ export declare const Connect: ({ TableName }?: {
     ok: boolean;
     error: any;
     output?: undefined;
-}>, createBatchGet: () => import("../../lib/commands_async/BatchGet.js").BatchGet;
+}>, createBatchGet: () => import("../../lib/commands_async/BatchGet.js").BatchGet, createBatchWrite: () => import("../../lib/commands_async/BatchWrite.js").BatchWrite, createTransactGet: () => import("../../lib/commands_async/TransactGet.js").TransactGet;

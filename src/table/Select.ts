@@ -7,11 +7,17 @@ import {EventEmitter} from 'node:events'
 import {Serializer} from '../serializer/Serializer'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
-import {Update} from '../commands_async/Update'
-import {TableBatchGet} from '../commands_async/TableBatchGet'
-import {Delete} from '../commands_async/Delete'
-import {TableBatchWrite} from '../commands_async/TableBatchWrite'
+import {Update} from '../commands/Update'
+import {TableBatchGet} from '../commands/TableBatchGet'
+import {Delete} from '../commands/Delete'
+import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
+
+interface Or<T extends DynamORMTable> {
+    or(condition: Condition<T>): Or<T>
+    update(update: TUpdate<T>): ReturnType<Select<T>['update']>
+    delete(): ReturnType<Select<T>['delete']>
+}
 
 const keysEvent = Symbol('keys')
 
@@ -35,14 +41,14 @@ export class Select<T extends DynamORMTable> {
         .then(generatedKeys => this.#emitter.emit(keysEvent, generatedKeys))
     }
 
-    #or(condition: Condition<T>) {
+    #or(condition: Condition<T>): Or<T> {
         const {Item} = this.#serializer.serialize(condition, 'preserve')
         this.#conditions.push(Item)
-        return Object.freeze({
+        return {
             or: this.#or,
             update: this.update.bind(this),
             delete: this.delete.bind(this)
-        })
+        }
     }
 
     public get({ConsistentRead}: {ConsistentRead?: boolean} = {}) {
@@ -77,13 +83,13 @@ export class Select<T extends DynamORMTable> {
         })
     }
 
-    public if(condition: Condition<T>) {
+    public if(condition: Condition<T>): Or<T> {
         const {Item} = this.#serializer.serialize(condition, 'preserve')
         this.#conditions.push(Item)
-        return Object.freeze({
+        return {
             or: this.#or.bind(this),
             update: this.update.bind(this),
             delete: this.delete.bind(this)
-        })
+        }
     }
 }

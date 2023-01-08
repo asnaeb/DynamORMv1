@@ -32,10 +32,10 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
     }
     return useValue ? value : void 0;
 };
-import { Connect, HashKey, Table } from '../lib/index.js';
+import { GlobalIndex, LocalIndex, Table, HashKey, RangeKey, Connect } from '../lib/index.js';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-const db = new DynamoDBLocal();
-let E = (() => {
+const Global = GlobalIndex({ IndexName: 'SomeGlobalI' });
+let SecondaryIndexes = (() => {
     let _classDecorators = [Connect()];
     let _classDescriptor;
     let _classExtraInitializers = [];
@@ -43,19 +43,29 @@ let E = (() => {
     let _instanceExtraInitializers = [];
     let _hash_decorators;
     let _hash_initializers = [];
-    var E = class extends Table {
+    let _range_decorators;
+    let _range_initializers = [];
+    let _range2_decorators;
+    let _range2_initializers = [];
+    var SecondaryIndexes = class extends Table {
         static {
-            _hash_decorators = [HashKey.N()];
+            _hash_decorators = [HashKey.S()];
+            _range_decorators = [Global.GlobalRange.N(), RangeKey.N()];
+            _range2_decorators = [LocalIndex().S(), Global.GlobalHash.S()];
             __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false, access: { get() { return this.hash; }, set(value) { this.hash = value; } } }, _hash_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _range_decorators, { kind: "field", name: "range", static: false, private: false, access: { get() { return this.range; }, set(value) { this.range = value; } } }, _range_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _range2_decorators, { kind: "field", name: "range2", static: false, private: false, access: { get() { return this.range2; }, set(value) { this.range2 = value; } } }, _range2_initializers, _instanceExtraInitializers);
             __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
-            E = _classThis = _classDescriptor.value;
+            SecondaryIndexes = _classThis = _classDescriptor.value;
             __runInitializers(_classThis, _classExtraInitializers);
         }
-        hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, 0));
+        hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, 'hash'));
+        range = __runInitializers(this, _range_initializers, void 0);
+        range2 = __runInitializers(this, _range2_initializers, void 0);
     };
-    return E = _classThis;
+    return SecondaryIndexes = _classThis;
 })();
-await db.start();
-const c = await E.createTable();
-console.log(c);
-//# sourceMappingURL=error.test.js.map
+await new DynamoDBLocal().start();
+const e = await SecondaryIndexes.createTable();
+console.dir(e, { depth: null });
+//# sourceMappingURL=indexes.test.js.map

@@ -1,30 +1,30 @@
 import type {Constructor} from '../types/Utils'
-import type {AttributeValues, NativeOnly} from '../types/Native'
+import type {AttributeValues, Native} from '../types/Native'
 import type {QueryObject} from '../types/Query'
 import type {PrimaryKeys} from '../types/Key'
 import type {CreateTableParams} from '../interfaces/CreateTableParams'
 import type {QueryOptions} from '../interfaces/QueryOptions'
 import type {ScanOptions} from '../interfaces/ScanOptions'
 import type {Condition} from '../types/Condition'
-import {Query} from '../commands_async/Query'
-import {CreateTable} from '../commands_async/CreateTable'
-import {DeleteTable} from '../commands_async/DeleteTable'
-import {DescribeTable} from '../commands_async/DescribeTable'
-import {Put} from '../commands_async/Put'
-import {Delete} from '../commands_async/Delete'
-import {Scan} from '../commands_async/Scan'
+import {Query} from '../commands/Query'
+import {CreateTable} from '../commands/CreateTable'
+import {DeleteTable} from '../commands/DeleteTable'
+import {DescribeTable} from '../commands/DescribeTable'
+import {Put} from '../commands/Put'
+import {Delete} from '../commands/Delete'
+import {Scan} from '../commands/Scan'
 import {isQueryObject} from '../validation/symbols'
 import {isObject} from '../utils/General'
 import {Serializer} from '../serializer/Serializer'
 import {Select} from './Select'
 import {TABLE_DESCR} from '../private/Weakmaps'
 import {SERIALIZER} from '../private/Symbols'
-import {TableBatchWrite} from '../commands_async/TableBatchWrite'
+import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
-import {Save} from '../commands_async/Save'
+import {Save} from '../commands/Save'
 
 export abstract class DynamORMTable {
-    public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: NativeOnly<T>) {
+    public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: Native<T>) {
         const instance = new (<new (...args: any) => T>this)()
 
         if (isObject(attributes))
@@ -180,8 +180,9 @@ export abstract class DynamORMTable {
         return new Delete(table, new AsyncArray(Key!)).response
     }
 
-    public get raw() {
-        const {Item} = TABLE_DESCR(this.constructor).get<Serializer<this>>(SERIALIZER)?.serialize(this)!
+    public serialize() {
+        const {Item} = TABLE_DESCR(this.constructor)
+        .get<Serializer<this>>(SERIALIZER)?.serialize(this)!
 
         for (const [k, v] of Object.entries(Item))
             if (v instanceof Uint8Array)

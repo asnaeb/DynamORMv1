@@ -2,15 +2,6 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "typescript",
-			"tsconfig": "tests/legacy/tsconfig.json",
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build",
-			"label": "tsc: build - tests/legacy/tsconfig.json"
-		},
-		{
 			"type": "npm",
 			"script": "build",
 			"group": "build",

@@ -11,9 +11,6 @@ export class Put<T extends DynamORMTable> extends TableCommandPool<T, PutCommand
     constructor(table: Constructor<T>, items: T[]) {
         super(table)
 
-        // const commands: PutCommand[] = []
-        // const itemsLength = items.length
-
         const hashKey = this.keySchema[0]?.AttributeName
         const rangeKey = this.keySchema[1]?.AttributeName
 
@@ -41,25 +38,6 @@ export class Put<T extends DynamORMTable> extends TableCommandPool<T, PutCommand
         })
 
         .then(commands => this.emit(Put.commandsEvent, commands))
-
-        // const iterateItems = (i = 0) => {
-        //     if (i === itemsLength)
-        //         return this.emit(CommandsArray.commandsEvent, commands)
-
-        //     const {Item} = this.serializer.serialize(items[i])
-        //     const command = new PutCommand({
-        //         TableName: this.tableName,
-        //         ExpressionAttributeNames,
-        //         ConditionExpression,
-        //         Item,
-        //         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
-        //     })
-
-        //     commands.push(command)
-        //     setImmediate(iterateItems, ++i)
-        // }
-
-        // iterateItems()
     }
 
     public get response() {

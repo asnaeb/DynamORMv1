@@ -2,7 +2,7 @@ import {UpdateCommand, type UpdateCommandInput} from '@aws-sdk/lib-dynamodb'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {EventEmitter} from 'node:events'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {AttributeNames, AttributeValues} from '../types/Native'
+import {AttributeNames, AttributeValues, Native} from '../types/Native'
 import {Key} from "../types/Key"
 import {Condition} from '../types/Condition'
 import {Update} from '../types/Update'
@@ -20,18 +20,22 @@ interface ExpressionsMap {
 }
 
 type UpdateParams<T extends DynamORMTable> = [
-    tableName: string,
-    key: Key,
+    TableName: string,
+    Key: Key,
     updates: Update<T>,
-    conditions?: Condition<T>[]
+    conditions?: Condition<T>[],
+    create?: boolean
 ]
 
 const doneEvent = Symbol('done')
 
 class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
+    #attributeNames: AttributeNames = {}
+    #attributeValues: AttributeValues = {}
+    #expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
     #commands = new AsyncArray<UpdateCommand>()
 
-    constructor(TableName: string, Key: Key, updates: Update<T>, conditions?: Condition<T>[]) {
+    constructor(...[TableName, Key, updates, conditions, create = true]: UpdateParams<T>) {
         super({captureRejections: true})
 
         this.on('error', e => console.log(e))
@@ -39,47 +43,55 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         const it = async (update: Update<T>, path: string[] = [], top = true) => {
             const keys = AsyncArray.to(Object.keys(update))
 
-            const attributeNames: AttributeNames = {}
-            const attributeValues: AttributeValues = {}
-            const expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
-
             await keys.async.forEach(key => {
-                const value = update[<keyof T>key]
+                const value = update[<keyof Native<T>>key]
 
                 let $path, $key = alphaNumeric(key)
 
-                Object.assign(attributeNames, {[`#${$key}`]: key})
+                Object.assign(this.#attributeNames, {[`#${$key}`]: key})
 
                 if (path?.length) {
                     $path = [...path, $key]
                     for (const k of path)
-                        Object.assign(attributeNames, {[`#${k}`]: k})
+                        Object.assign(this.#attributeNames, {[`#${k}`]: k})
                 } else
                     $path = [$key]
 
                 if (isObject(value)) {
                     if (isUpdateObject(value))
-                        this.#handleUpdate(value, $path, attributeValues, expressionsMap)
+                        this.#handleUpdate(value, $path)
                     else {
-                        const setExpr = `#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`
+                        if (create) {
+                            const setExpr = `#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`
 
-                        Object.assign(attributeValues, {[`:${$key}_object_map`]: {}})
-                        expressionsMap.SET.push(setExpr)
+                            Object.assign(this.#attributeValues, {[`:${$key}_object_map`]: {}})
+                            this.#expressionsMap.SET.push(setExpr)
+
+                            const command = new UpdateCommand({
+                                ...this.#generateInput(),
+                                TableName,
+                                Key
+                            })
+                
+                            this.#commands.push(command)
+                            this.#reset()
+                        }
+                        
                         it(<Update<T>>value, $path, false)
                     }
                 } else if (value === REMOVE)
-                    expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
+                    this.#expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
             })
-
-            const command = new UpdateCommand({
-                ...this.#generateInput(attributeNames, attributeValues, expressionsMap),
-                TableName,
-                Key
-            })
-
-            this.#commands.unshift(command)
 
             if (top) {
+                const command = new UpdateCommand({
+                    ...this.#generateInput(),
+                    TableName,
+                    Key
+                })
+    
+                this.#commands.push(command)
+
                 if (conditions?.length)
                     await this.#addCondition(conditions)
 
@@ -88,82 +100,19 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         }
 
         it(updates)
-
-        // const iterateUpdate = (update = updates, path: string[] = [], top = true) => {
-        //     const keys = Object.keys(update)
-        //     const keysLength = keys.length
-
-        //     const attributeNames: AttributeNames = {}
-        //     const attributeValues: AttributeValues = {}
-        //     const expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
-            
-        //     const iterateUpdateKey = (i = 0) => {
-        //         if (i === keysLength) {
-        //             const command = new UpdateCommand({
-        //                 ...this.#generateInput(attributeNames, attributeValues, expressionsMap),
-        //                 TableName,
-        //                 Key
-        //             })
-
-        //             this.#commands.push(command)
-
-        //             if (top) {
-        //                 this.#commands.reverse()
-
-        //                 if (conditions?.length)
-        //                     return this.#addCondition(conditions)
-
-        //                 return this.emit(doneEvent, this.#commands)
-        //             }
-
-        //             return
-        //         }
-
-        //         const key = keys[i]
-        //         const value = update[<keyof T>key]
-
-        //         let $path, $key = alphaNumeric(key)
-
-        //         Object.assign(attributeNames, {[`#${$key}`]: key})
-
-        //         if (path?.length) {
-        //             $path = [...path, $key]
-        //             for (const k of path)
-        //                 Object.assign(attributeNames, {[`#${k}`]: k})
-        //         } else
-        //             $path = [$key]
-
-        //         if (isObject(value)) {
-        //             if (isUpdateObject(value))
-        //                 this.#handleUpdate(value, $path, attributeValues, expressionsMap)
-        //             else {
-        //                 const setExpr = `#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`
-
-        //                 Object.assign(attributeValues, {[`:${$key}_object_map`]: {}})
-        //                 expressionsMap.SET.push(setExpr)
-        //                 iterateUpdate(<Update<T>>value, $path, false)
-        //             }
-        //         } else if (value === REMOVE)
-        //             expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
-
-        //         setImmediate(iterateUpdateKey, ++i)
-        //     }
-
-        //     iterateUpdateKey()
-        // }
-
-        // iterateUpdate()
     }
 
-    #generateInput(
-        attributeNames: AttributeNames, 
-        attributeValues: AttributeValues, 
-        expressionsMap: ExpressionsMap
-    ) {
-        const SET = expressionsMap.SET.join(', ')
-        const ADD = expressionsMap.ADD.join(', ')
-        const DELETE = expressionsMap.DELETE.join(', ')
-        const REMOVE = expressionsMap.REMOVE.join(', ')
+    #reset() {
+        this.#attributeNames = {}
+        this.#attributeValues = {}
+        this.#expressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
+    }
+
+    #generateInput() {
+        const SET = this.#expressionsMap.SET.join(', ')
+        const ADD = this.#expressionsMap.ADD.join(', ')
+        const DELETE = this.#expressionsMap.DELETE.join(', ')
+        const REMOVE = this.#expressionsMap.REMOVE.join(', ')
 
         const setExpr = SET ? 'SET ' + SET : ''
         const addExpr = ADD ? ' ADD ' + ADD : ''
@@ -173,8 +122,8 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         return {
             ReturnValues: ReturnValue.ALL_NEW,
             ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
-            ExpressionAttributeNames: attributeNames,
-            ExpressionAttributeValues: attributeValues,
+            ExpressionAttributeNames: this.#attributeNames,
+            ExpressionAttributeValues: this.#attributeValues,
             UpdateExpression: setExpr + addExpr + delExpr + rmvExpr
         } satisfies Omit<UpdateCommandInput,'TableName' | 'Key'>
     }
@@ -197,12 +146,7 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         }
     }
 
-    #handleUpdate(
-        object: {[k: symbol]: unknown}, 
-        path: string[], 
-        attributeValues: AttributeValues,
-        expressionsMap: ExpressionsMap
-    ) {
+    #handleUpdate(object: {[k: symbol]: unknown}, path: string[]) {
         const attributeName = `#${path.join('.#')}`
         const key = Object.getOwnPropertySymbols(object)[0]
         const value = object[key]
@@ -212,47 +156,47 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         switch (key) {
             case ADD:
                 attributeValue += '_add'
-                expressionsMap.ADD.push(`${attributeName} ${attributeValue}`)
+                this.#expressionsMap.ADD.push(`${attributeName} ${attributeValue}`)
                 break
             case DELETE:
                 attributeValue += '_delete'
-                expressionsMap.DELETE.push(`${attributeName} ${attributeValue}`)
+                this.#expressionsMap.DELETE.push(`${attributeName} ${attributeValue}`)
                 break
             case APPEND:
                 attributeValue += '_append'
-                Object.assign(attributeValues, {[`${attributeValue}_emptyList`]: []})
-                expressionsMap.SET.push(
+                Object.assign(this.#attributeValues, {[`${attributeValue}_emptyList`]: []})
+                this.#expressionsMap.SET.push(
                     `${attributeName} = list_append(if_not_exists(${attributeName}, ${attributeValue}_emptyList), ${attributeValue})`
                 )
                 break
             case PREPEND:
                 attributeValue += '_prepend'
-                Object.assign(attributeValues, {[`${attributeValue}_emptyList`]: []})
-                expressionsMap.SET.push(
+                Object.assign(this.#attributeValues, {[`${attributeValue}_emptyList`]: []})
+                this.#expressionsMap.SET.push(
                     `${attributeName} = list_append(${attributeValue}, if_not_exists(${attributeName}, ${attributeValue}_emptyList))`
                 )
                 break
             case INCREMENT:
                 attributeValue += '_increment'
-                Object.assign(attributeValues, {[`${attributeValue}_zero`]: 0})
-                expressionsMap.SET.push(
+                Object.assign(this.#attributeValues, {[`${attributeValue}_zero`]: 0})
+                this.#expressionsMap.SET.push(
                     `${attributeName} = if_not_exists(${attributeName}, ${attributeValue}_zero) + ${attributeValue}`
                 )
                 break
             case DECREMENT:
                 attributeValue += '_decrement'
-                Object.assign(attributeValues, {[`${attributeValue}_zero`]: 0})
-                expressionsMap.SET.push(
+                Object.assign(this.#attributeValues, {[`${attributeValue}_zero`]: 0})
+                this.#expressionsMap.SET.push(
                     `${attributeName} = if_not_exists(${attributeName}, ${attributeValue}_zero) - ${attributeValue}`
                 )
                 break
             case OVERWRITE:
                 attributeValue += '_overwrite'
-                expressionsMap.SET.push(`${attributeName} = ${attributeValue}`)
+                this.#expressionsMap.SET.push(`${attributeName} = ${attributeValue}`)
                 break
         }
 
-        Object.assign(attributeValues, {[attributeValue]: value})
+        Object.assign(this.#attributeValues, {[attributeValue]: value})
         }
 }
 

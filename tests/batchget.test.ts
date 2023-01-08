@@ -1,16 +1,31 @@
-import {createBatchGet, Connect, HashKey, Table, Attribute} from './env/DynamORM.js'
+import {
+    Attribute,
+    BatchGet, 
+    BatchWrite, 
+    Connect, 
+    HashKey, 
+    Table
+} from '../lib/index.js'
+
 import {DynamoDBLocal} from './env/DynamoDBLocal.js'
 
 @Connect({TableName: 'TableA'})
 class A extends Table {
-    @HashKey.N()
-    hash = 0
+    @HashKey.N({AttributeName: 'HASHKEY_A'})
+    hash_A = 0
+}
+
+class S {
+    a?: 0
 }
 
 @Connect({TableName: 'TableB'})
 class B extends Table {
-    @HashKey.N()
-    hash = 0
+    @HashKey.N({AttributeName: 'HASHKEY_B'})
+    hash_B = 0
+
+    @Attribute()
+    asn?: S
 }
 
 try {
@@ -21,20 +36,25 @@ catch (err) {
     console.log(err)
 }
 
-const a = Array(300).fill(0).map((e, i) => A.make({hash: i}))
-const b = Array(300).fill(0).map((e, i) => B.make({hash: i}))
+const a = Array(4).fill(0).map((e, i) => A.make({hash_A: i}))
+const b = Array(4).fill(0).map((e, i) => B.make({hash_B: i}))
 
-const aa = await Promise.all([A.createTable(), B.createTable()])
-const bb = await Promise.all([A.batchPut(...a), B.batchPut(...b)])
+await Promise.all([A.createTable(), B.createTable()])
 
-const batchGet = createBatchGet()
+const write = await BatchWrite()
+    .in(A)
+        .put(...a)
+    .in(B)
+        .put(...b)
+        .delete(9, 88, 2, 3, 4, 5)
+    .run()
 
-batchGet.selectTable(A).requestKeys(...Array(210).keys())
-batchGet.selectTable(B).requestKeys(...Array(250).keys())
+const get = await BatchGet()
+    .in(A).get(0, 1, 2, 3, 4)
+    .in(B).get(0, 1, 2, 3, 4)
+    .run()
 
-const response = await batchGet.run()
-
-console.log(response.Info?.get(A))
-console.log(response.Info?.get(B))
+console.dir(write, {depth: null})
+//console.dir(get, {depth: null})
 
 process.exit()
