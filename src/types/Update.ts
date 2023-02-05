@@ -2,6 +2,7 @@ import {M, Native, NativeType} from './Native'
 import {ValueOf} from './Utils'
 import {UPDATE} from '../private/Symbols'
 import * as SYMBOLS from '../private/Symbols'
+import {NonKey} from './Key'
 
 type Overwrite<T> = {[SYMBOLS.OVERWRITE]: T}
 type Remove = typeof SYMBOLS.REMOVE
@@ -19,8 +20,8 @@ type UpdateOperators<T> =
     never
 
 export type Update<T> = {
-    [K in keyof Native<T>]?: 
-        T[K] extends Exclude<NativeType, M> ? Overwrite<T[K]> | Remove | UpdateOperators<T[K]> :
+    [K in keyof Native<NonKey<T>>]?: 
+        T[K] extends Exclude<NativeType, M> | undefined ? Overwrite<T[K]> | Remove | UpdateOperators<T[K]> :
         T[K] extends M | undefined ? Overwrite<T[K]> | Remove | Update<T[K]> : 
         never
 }

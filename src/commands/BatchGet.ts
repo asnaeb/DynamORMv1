@@ -8,16 +8,14 @@ import {
 import {type ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {AsyncArray} from '@asn.aeb/async-array'
-import {ClientCommand} from './ClientCommand'
+import {ClientCommandChain} from './ClientCommandChain'
 import {PrimaryKeys} from '../types/Key'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
-import {Serializer} from '../serializer/Serializer'
 import {Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {TablesMap} from '../types/TablesMap'
+import {weakMap} from '../private/WeakMap'
 
-interface GetRequest {table: typeof DynamORMTable, keys: PrimaryKeys<DynamORMTable>}
+interface GetRequest {table: typeof DynamORMTable, keys: any[]}
 interface Chain<T extends typeof DynamORMTable> {
     get(...keys: PrimaryKeys<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
@@ -25,7 +23,7 @@ interface Chain<T extends typeof DynamORMTable> {
     }
 }
 
-export class BatchGet extends ClientCommand {
+export class BatchGet extends ClientCommandChain {
     #pool = new AsyncArray<BatchGetCommandInput>()
     #requests = new AsyncArray<GetRequest>()
 
@@ -34,9 +32,9 @@ export class BatchGet extends ClientCommand {
     }
 
     async #addRequest({table, keys}: GetRequest) {
-        const serializer = TABLE_DESCR(table).get<Serializer<DynamORMTable>>(SERIALIZER)
-        const tableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
-
+        const serializer = weakMap(table).serializer
+        const tableName = weakMap(table).tableName
+        
         if (!serializer || !tableName) 
             throw 'Somethig was wrong' // TODO Proper error logging
 
@@ -120,7 +118,7 @@ export class BatchGet extends ClientCommand {
         await AsyncArray.to(settled).async.forEach(async data => {
             if (data.status === 'fulfilled') {
                 for (const {table} of this.#requests) {
-                    const tableName = TABLE_DESCR(table).get(TABLE_NAME)!
+                    const tableName = weakMap(table).tableName!
                     const consumedCapacities = data.value.ConsumedCapacity
                     const responses = data.value.Responses?.[tableName]
 
@@ -134,7 +132,7 @@ export class BatchGet extends ClientCommand {
                             }
 
                     if (responses?.length) {
-                        const serializer = TABLE_DESCR(table).get(SERIALIZER)
+                        const serializer = weakMap(table).serializer!
                         const serialized = responses.map(e => serializer.deserialize(e))
 
                         if (!items.has(table)) items.set(table, [])

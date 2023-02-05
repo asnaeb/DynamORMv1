@@ -23,7 +23,7 @@ export type ConditionOperators<K extends symbol, V> =
 
 export type Condition<T> = {
     [K in keyof Native<T>]?:
-    T[K] extends Exclude<NativeType, M> ? {[O in ConditionSymbols]?: ConditionOperators<O, T[K]>} :
+    T[K] extends Exclude<NativeType, M> | undefined ? {[O in ConditionSymbols]?: ConditionOperators<O, T[K]>} :
     T[K] extends M | undefined ?
     {[SYMBOLS.ATTRIBUTE_EXISTS] : boolean} | {[SYMBOLS.ATTRIBUTE_TYPE] : DynamoDBType} | Condition<T[K]> :
     never

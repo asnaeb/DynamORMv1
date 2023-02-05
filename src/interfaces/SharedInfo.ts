@@ -16,7 +16,7 @@ export interface SharedInfo {
     Attributes?: {
         [p: string]: {
             AttributeType: DynamoDBType | 'ANY',
-            AttributeName?: string
+            AttributeName: string
         }
     }
 }

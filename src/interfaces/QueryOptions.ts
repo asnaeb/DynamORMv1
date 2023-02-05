@@ -1,4 +1,4 @@
-import {QueryParams} from './QueryParams'
+import {QueryCommandInput} from '@aws-sdk/lib-dynamodb'
 
-export interface QueryOptions extends Pick<QueryParams<any>, 'ScanIndexForward' | 'IndexName' | 'ConsistentRead' | 'Limit'> {
+export interface QueryOptions extends Pick<QueryCommandInput, 'ScanIndexForward' | 'ConsistentRead' | 'Limit'> {
 }

@@ -1,21 +1,24 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {SharedInfo} from '../interfaces/SharedInfo'
-import {DynamoDBType} from '../types/Native'
+import {DynamoDBType, type N} from '../types/Native'
 
-function decoratorFactory(SharedInfo: SharedInfo, MappedAttributeName?: string) {
-    return function(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, number | undefined>) {
+function decoratorFactory(SharedInfo: SharedInfo, AttributeName?: string) {
+    return function(
+        _: undefined, 
+        {name}: ClassFieldDecoratorContext<DynamORMTable, number | undefined> & {static: false; private: false}
+    ) {
         name = String(name)
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[name] = {AttributeType: DynamoDBType.N}
-        SharedInfo.Attributes[name].AttributeName = MappedAttributeName ?? name
-        SharedInfo.TimeToLiveAttribute = MappedAttributeName ?? name
+        SharedInfo.Attributes[name] = {
+            AttributeType: DynamoDBType.N,
+            AttributeName: AttributeName ?? name
+        }
+        SharedInfo.TimeToLiveAttribute = AttributeName ?? name
     }
 }
 
 export function TimeToLive(SharedInfo: SharedInfo) {
-    return Object.assign(decoratorFactory(SharedInfo), {
-        as(MappedAttributeName: string) {
-            decoratorFactory(SharedInfo, MappedAttributeName)
-        }
-    })
+    return function({AttributeName}: {AttributeName?: string} = {}) {
+        return decoratorFactory(SharedInfo, AttributeName)
+    }
 }

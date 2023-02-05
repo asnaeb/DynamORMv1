@@ -1,12 +1,12 @@
 import {AsyncArray} from '@asn.aeb/async-array'
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {BatchGetCommand, BatchWriteCommand, BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
+import {BatchWriteCommand, BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TResponse} from '../response/Response'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {Constructor} from '../types/Utils'
 import {TableCommand} from './TableCommand'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput'
 import {Key} from '../types/Key'
+import {Constructor} from '../types/Utils'
 
 const commandsEvent = Symbol('commands')
 

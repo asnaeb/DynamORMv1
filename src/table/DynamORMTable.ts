@@ -1,11 +1,16 @@
 import type {Constructor} from '../types/Utils'
-import type {AttributeValues, Native} from '../types/Native'
+import type {AttributeValues, Native, Scalars} from '../types/Native'
 import type {QueryObject} from '../types/Query'
-import type {PrimaryKeys} from '../types/Key'
-import type {CreateTableParams} from '../interfaces/CreateTableParams'
+import type {HashType, NonKey, PrimaryKeys, RangeType} from '../types/Key'
 import type {QueryOptions} from '../interfaces/QueryOptions'
 import type {ScanOptions} from '../interfaces/ScanOptions'
-import type {Condition} from '../types/Condition'
+import type {DescribeTableParams} from '../interfaces/DescribeTableParams'
+import type {LocalIndexProps} from '../interfaces/LocalIndexParams'
+import type {GlobalIndexProps} from '../interfaces/GlobalIndexParams'
+import type {ImportTableParams} from '../interfaces/ImportTableParams'
+import type {CreateTableParams} from '../interfaces/CreateTableParams'
+import type {QueryParams} from '../commands/Query'
+
 import {Query} from '../commands/Query'
 import {CreateTable} from '../commands/CreateTable'
 import {DeleteTable} from '../commands/DeleteTable'
@@ -15,15 +20,39 @@ import {Delete} from '../commands/Delete'
 import {Scan} from '../commands/Scan'
 import {isQueryObject} from '../validation/symbols'
 import {isObject} from '../utils/General'
-import {Serializer} from '../serializer/Serializer'
 import {Select} from './Select'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER} from '../private/Symbols'
 import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {Save} from '../commands/Save'
+import {CreateBackup} from '../commands/CreateBackup'
+import {LocalIndex} from '../indexes/LocalIndex'
+import {GlobalIndex} from '../indexes/GlobalIndex'
+import {ImportTable} from '../commands/ImportTable'
+import {weakMap} from '../private/WeakMap'
+import {Waiter} from '../commands/Waiter'
+import {Timeout} from '../interfaces/Timeout'
 
 export abstract class DynamORMTable {
+    protected static localIndex<
+        T extends DynamORMTable, 
+        K extends keyof Scalars<NonKey<T>>
+    >(this: Constructor<T>, RangeKey: K, props?: LocalIndexProps<T>) {
+        return LocalIndex(this, RangeKey, props)
+    }
+    
+    protected static globalIndex<
+        T extends DynamORMTable,
+        H extends keyof Scalars<NonKey<T>>,
+        R extends Exclude<keyof Scalars<NonKey<T>>, H>
+    >(this: Constructor<T>, HashKey: H, props: GlobalIndexProps<T> & {RangeKey: R}): ReturnType<typeof GlobalIndex<T, H, R>>
+    protected static globalIndex<
+        T extends DynamORMTable,
+        H extends keyof Scalars<NonKey<T>>
+    >(this: Constructor<T>, HashKey: H, props?: GlobalIndexProps<T>): ReturnType<typeof GlobalIndex<T, H, never>>
+    protected static globalIndex(HashKey: never, props?: {}) {
+        return GlobalIndex(this, HashKey, props)
+    }
+
     public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: Native<T>) {
         const instance = new (<new (...args: any) => T>this)()
 
@@ -34,120 +63,61 @@ export abstract class DynamORMTable {
         return instance
     }
 
-    public static createTable({ProvisionedThroughput, TableClass, StreamViewType}: CreateTableParams = {}) {
-        return new CreateTable(this, ProvisionedThroughput, TableClass, StreamViewType).response
+    public static createTable(params?: CreateTableParams) {
+        return new CreateTable(this, params).response
+    }
+
+    public static wait(timeout?: Timeout) {
+        return new Waiter(this, timeout)
+    }
+
+    public static importTable(params: ImportTableParams) {
+        return new ImportTable(this, params).response
     }
 
     public static deleteTable() {
         return new DeleteTable(this).response
     }
 
-    public static describeTable() {
-        return new DescribeTable(this).response
+    public static describeTable(params?: DescribeTableParams) {
+        return new DescribeTable(this, params).response
     }
 
-    public static sync<T extends DynamORMTable>(this: Constructor<T>) {
+    public static createBackup({BackupName}: {BackupName: string}) {
+        return new CreateBackup(this, BackupName).response
+    }
+
+    public static sync() {
         // TODO Implement UpdateTable method
     }
 
-    public static scan<T extends DynamORMTable>(this: Constructor<T>, {Limit, ConsistentRead, IndexName}: ScanOptions = {}) {
-        return new Scan(this, undefined, Limit, ConsistentRead, IndexName).response
+    public static scan<T extends DynamORMTable>(this: Constructor<T>, params: ScanOptions = {}) {
+        return new Scan(this, params).response
     }
 
     public static query<T extends DynamORMTable>(
-        HashValue: string | number,
-        Options?: QueryOptions
-    ): Query<T>['response']
-    public static query<T extends DynamORMTable>(
-        HashValue: string | number,
-        RangeQuery: QueryObject<string | number>,
+        this: Constructor<T>,
+        HashValue: HashType<T>,
         Options?: QueryOptions
     ): Query<T>['response']
     public static query<T extends DynamORMTable>(
         this: Constructor<T>,
-        H: string | number,
-        Q?: QueryObject<string | number> | QueryOptions,
-        O?: QueryOptions
+        HashValue: HashType<T>,
+        RangeQuery: QueryObject<RangeType<T>>,
+        Options?: QueryOptions
+    ): Query<T>['response']
+    public static query<T extends DynamORMTable>(
+        hashValue: HashType<T>,
+        Q?: QueryObject<RangeType<T>> | (QueryOptions & {IndexName?: string}),
+        O?: QueryOptions & {IndexName?: string}
     ) {
-        const args: [
-            hashValue: string | number,
-            rangeQuery?: QueryObject<string | number>,
-            filter?: Condition<T>[],
-            indexName?: string,
-            limit?: number,
-            scanIndexFwd?: boolean,
-            consistendRead?: boolean
-        ] = [H]
+        let params: QueryParams<T>
 
-        if (Q) {
-            if (isQueryObject(Q)) {
-                args[1] = Q
-                args[2] = undefined
-                args[3] = O?.IndexName
-                args[4] = O?.Limit,
-                args[5] = O?.ScanIndexForward
-                args[6] = O?.ConsistentRead
-            }
-            else {
-                args[1] = undefined
-                args[2] = undefined,
-                args[3] = Q.IndexName
-                args[4] = Q.Limit,
-                args[5] = Q.ScanIndexForward
-                args[6] = Q.ConsistentRead
-            }
-        }
+        if (Q && isQueryObject(Q)) params = {hashValue, rangeQuery: Q, ...O}
+        else params = {hashValue, ...Q}
 
-        return new Query(this, ...args).response
+        return new Query(this, params).response
     }
-
-    // public static filter<T extends DynamORMTable>(this: Constructor<T>, filter: Condition<T>) {
-    //     const Filter = [filter]
-    //     const Target = this
-    //
-    //     function query<R>(HashValue: string | number, Options?: QueryOptions): R
-    //     function query<R>(HashValue: string | number, RangeQuery: QueryObject<string | number>, Options?: QueryOptions): R
-    //     function query(H: string | number, Q?: QueryObject<string | number> | QueryOptions, O?: QueryOptions) {
-    //         const Params: QueryParams<any> = {
-    //             HashValue: H,
-    //             Target,
-    //             Filter
-    //         }
-    //
-    //         if (Q) {
-    //             if (isQueryObject(Q)) {
-    //                 Params.RangeQuery = Q
-    //                 Params.ScanIndexForward = O?.ScanIndexForward
-    //                 Params.ConsistentRead = O?.ConsistentRead
-    //                 Params.Limit = O?.Limit
-    //             }
-    //             else {
-    //                 Params.ScanIndexForward = Q?.ScanIndexForward
-    //                 Params.ConsistentRead = Q?.ConsistentRead
-    //                 Params.Limit = Q?.Limit
-    //             }
-    //         }
-    //
-    //         return new Query(Params).send()
-    //     }
-    //
-    //     const exec = {
-    //         query,
-    //         scan: ({Limit, ConsistentRead, IndexName}: ScanOptions = {}) => new Scan<T>({
-    //             Target: this,
-    //             Filter,
-    //             Limit,
-    //             IndexName,
-    //             ConsistentRead
-    //         }).send(),
-    //     }
-    //     const or = (condition: Condition<T>) => {
-    //         Filter.push(condition)
-    //         return {or, ...exec}
-    //     }
-    //
-    //     return {or, ...exec}
-    // }
 
     public static put<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
         return new Put(this, elements).response
@@ -157,12 +127,12 @@ export abstract class DynamORMTable {
         return new TableBatchWrite(this, AsyncArray.to(elements), 'Put').response
     }
 
-    public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: PrimaryKeys<T>) {
+    public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: T[] | PrimaryKeys<T>) {
         return new Select(this, keys)
     }
 
-    public save<T extends DynamORMTable>(): Save<T>['response']
-    public save<T extends DynamORMTable, B extends boolean>({overwrite}: {overwrite: B}): 
+    public save<T extends DynamORMTable>(this: T): Save<T>['response']
+    public save<T extends DynamORMTable, B extends boolean>(this: T, {overwrite}: {overwrite: B}):
     [B] extends [true] ? Save<T>['response'] : Put<T>['response']
     public save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
         const table = this.constructor as Constructor<T>
@@ -173,16 +143,20 @@ export abstract class DynamORMTable {
     }
 
     public delete<T extends DynamORMTable>(this: T) {
-        const table = this.constructor as Constructor<T>
-        const serializer = TABLE_DESCR(table).get<Serializer<T>>(SERIALIZER)!
-        const {Key} = serializer?.serialize(this)
+        const table = this.constructor as typeof DynamORMTable
+        const serializer = weakMap(table).serializer
 
-        return new Delete(table, new AsyncArray(Key!)).response
+        if (!serializer) throw 'Something went wrong' // TODO proper error logging
+
+        const {Key} = serializer.serialize(this)
+
+        if (!Key) throw 'Key is missing' // TODO proper error logging
+
+        return new Delete(table, new AsyncArray(Key)).response
     }
 
     public serialize() {
-        const {Item} = TABLE_DESCR(this.constructor)
-        .get<Serializer<this>>(SERIALIZER)?.serialize(this)!
+        const {Item} = weakMap(<any>this.constructor).serializer?.serialize(this)!
 
         for (const [k, v] of Object.entries(Item))
             if (v instanceof Uint8Array)

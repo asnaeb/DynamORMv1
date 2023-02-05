@@ -32,9 +32,13 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
     }
     return useValue ? value : void 0;
 };
-import { GlobalIndex, LocalIndex, Table, HashKey, RangeKey, Connect } from '../lib/index.js';
-import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-const Global = GlobalIndex({ IndexName: 'SomeGlobalI' });
+import { Server } from 'http';
+import { awsCredentials } from './env/GetAwsCredentials.js';
+const credentials = await awsCredentials();
+process.env.AWS_ACCESS_KEY_ID = credentials.aws_access_key_id;
+process.env.AWS_SECRET_ACCESS_KEY = credentials.aws_secret_access_key;
+process.env.AWS_REGION = 'us-east-1';
+const { Table, HashKey, RangeKey, Connect, TimeToLive, Attribute } = await import('../lib/index.js');
 let SecondaryIndexes = (() => {
     let _classDecorators = [Connect()];
     let _classDescriptor;
@@ -45,27 +49,109 @@ let SecondaryIndexes = (() => {
     let _hash_initializers = [];
     let _range_decorators;
     let _range_initializers = [];
-    let _range2_decorators;
-    let _range2_initializers = [];
+    let _attr_decorators;
+    let _attr_initializers = [];
+    let _str_decorators;
+    let _str_initializers = [];
+    let _num_decorators;
+    let _num_initializers = [];
+    let _ss_decorators;
+    let _ss_initializers = [];
     var SecondaryIndexes = class extends Table {
         static {
-            _hash_decorators = [HashKey.S()];
-            _range_decorators = [Global.GlobalRange.N(), RangeKey.N()];
-            _range2_decorators = [LocalIndex().S(), Global.GlobalHash.S()];
-            __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false, access: { get() { return this.hash; }, set(value) { this.hash = value; } } }, _hash_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _range_decorators, { kind: "field", name: "range", static: false, private: false, access: { get() { return this.range; }, set(value) { this.range = value; } } }, _range_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _range2_decorators, { kind: "field", name: "range2", static: false, private: false, access: { get() { return this.range2; }, set(value) { this.range2 = value; } } }, _range2_initializers, _instanceExtraInitializers);
+            _hash_decorators = [HashKey.S({ AttributeName: 'Partition Key' })];
+            _range_decorators = [RangeKey.N({ AttributeName: 'Sort Key' })];
+            _attr_decorators = [Attribute.S({ AttributeName: 'Generic Attribute' })];
+            _str_decorators = [Attribute.S({ AttributeName: 'String Attribute' })];
+            _num_decorators = [Attribute.N({ AttributeName: 'Numeric Attribute' })];
+            _ss_decorators = [Attribute.SS({ AttributeName: 'String SET' })];
+            __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false }, _hash_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _range_decorators, { kind: "field", name: "range", static: false, private: false }, _range_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _attr_decorators, { kind: "field", name: "attr", static: false, private: false }, _attr_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false }, _str_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _num_decorators, { kind: "field", name: "num", static: false, private: false }, _num_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _ss_decorators, { kind: "field", name: "ss", static: false, private: false }, _ss_initializers, _instanceExtraInitializers);
             __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
             SecondaryIndexes = _classThis = _classDescriptor.value;
+        }
+        static myGlobal = _classThis.globalIndex('num');
+        hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, void 0));
+        range = __runInitializers(this, _range_initializers, void 0);
+        attr = __runInitializers(this, _attr_initializers, void 0);
+        str = __runInitializers(this, _str_initializers, void 0);
+        num = __runInitializers(this, _num_initializers, void 0);
+        ss = __runInitializers(this, _ss_initializers, void 0);
+        static {
             __runInitializers(_classThis, _classExtraInitializers);
         }
-        hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, 'hash'));
-        range = __runInitializers(this, _range_initializers, void 0);
-        range2 = __runInitializers(this, _range2_initializers, void 0);
     };
     return SecondaryIndexes = _classThis;
 })();
-await new DynamoDBLocal().start();
-const e = await SecondaryIndexes.createTable();
-console.dir(e, { depth: null });
+export { SecondaryIndexes };
+const i = SecondaryIndexes.make({
+    hash: 'buf',
+    range: 0,
+    attr: 'hello',
+    str: 'something',
+    num: 100,
+    ss: new Set(['a', 'b'])
+});
+const j = SecondaryIndexes.make({
+    hash: 'buf',
+    range: 1,
+    attr: 'goodbye',
+    str: 'else',
+    num: 200,
+    ss: new Set(['c', 'e'])
+});
+const server = new Server(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    switch (req.url) {
+        case '/create': {
+            const result = await SecondaryIndexes.createTable();
+            await SecondaryIndexes.wait({ Minutes: 1 }).activation();
+            res.write(JSON.stringify(result));
+            res.end();
+            break;
+        }
+        case '/describe': {
+            const result = await SecondaryIndexes.describeTable({
+                ContinuousBackups: true,
+                ContributorInsights: true,
+                KinesisStreamingDestination: true,
+                TimeToLive: true
+            });
+            res.write(JSON.stringify(result));
+            res.end();
+            break;
+        }
+        case '/put': {
+            const result = await SecondaryIndexes.put(i, j);
+            res.write(JSON.stringify(result));
+            res.end();
+            break;
+        }
+        case '/delete': {
+            const result = await SecondaryIndexes.deleteTable();
+            await SecondaryIndexes.wait({ Minutes: 1 }).deletion();
+            res.write(JSON.stringify(result));
+            res.end();
+            break;
+        }
+        case '/test': {
+            res.write(String(Math.random() * 1000));
+            res.end();
+            break;
+        }
+        case '/exit': {
+            process.exit();
+        }
+        default:
+            res.write('Not found');
+            res.end();
+            break;
+    }
+});
+server.listen(3030, 'localhost', () => console.log('listening...'));
+//process.exit()
 //# sourceMappingURL=indexes.test.js.map

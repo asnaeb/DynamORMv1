@@ -1,22 +1,20 @@
 import type {DynamORMTable} from '../../table/DynamORMTable'
-import {TABLE_DESCR} from '../../private/Weakmaps'
-import {ATTRIBUTES, TTL} from '../../private/Symbols'
-import {SharedInfo} from '../../interfaces/SharedInfo'
-import {DynamoDBType} from '../../types/Native'
+import {DynamoDBType, N} from '../../types/Native'
+import {weakMap} from '../../private/WeakMap'
 
 function legacyDecoratorFactory(MappedAttributeName?: string) {
     return function LegacyTimeToLive<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
-        AttributeName: T[K] extends number | undefined ? K : never) {
-        if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
-            TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
+        AttributeName: T[K] extends N | undefined ? K : never
+    ) {
+        const wm = weakMap(prototype.constructor as any)
 
-        const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
-
-        Attributes[<string>AttributeName] = {AttributeType: DynamoDBType.N}
-        Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
-
-        TABLE_DESCR(prototype.constructor).set(TTL, AttributeName)
+        wm.attributes ??= {}
+        wm.attributes[<string>AttributeName] = {
+            AttributeType: DynamoDBType.N,
+            AttributeName: MappedAttributeName ?? <string>AttributeName
+        }
+        wm.timeToLive = String(AttributeName)
     }
 }
 

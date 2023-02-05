@@ -32,7 +32,7 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
     }
     return useValue ? value : void 0;
 };
-import { HashKey, Connect, Table, TransactWrite, TransactGet, Attribute, ListTables } from '../lib/index.js';
+import { HashKey, Connect, Table, TransactWrite, TransactGet, Attribute } from '../lib/index.js';
 import { AttributeExists, Overwrite } from '../lib/operators.js';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
 let X = (() => {
@@ -50,11 +50,11 @@ let X = (() => {
     var X = class extends Table {
         static {
             _x_decorators = [HashKey.N()];
-            _str_decorators = [Attribute()];
-            _num_decorators = [Attribute()];
-            __esDecorate(null, null, _x_decorators, { kind: "field", name: "x", static: false, private: false, access: { get() { return this.x; }, set(value) { this.x = value; } } }, _x_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false, access: { get() { return this.str; }, set(value) { this.str = value; } } }, _str_initializers, _instanceExtraInitializers);
-            __esDecorate(null, null, _num_decorators, { kind: "field", name: "num", static: false, private: false, access: { get() { return this.num; }, set(value) { this.num = value; } } }, _num_initializers, _instanceExtraInitializers);
+            _str_decorators = [Attribute.S()];
+            _num_decorators = [Attribute.N()];
+            __esDecorate(null, null, _x_decorators, { kind: "field", name: "x", static: false, private: false }, _x_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false }, _str_initializers, _instanceExtraInitializers);
+            __esDecorate(null, null, _num_decorators, { kind: "field", name: "num", static: false, private: false }, _num_initializers, _instanceExtraInitializers);
             __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
             X = _classThis = _classDescriptor.value;
             __runInitializers(_classThis, _classExtraInitializers);
@@ -80,11 +80,11 @@ let Y = (() => {
     var Y = class extends Table {
         static {
             _y_decorators = [HashKey.N()];
-            _str_decorators = [Attribute()];
-            _num_decorators = [Attribute()];
-            __esDecorate(null, null, _y_decorators, { kind: "field", name: "y", static: false, private: false, access: { get() { return this.y; }, set(value) { this.y = value; } } }, _y_initializers, _instanceExtraInitializers_1);
-            __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false, access: { get() { return this.str; }, set(value) { this.str = value; } } }, _str_initializers, _instanceExtraInitializers_1);
-            __esDecorate(null, null, _num_decorators, { kind: "field", name: "num", static: false, private: false, access: { get() { return this.num; }, set(value) { this.num = value; } } }, _num_initializers, _instanceExtraInitializers_1);
+            _str_decorators = [Attribute.S()];
+            _num_decorators = [Attribute.N()];
+            __esDecorate(null, null, _y_decorators, { kind: "field", name: "y", static: false, private: false }, _y_initializers, _instanceExtraInitializers_1);
+            __esDecorate(null, null, _str_decorators, { kind: "field", name: "str", static: false, private: false }, _str_initializers, _instanceExtraInitializers_1);
+            __esDecorate(null, null, _num_decorators, { kind: "field", name: "num", static: false, private: false }, _num_initializers, _instanceExtraInitializers_1);
             __esDecorate(null, _classDescriptor_1 = { value: this }, _classDecorators_1, { kind: "class", name: this.name }, null, _classExtraInitializers_1);
             Y = _classThis_1 = _classDescriptor_1.value;
             __runInitializers(_classThis_1, _classExtraInitializers_1);
@@ -118,7 +118,7 @@ const g = await TransactGet()
     .in(X)
     .get(1, 2, 3)
     .run();
-const x = await ListTables();
-console.dir(x, { depth: null });
+console.dir(t, { depth: null });
+console.dir(g, { depth: null });
 process.exit();
 //# sourceMappingURL=transaction.test.js.map

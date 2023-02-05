@@ -1,4 +1,9 @@
-import {ProvisionedThroughput, StreamViewType, TableClass} from '@aws-sdk/client-dynamodb'
+import {
+    ProvisionedThroughput,
+    StreamViewType,
+    TableClass
+} from '@aws-sdk/client-dynamodb'
+
 
 export interface CreateTableParams {
     ProvisionedThroughput?: ProvisionedThroughput

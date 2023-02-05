@@ -14,16 +14,15 @@ import {
 import type {Key, PrimaryKeys} from '../types/Key'
 import type {Serializer} from '../serializer/Serializer'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import {ClientCommand} from './ClientCommand'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
+import {ClientCommandChain} from './ClientCommandChain'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {mergeNumericProps} from '../utils/General'
 import {Response} from '../response/Response'
+import {weakMap} from '../private/WeakMap'
 
 type RequestItem = {PutRequest: {Item: Record<string, any>}} | {DeleteRequest: {Key: Key}}
 interface PutRequest {table: typeof DynamORMTable; items: DynamORMTable[]}
-interface DeleteRequest {table: typeof DynamORMTable; keys: PrimaryKeys<DynamORMTable>}
+interface DeleteRequest {table: typeof DynamORMTable; keys: any[]}
 interface Chain<T extends typeof DynamORMTable> {
     put(...items: InstanceType<T>[]): Chain<T> & {
         run(): ReturnType<BatchWrite['run']>
@@ -35,7 +34,7 @@ interface Chain<T extends typeof DynamORMTable> {
     }
 }
 
-export class BatchWrite extends ClientCommand {
+export class BatchWrite extends ClientCommandChain {
     #pool = new AsyncArray<BatchWriteCommandInput>()
     #requests = new AsyncArray<PutRequest | DeleteRequest>()
 
@@ -44,8 +43,8 @@ export class BatchWrite extends ClientCommand {
     }
 
     async #addRequest(request: PutRequest | DeleteRequest) {
-        const tableName = TABLE_DESCR(request.table).get<string>(TABLE_NAME)
-        const serializer = TABLE_DESCR(request.table).get<Serializer<DynamORMTable>>(SERIALIZER)
+        const tableName = weakMap(request.table).tableName
+        const serializer = weakMap(request.table).serializer
 
         if (!serializer || !tableName) 
             throw 'Somethig was wrong' // TODO Proper error logging
@@ -153,7 +152,7 @@ export class BatchWrite extends ClientCommand {
         await AsyncArray.to(settled).async.forEach(async data => {
             if (data.status === 'fulfilled') {
                 for (const {table} of this.#requests) {
-                    const tableName = TABLE_DESCR(table).get(TABLE_NAME)
+                    const tableName = weakMap(table).tableName
                     const consumedCapacities = data.value.ConsumedCapacity
 
                     if (consumedCapacities) 

@@ -1,36 +1,37 @@
 import assert from 'node:assert'
 import {DynamoDBLocal} from './env/DynamoDBLocal.js'
-import {HashKey, RangeKey, Table, Connect, Attribute} from './env/DynamORM.js'
+import {HashKey, RangeKey, Table, Connect, Attribute} from '../lib/index.js'
 import {ListAppend, AddToSet, Remove} from '../lib/operators/Functions.js'
 import {after, before, describe, it} from 'node:test'
+import {Hash, Range} from '../lib/types/Key.js'
 
 describe('Crud operations test', () => {
-    const DDB = new DynamoDBLocal()
+    const DDB = new DynamoDBLocal({inMemory: true})
 
     before(() => DDB.start())
 
-    after(() => DDB.kill())
+    after(() => DDB.stop())
 
     @Connect()
     class Crud extends Table {
         @HashKey.S()
-        a!: string
+        a!: Hash<string>
 
         @RangeKey.N()
-        b!: number
+        b!: Range<number>
 
         @Attribute.M()
         c?: {
             x?: boolean[],
-            y: {
+            y?: {
                 z: Set<string>
             }
         }
 
         @Attribute.NULL()
-        d!: null
+        d?: null
 
-        out = 'I am an ignored attribute'
+        out? = 'I am an ignored attribute'
     }
 
     let crud1: Crud, crud2: Crud
@@ -49,8 +50,8 @@ describe('Crud operations test', () => {
         })
 
         crud2 = new Crud()
-        crud2.a = 'crd'
-        crud2.b = 222
+        crud2.a = 'crd' as Hash<string>
+        crud2.b = 222 as Range<number>
         crud2.c = {
             x: [false],
             y: {

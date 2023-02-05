@@ -7,32 +7,33 @@ import type {
     ServiceOutputTypes
 } from '@aws-sdk/client-dynamodb'
 
-import type {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {EventEmitter} from 'node:events'
 import {DynamORMError} from '../errors/DynamORMError'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {TABLE_INFO} from '../private/Symbols'
 import {Serializer} from '../serializer/Serializer'
-import {Constructor} from '../types/Utils'
 import {TResponse, Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput' 
 import {AttributeValues} from '../types/Native'
+import {weakMap} from '../private/WeakMap'
+import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
+import {Constructor} from '../types/Utils'
+import {DynamoDB} from 'aws-sdk'
 
 export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOutputTypes> extends EventEmitter {
     protected static responsesEvent = Symbol('responses')
 
-    protected readonly tableName: string
-    protected readonly documentClient: DynamoDBDocumentClient
-    protected readonly client: DynamoDBClient
-    protected readonly serializer: Serializer<T>
-    protected readonly keySchema: KeySchemaElement[]
-    protected readonly attributeDefinitions: AttributeDefinition[]
-    protected readonly localSecondaryIndexes?: LocalSecondaryIndex[]
-    protected readonly globalSecondaryIndexes?: GlobalSecondaryIndex[]
-    protected readonly timeToLive?: string
+    protected readonly tableName
+    protected readonly documentClient
+    protected readonly client
+    protected readonly serializer
+    protected readonly keySchema
+    protected readonly attributeDefinitions
+    protected readonly daxClient?
+    protected readonly localSecondaryIndexes?
+    protected readonly globalSecondaryIndexes?
+    protected readonly timeToLive?
 
     abstract get response(): Promise<TResponse<any, any, any>>
 
@@ -41,26 +42,27 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
 
         this.on('error', e => this.logError(e))
 
-        const wm = TABLE_DESCR(table)
-
-        this.tableName = wm.get(TABLE_INFO.TABLE_NAME)!
-        this.client = wm.get(TABLE_INFO.CLIENT)!
-        this.documentClient = wm.get(TABLE_INFO.DOCUMENT_CLIENT)!
-        this.serializer = wm.get(TABLE_INFO.SERIALIZER)!
-        this.keySchema = wm.get(TABLE_INFO.KEY_SCHEMA)!
-        this.attributeDefinitions = wm.get(TABLE_INFO.ATTRIBUTE_DEFINITIONS)!
-        this.localSecondaryIndexes = wm.get(TABLE_INFO.LOCAL_INDEXES)
-        this.globalSecondaryIndexes = wm.get(TABLE_INFO.GLOBAL_INDEXES)
-        this.timeToLive = wm.get(TABLE_INFO.TTL)
+        const info = weakMap(table)
 
         if (
-            !this.tableName
-            || !this.client
-            || !this.documentClient
-            || !this.serializer
-            || !this.keySchema
-            || !this.attributeDefinitions
+               !info.tableName
+            || !info.client
+            || !info.documentClient
+            || !info.serializer
+            || !info.keySchema
+            || !info.attributeDefinitions
         ) throw new Error('Some required info is missing.') // TODO specific error message
+
+        this.tableName = info.tableName
+        this.client = info.documentClient
+        this.documentClient = info.documentClient
+        this.daxClient = info.daxClient
+        this.serializer = info.serializer
+        this.keySchema = info.keySchema
+        this.attributeDefinitions = info.attributeDefinitions
+        this.localSecondaryIndexes = info.localIndexes
+        this.globalSecondaryIndexes = info.globalIndexes
+        this.timeToLive = info.timeToLive
     }
 
     protected logError(error: Error) {
@@ -100,10 +102,12 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
                         for (const key of infoKeys) {
                             const outputInfo = output[key]
                             
-                            if (Array.isArray(outputInfo))
-                                infos.push(<I>{[key]: outputInfo[0]})
-                            else
-                                infos.push(<I>{[key]: outputInfo})
+                            if (outputInfo) {
+                                if (Array.isArray(outputInfo))
+                                    infos.push(<I>{[key]: outputInfo[0]})
+                                else
+                                    infos.push(<I>{[key]: outputInfo})
+                            }
                         }
 
                         if ('Responses' in output && !Array.isArray(output.Responses)) {

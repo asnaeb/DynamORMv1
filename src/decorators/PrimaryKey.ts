@@ -2,7 +2,8 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {SharedInfo} from '../interfaces/SharedInfo'
 import type {CreatePrimaryKeyParams} from '../interfaces/CreatePrimaryKeyParams'
 import {KeyType} from '@aws-sdk/client-dynamodb'
-import {DynamoDBScalarType, DynamoDBType} from '../types/Native'
+import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../types/Native'
+import {Hash, Range} from '../types/Key'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
@@ -12,12 +13,13 @@ interface FactoryParams {
 }
 
 function decoratorFactory<X>({SharedInfo, KeyType, AttributeType, AttributeName}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+    return function<T extends X | undefined>(
+        _: undefined, 
+        {name}: ClassFieldDecoratorContext<DynamORMTable, T> & {static: false; private: false}
+    ) {
         name = String(name)
-
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[name] = {AttributeType}
-        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
+        SharedInfo.Attributes[name] = {AttributeType, AttributeName: AttributeName ?? name}
 
         AddKeyInfo({SharedInfo, KeyType, AttributeType, AttributeName: AttributeName ?? name})
     }
@@ -30,19 +32,23 @@ function decorator<T>(params: FactoryParams) {
 }
 
 export function HashKey(SharedInfo: SharedInfo) {
-    return {
-        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.S})},
-        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.N})},
-        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.B})}
-    }
+    const toHashKey = <T extends S | N | B>(value: T) => value as Hash<T>
+
+    return Object.assign(toHashKey, {
+        S: decorator<Hash<S>>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.S}),
+        N: decorator<Hash<N>>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.N}),
+        B: decorator<Hash<B>>({SharedInfo, KeyType: KeyType.HASH, AttributeType: DynamoDBType.B})
+    })
 }
 
 export function RangeKey(SharedInfo: SharedInfo) {
-    return {
-        get S() {return decorator<string>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.S})},
-        get N() {return decorator<number>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.N})},
-        get B() {return decorator<Uint8Array>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.B})},
-    }
+    const toRangeKey = <T extends S | N | B>(value: T) => value as Range<T>
+
+    return Object.assign(toRangeKey, {
+        S: decorator<Range<S>>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.S}),
+        N: decorator<Range<N>>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.N}),
+        B: decorator<Range<B>>({SharedInfo, KeyType: KeyType.RANGE, AttributeType: DynamoDBType.B}),
+    })
 }
 
 export function AddKeyInfo({SharedInfo, KeyType, AttributeType, AttributeName}: CreatePrimaryKeyParams) {

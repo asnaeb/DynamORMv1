@@ -1,0 +1,10 @@
+{
+    "presets": [ 
+        ["@babel/preset-env", {"targets": "node 18.12", "modules": false}]
+    ],
+    "plugins": [
+        ["@babel/plugin-proposal-decorators", {"version": "2022-03"}]
+    ],
+    "sourceMaps": "inline",
+    "ignore": ["*.min.js"]
+}

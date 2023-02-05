@@ -6,14 +6,15 @@ import {Condition} from '../types/Condition'
 import {Constructor} from '../types/Utils'
 import {TablePaginateCommand} from './TablePaginateCommand'
 
+interface ScanParams<T extends DynamORMTable> {
+    filter?: Condition<T>[]
+    Limit?: number
+    ConsistentRead?: boolean
+    IndexName?: string
+}
+
 export class Scan<T extends DynamORMTable> extends TablePaginateCommand<T, ScanCommandOutput> {
-    constructor(
-        table: Constructor<T>, 
-        filter?: Condition<T>[],
-        Limit?: number, 
-        ConsistentRead?: boolean, 
-        IndexName?: string
-    ) {
+    constructor(table: Constructor<T>, {filter, Limit, ConsistentRead, IndexName}: ScanParams<T>) {
         super(table)
 
         const command = new ScanCommand({
@@ -32,11 +33,11 @@ export class Scan<T extends DynamORMTable> extends TablePaginateCommand<T, ScanC
                 command.input.ExpressionAttributeValues = ExpressionAttributeValues
                 command.input.FilterExpression = ConditionExpression
 
-                this.emit(TablePaginateCommand.commandEvent, command)
+                this.emit(Scan.commandEvent, command)
 
             }) 
         } else
-            this.emit(TablePaginateCommand.commandEvent, command)
+            this.emit(Scan.commandEvent, command)
     }
 
     public get response() {

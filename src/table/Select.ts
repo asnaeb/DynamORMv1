@@ -4,14 +4,13 @@ import type {Update as TUpdate} from '../types/Update'
 import type {DynamORMTable} from './DynamORMTable'
 import type {Constructor} from '../types/Utils'
 import {EventEmitter} from 'node:events'
-import {Serializer} from '../serializer/Serializer'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER} from '../private/Symbols'
+import type {Serializer} from '../serializer/Serializer'
 import {Update} from '../commands/Update'
 import {TableBatchGet} from '../commands/TableBatchGet'
 import {Delete} from '../commands/Delete'
 import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
+import {weakMap} from '../private/WeakMap'
 
 interface Or<T extends DynamORMTable> {
     or(condition: Condition<T>): Or<T>
@@ -28,7 +27,7 @@ export class Select<T extends DynamORMTable> {
     #emitter = new EventEmitter({captureRejections: true})
 
     public constructor(table: Constructor<T>, keys: unknown[]) {
-        const serializer = TABLE_DESCR(table).get(SERIALIZER)
+        const serializer = weakMap(table).serializer
 
         if (!serializer)
             throw new Error('Serializer not found!') // TODO Proper error description
@@ -59,10 +58,14 @@ export class Select<T extends DynamORMTable> {
         })
     }
 
-    public update(update: TUpdate<T>) {
+    public update(updates: TUpdate<T>, create = true) {
         return new Promise<Awaited<Update<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new Update(this.#table, keys, update, this.#conditions).response)
+                resolve(
+                    new Update(this.#table, {
+                        keys, updates, conditions: this.#conditions, create
+                    }).response
+                )
             })
         })
     }

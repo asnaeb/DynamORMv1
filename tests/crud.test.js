@@ -34,13 +34,13 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
 };
 import assert from 'node:assert';
 import { DynamoDBLocal } from './env/DynamoDBLocal.js';
-import { HashKey, RangeKey, Table, Connect, Attribute } from './env/DynamORM.js';
+import { HashKey, RangeKey, Table, Connect, Attribute } from '../lib/index.js';
 import { ListAppend, AddToSet, Remove } from '../lib/operators/Functions.js';
 import { after, before, describe, it } from 'node:test';
 describe('Crud operations test', () => {
-    const DDB = new DynamoDBLocal();
+    const DDB = new DynamoDBLocal({ inMemory: true });
     before(() => DDB.start());
-    after(() => DDB.kill());
+    after(() => DDB.stop());
     let Crud = (() => {
         let _classDecorators = [Connect()];
         let _classDescriptor;
@@ -61,10 +61,10 @@ describe('Crud operations test', () => {
                 _b_decorators = [RangeKey.N()];
                 _c_decorators = [Attribute.M()];
                 _d_decorators = [Attribute.NULL()];
-                __esDecorate(null, null, _a_decorators, { kind: "field", name: "a", static: false, private: false, access: { get() { return this.a; }, set(value) { this.a = value; } } }, _a_initializers, _instanceExtraInitializers);
-                __esDecorate(null, null, _b_decorators, { kind: "field", name: "b", static: false, private: false, access: { get() { return this.b; }, set(value) { this.b = value; } } }, _b_initializers, _instanceExtraInitializers);
-                __esDecorate(null, null, _c_decorators, { kind: "field", name: "c", static: false, private: false, access: { get() { return this.c; }, set(value) { this.c = value; } } }, _c_initializers, _instanceExtraInitializers);
-                __esDecorate(null, null, _d_decorators, { kind: "field", name: "d", static: false, private: false, access: { get() { return this.d; }, set(value) { this.d = value; } } }, _d_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _a_decorators, { kind: "field", name: "a", static: false, private: false }, _a_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _b_decorators, { kind: "field", name: "b", static: false, private: false }, _b_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _c_decorators, { kind: "field", name: "c", static: false, private: false }, _c_initializers, _instanceExtraInitializers);
+                __esDecorate(null, null, _d_decorators, { kind: "field", name: "d", static: false, private: false }, _d_initializers, _instanceExtraInitializers);
                 __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
                 Crud = _classThis = _classDescriptor.value;
                 __runInitializers(_classThis, _classExtraInitializers);

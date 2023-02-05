@@ -19,13 +19,13 @@ interface ExpressionsMap {
     DELETE: string[]
 }
 
-type UpdateParams<T extends DynamORMTable> = [
+interface UpdateGeneratorParams<T extends DynamORMTable> {
     TableName: string,
     Key: Key,
     updates: Update<T>,
     conditions?: Condition<T>[],
     create?: boolean
-]
+}
 
 const doneEvent = Symbol('done')
 
@@ -35,7 +35,7 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
     #expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
     #commands = new AsyncArray<UpdateCommand>()
 
-    constructor(...[TableName, Key, updates, conditions, create = true]: UpdateParams<T>) {
+    constructor({TableName, Key, updates, conditions, create = true}: UpdateGeneratorParams<T>) {
         super({captureRejections: true})
 
         this.on('error', e => console.log(e))
@@ -44,7 +44,7 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
             const keys = AsyncArray.to(Object.keys(update))
 
             await keys.async.forEach(key => {
-                const value = update[<keyof Native<T>>key]
+                const value = (<any>update)[key]
 
                 let $path, $key = alphaNumeric(key)
 
@@ -200,8 +200,8 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         }
 }
 
-export function generateUpdate<T extends DynamORMTable>(...args: UpdateParams<T>) {
+export function generateUpdate<T extends DynamORMTable>(args: UpdateGeneratorParams<T>) {
     return new Promise<AsyncArray<UpdateCommand>>(resolve => {
-        new UpdateGenerator(...args).once(doneEvent, data => resolve(data))
+        new UpdateGenerator(args).once(doneEvent, data => resolve(data))
     })
 }

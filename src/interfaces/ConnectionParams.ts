@@ -7,4 +7,5 @@ export interface ConnectionParams extends DecoratorParams {
     Client: DynamoDBClient
     DocumentClient: DynamoDBDocumentClient
     TableName?: string
+    DAX?: string
 }

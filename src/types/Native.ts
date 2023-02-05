@@ -1,5 +1,7 @@
+import {InferKeyType} from './Key'
+
 export type S = string
-export type N = number | bigint
+export type N = number 
 export type B =
      | Int8Array
      | Uint8Array
@@ -17,10 +19,10 @@ export type NULL = null
 export type SS = Set<S>
 export type NS = Set<N>
 export type BS = Set<B>
-export type M = {[key: string]: NativeType} | InstanceType<(new <T extends {}>(...args: any) => T)>
+export type M = {[key: string]: NativeType}// | InstanceType<{new(...args: any): Record<string, any>}>
 export type L = NativeType[]
 
-export type NativeType = S | N | B | BOOL | NULL | L | SS | NS | BS | M | undefined
+export type NativeType = S | N | B | BOOL | NULL | L | SS | NS | BS | M 
 
 export type AttributeNames = Record<string, string>
 export type AttributeValues = Record<string, NativeType> 
@@ -39,5 +41,5 @@ export enum DynamoDBType {
 }
 
 export type DynamoDBScalarType = DynamoDBType.S | DynamoDBType.N | DynamoDBType.B
-
-export type Native<T> = {[K in keyof T as T[K] extends NativeType ? K : never]?: T[K]}
+export type Scalars<T> = {[K in keyof T as T[K] extends S | N | B | undefined ? K : never]: T[K]}
+export type Native<T> = InferKeyType<{[K in keyof T as T[K] extends NativeType | undefined ? K : never]: T[K]}>

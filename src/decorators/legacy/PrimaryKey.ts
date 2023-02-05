@@ -1,37 +1,47 @@
-import {TABLE_DESCR} from '../../private/Weakmaps'
-import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {KeyType} from '@aws-sdk/client-dynamodb'
 import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
-import {SharedInfo} from '../../interfaces/SharedInfo'
-import {DynamoDBScalarType, DynamoDBType} from '../../types/Native'
+import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../../types/Native'
+import {Hash, Range} from '../../types/Key'
+import {weakMap} from '../../private/WeakMap'
 
-export const LegacyHashKey = {
-    get S() {return legacyDecorator<string>(KeyType.HASH, DynamoDBType.S)},
-    get N() {return legacyDecorator<number>(KeyType.HASH, DynamoDBType.N)},
-    get B() {return legacyDecorator<Uint8Array>(KeyType.HASH, DynamoDBType.B)}
-}
-export const LegacyRangeKey = {
-    get S() {return legacyDecorator<string>(KeyType.RANGE, DynamoDBType.S)},
-    get N() {return legacyDecorator<number>(KeyType.RANGE, DynamoDBType.N)},
-    get B() {return legacyDecorator<Uint8Array>(KeyType.RANGE, DynamoDBType.B)}
-}
+const toHashKey = <T extends S | N | B>(value: T) => value as Hash<T>
+const toRangeKey = <T extends S | N | B>(value: T) => value as Range<T>
 
-function legacyDecoratorFactory<Z>(KeyType: KeyType, AttributeType: DynamoDBScalarType, MappedAttributeName?: string) {
+export const LegacyHashKey = Object.assign(toHashKey, {
+    S: legacyDecorator<Hash<S>>(KeyType.HASH, DynamoDBType.S),
+    N: legacyDecorator<Hash<N>>(KeyType.HASH, DynamoDBType.N),
+    B: legacyDecorator<Hash<B>>(KeyType.HASH, DynamoDBType.B)
+})
+export const LegacyRangeKey = Object.assign(toRangeKey, {
+    S: legacyDecorator<Range<S>>(KeyType.RANGE, DynamoDBType.S),
+    N: legacyDecorator<Range<N>>(KeyType.RANGE, DynamoDBType.N),
+    B: legacyDecorator<Range<B>>(KeyType.RANGE, DynamoDBType.B)
+})
+
+function legacyDecoratorFactory<Z>(
+    KeyType: KeyType, 
+    AttributeType: DynamoDBScalarType, 
+    MappedAttributeName?: string
+) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
 
         if (!!AttributeType && ['S', 'N', 'B'].includes(AttributeType)) {
-            if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
-                TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
+            const infos = weakMap(prototype.constructor as any)
+         
+            infos.attributes ??= {}
+            infos.attributes[<string>AttributeName] = {
+                AttributeType,
+                AttributeName: MappedAttributeName ?? <string>AttributeName
+            }
 
-            const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
-
-            Attributes[<string>AttributeName] = {AttributeType}
-            Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
-
-            AddKeyInfo(prototype.constructor, {KeyType, AttributeType, AttributeName: MappedAttributeName ?? <string>AttributeName})
+            AddKeyInfo(prototype.constructor, {
+                KeyType, 
+                AttributeType, 
+                AttributeName: MappedAttributeName ?? <string>AttributeName
+            })
         }
     }
 }
@@ -43,15 +53,15 @@ function legacyDecorator<T>(KeyType: KeyType, AttributeType: DynamoDBScalarType)
 }
 
 function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<CreatePrimaryKeyParams, 'SharedInfo'>) {
-    const wm = TABLE_DESCR(target)
     let i
+    const infos = weakMap(target)
 
     if (KeyType === 'RANGE')
         i = 1
     else if (KeyType === 'HASH') {
         i = 0
-        if (wm.get(LOCAL_INDEXES)?.length) {
-            for (const localI of wm.get(LOCAL_INDEXES)) {
+        if (infos.localIndexes?.length) {
+            for (const localI of infos.localIndexes) {
                 if (localI.KeySchema)
                     localI.KeySchema[0] = {AttributeName, KeyType}
             }
@@ -62,14 +72,10 @@ function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<C
         const KeySchemaElement = {AttributeName, KeyType}
         const AttributeDefinition = {AttributeName, AttributeType}
 
-        if (!wm.has(KEY_SCHEMA))
-            wm.set(KEY_SCHEMA, [])
+        infos.keySchema ??= []
+        infos.keySchema[i] = KeySchemaElement
 
-        wm.get<(typeof KeySchemaElement)[]>(KEY_SCHEMA)![i] = KeySchemaElement
-
-        if (!wm.has(ATTRIBUTE_DEFINITIONS))
-            wm.set(ATTRIBUTE_DEFINITIONS, [])
-
-        wm.get<typeof AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)!.push(AttributeDefinition)
+        infos.attributeDefinitions ??= []
+        infos.attributeDefinitions.push(AttributeDefinition)
     }
 }

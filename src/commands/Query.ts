@@ -7,18 +7,28 @@ import {Condition} from '../types/Condition'
 import {QueryObject} from '../types/Query'
 import {Constructor} from '../types/Utils'
 import {TablePaginateCommand} from './TablePaginateCommand'
+import {B, N, S} from '../types/Native'
+
+export interface QueryParams<T extends DynamORMTable> {
+    hashValue: S | N | B,
+    rangeQuery?: QueryObject<any>
+    filter?: Condition<T>[]
+    IndexName?: string
+    Limit?: number
+    ScanIndexForward?: boolean
+    ConsistentRead?: boolean
+}
 
 export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, QueryCommandOutput> {
-    constructor(
-        table: Constructor<T>,
-        hashValue: string | number,
-        rangeQuery?: QueryObject<string | number>,
-        filter?: Condition<T>[],
-        IndexName?: string,
-        Limit?: number,
-        ScanIndexForward?: boolean,
-        ConsistentRead?: boolean
-    ) {
+    constructor(table: Constructor<T>, {
+        hashValue, 
+        rangeQuery, 
+        filter, 
+        IndexName, 
+        Limit,
+        ScanIndexForward,
+        ConsistentRead
+    }: QueryParams<T>) {
         super(table)
 
         let hashKey: string | undefined
@@ -53,15 +63,19 @@ export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, Quer
             rangeKey = this.keySchema[1]?.AttributeName
         }
 
-        if (hashKey && hashValue) {
-            const condition = {[hashKey]: {[EQUAL]: hashValue}}
-
-            if (rangeQuery && rangeKey) 
-                Object.assign(condition, {[rangeKey]: rangeQuery})
-
-            generateCondition([condition])
-
-            .then(async ({ExpressionAttributeNames, ExpressionAttributeValues, ConditionExpression}) => {
+        const emit = async () => {
+            if (hashKey && hashValue) {
+                const condition = {[hashKey]: {[EQUAL]: hashValue}}
+    
+                if (rangeQuery && rangeKey) 
+                    Object.assign(condition, {[rangeKey]: rangeQuery})
+    
+                const {
+                    ExpressionAttributeNames, 
+                    ExpressionAttributeValues, 
+                    ConditionExpression
+                } = await generateCondition([condition])
+    
                 command.input.ExpressionAttributeNames = ExpressionAttributeNames
                 command.input.ExpressionAttributeValues = ExpressionAttributeValues
                 command.input.KeyConditionExpression = ConditionExpression
@@ -75,10 +89,12 @@ export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, Quer
                     
                     command.input.FilterExpression = ConditionExpression
                 }
-                
-                this.emit(TablePaginateCommand.commandEvent, command)
-            })
+            } 
+
+            this.emit(Query.commandEvent, command)
         }
+        
+        emit()
     }
 
     public get response() {

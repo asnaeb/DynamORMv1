@@ -1,18 +1,34 @@
-// LEGACY DECORATORS SUPPORT
 import {DynamORMTable} from '../../table/DynamORMTable'
-import {TABLE_DESCR} from '../../private/Weakmaps'
-import {CLIENT, CLIENT_CONFIG, DOCUMENT_CLIENT, SERIALIZER, TABLE_NAME} from '../../private/Symbols'
 import {alphaNumericDotDash} from '../../utils/General'
 import {ConnectionParams} from '../../interfaces/ConnectionParams'
 import {Serializer} from '../../serializer/Serializer'
+import {weakMap} from '../../private/WeakMap'
+import AmazonDaxClient from 'amazon-dax-client'
+import {DynamoDB} from 'aws-sdk'
 
-function legacyDecoratorFactory({TableName, ClientConfig, Client, DocumentClient}: Omit<ConnectionParams, 'SharedInfo'>) {
+function legacyDecoratorFactory({TableName, DAX, Client, DocumentClient}: Omit<ConnectionParams, 'SharedInfo'>) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T) {
-        TABLE_DESCR(target).set(TABLE_NAME, alphaNumericDotDash(TableName ?? target.name))
-        TABLE_DESCR(target).set(CLIENT, Client)
-        TABLE_DESCR(target).set(DOCUMENT_CLIENT, DocumentClient)
-        TABLE_DESCR(target).set(CLIENT_CONFIG, ClientConfig)
-        TABLE_DESCR(target).set(SERIALIZER, new Serializer(target))
+        const wm = weakMap(target)
+
+        if (DAX) {
+            const dax = new AmazonDaxClient({
+                region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION, 
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                sessionToken: process.env.AWS_SESSION_TOKEN,
+                endpoint: process.env.AWS_ENDPOINT,
+                maxRetries: Number(process.env.AWS_MAX_ATTEMPTS),
+                endpoints: [DAX]
+            }) 
+            const documentClientV2 = new DynamoDB.DocumentClient({service: <any>dax})
+
+            wm.daxClient = documentClientV2
+        }
+
+        wm.tableName = alphaNumericDotDash(TableName ?? target.name)
+        wm.client = Client
+        wm.documentClient = DocumentClient
+        wm.serializer = new Serializer(target)
     }
 }
 

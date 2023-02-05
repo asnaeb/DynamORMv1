@@ -2,6 +2,7 @@
 export const TABLE_NAME = Symbol('TableName')
 export const CLIENT = Symbol('Client')
 export const DOCUMENT_CLIENT = Symbol('DocumentClient')
+export const DAX_CLIENT = Symbol('DaxClient')
 export const CLIENT_CONFIG = Symbol('ClientConfig')
 export const KEY_SCHEMA = Symbol('KeySchema')
 export const ATTRIBUTE_DEFINITIONS = Symbol('AttributeDefinitions')
@@ -10,18 +11,6 @@ export const GLOBAL_INDEXES = Symbol('GlobalIndexes')
 export const TTL = Symbol('TimeToLive')
 export const ATTRIBUTES = Symbol('Attributes')
 export const SERIALIZER = Symbol('Serializer')
-export const TABLE_INFO = {
-    TABLE_NAME,
-    CLIENT,
-    DOCUMENT_CLIENT,
-    CLIENT_CONFIG,
-    KEY_SCHEMA,
-    ATTRIBUTE_DEFINITIONS,
-    LOCAL_INDEXES,
-    GLOBAL_INDEXES,
-    TTL,
-    SERIALIZER
-}
 
 // OPERATORS - UPDATE
 export const OVERWRITE = Symbol('Overwrite')

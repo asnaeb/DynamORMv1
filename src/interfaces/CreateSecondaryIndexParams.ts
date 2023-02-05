@@ -18,6 +18,6 @@ export interface CreateSecondaryIndexParams extends DecoratorParams {
      */
     UID?: number
     IndexName?: string
-    ProjectedAttributes?: string[] | ProjectionType.KEYS_ONLY
+    ProjectedAttributes?: PropertyKey[] | ProjectionType.KEYS_ONLY
     ProvisionedThroughput?: GlobalSecondaryIndex['ProvisionedThroughput']
 }

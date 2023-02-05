@@ -1,5 +1,5 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
-import {S, N, B, BOOL, L, SS, NS, BS, M, NULL, NativeType, DynamoDBType} from '../types/Native'
+import {S, N, B, BOOL, L, SS, NS, BS, M, NULL, DynamoDBType} from '../types/Native'
 import {SharedInfo} from '../interfaces/SharedInfo'
 
 interface FactoryParams {
@@ -9,12 +9,14 @@ interface FactoryParams {
 }
 
 function decoratorFactory<X>({SharedInfo, AttributeType, AttributeName}: FactoryParams) {
-    return function<T extends X | undefined>(_: undefined, {name}: ClassFieldDecoratorContext<DynamORMTable, T>) {
+    return function<T extends X | undefined>(
+        _: undefined, 
+        {name}: ClassFieldDecoratorContext<DynamORMTable, T> & {static: false; private: false}
+    ) {
         name = String(name)
-
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[name] = {AttributeType}
-        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
+        SharedInfo.Attributes[name] = {AttributeType, AttributeName: AttributeName ?? name}
+
     }
 }
 
@@ -25,16 +27,16 @@ export function Attribute(SharedInfo: SharedInfo) {
         }
     }
 
-    return Object.assign(decorator<NativeType>('ANY'), {
-        get S() {return decorator<S>(DynamoDBType.S)},
-        get N() {return decorator<N>(DynamoDBType.N)},
-        get B() {return decorator<B>(DynamoDBType.B)},
-        get BOOL() {return decorator<BOOL>(DynamoDBType.BOOL)},
-        get L() {return decorator<L>(DynamoDBType.BOOL)},
-        get SS() {return decorator<SS>(DynamoDBType.SS)},
-        get NS() {return decorator<NS>(DynamoDBType.NS)},
-        get BS() {return decorator<BS>(DynamoDBType.BS)},
-        get M() {return decorator<M>(DynamoDBType.M)},
-        get NULL() {return decorator<NULL>(DynamoDBType.NULL)}
-    })
+    return {
+        S: decorator<S>(DynamoDBType.S),
+        N: decorator<N>(DynamoDBType.N),
+        B: decorator<B>(DynamoDBType.B),
+        BOOL: decorator<BOOL>(DynamoDBType.BOOL),
+        L: decorator<L>(DynamoDBType.BOOL),
+        SS: decorator<SS>(DynamoDBType.SS),
+        NS: decorator<NS>(DynamoDBType.NS),
+        BS: decorator<BS>(DynamoDBType.BS),
+        M: decorator<M>(DynamoDBType.M),
+        NULL: decorator<NULL>(DynamoDBType.NULL)
+    }
 }

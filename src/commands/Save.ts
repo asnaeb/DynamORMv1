@@ -1,9 +1,9 @@
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
 import {UpdateCommand, UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {Constructor} from '../types/Utils'
 import {alphaNumeric} from '../utils/General'
 import {TableCommandSingle} from './TableCommandSingle'
+import {Constructor} from '../types/Utils'
 
 export class Save<T extends DynamORMTable> extends TableCommandSingle<T, UpdateCommandOutput> {
     public constructor(table: Constructor<T>, element: T) {

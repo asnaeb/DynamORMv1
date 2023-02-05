@@ -6,37 +6,36 @@ import {
 } from '@aws-sdk/lib-dynamodb'
 
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {ClientCommand} from './ClientCommand'
+import {ClientCommandChain} from './ClientCommandChain'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Key, PrimaryKeys} from '../types/Key'
 import {Condition} from '../types/Condition'
 import {Update} from '../types/Update'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
 import type {Serializer} from '../serializer/Serializer'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {generateUpdate} from '../generators/UpdateGenerator'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {Response} from '../response/Response'
+import {weakMap} from '../private/WeakMap'
 
 interface IRequest<T extends typeof DynamORMTable> {
     table: T
 }
 interface UpdateRequest<T extends typeof DynamORMTable> extends IRequest<T> {
     update: Update<InstanceType<T>>
-    keys: PrimaryKeys<InstanceType<T>>
+    keys: any[]
     conditions?: Condition<InstanceType<T>>[]
 }
 interface PutRequest<T extends typeof DynamORMTable> extends IRequest<T> {
     items: InstanceType<T>[]
 }
 interface DeleteRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    keys: PrimaryKeys<InstanceType<T>>
+    keys: any[]
     delete: true
     conditions?: Condition<InstanceType<T>>[]
 }
 interface CheckRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    keys: PrimaryKeys<InstanceType<T>>
+    keys: any[]
     conditions: Condition<InstanceType<T>>[]
     check: true
 }
@@ -71,7 +70,7 @@ interface Chain<T extends typeof DynamORMTable> {
     }
 }
 
-export class TransactWrite extends ClientCommand {
+export class TransactWrite extends ClientCommandChain {
     #requests: Request[] = []
     #input: TransactWriteCommandInput = {
         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
@@ -84,8 +83,8 @@ export class TransactWrite extends ClientCommand {
     }
 
     async #addRequest(request: Request) {
-        const TableName = TABLE_DESCR(request.table).get<string>(TABLE_NAME)
-        const serializer = TABLE_DESCR(request.table).get<Serializer<any>>(SERIALIZER)
+        const TableName = weakMap(request.table).tableName
+        const serializer = weakMap(request.table).serializer
 
         if (!serializer || !TableName)
             throw 'something went wrong'
@@ -112,13 +111,13 @@ export class TransactWrite extends ClientCommand {
 
         if ('update' in request) {
             for (const Key of keys) {
-                const commands = await generateUpdate(
+                const commands = await generateUpdate({
                     TableName,
                     Key,
-                    request.update,
-                    request.conditions,
-                    false
-                )
+                    updates: request.update,
+                    conditions: request.conditions,
+                    create: false
+                })
 
                 for (const {input} of commands)
                     this.#input.TransactItems?.push({
@@ -264,7 +263,7 @@ export class TransactWrite extends ClientCommand {
 
             if (response.ConsumedCapacity) for (const ConsumedCapacity of response.ConsumedCapacity) {
                 for (const {table} of this.#requests) {
-                    const tableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
+                    const tableName = weakMap(table).tableName
 
                     if (ConsumedCapacity.TableName === tableName)
                         infos.set(table, {ConsumedCapacity})

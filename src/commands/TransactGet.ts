@@ -2,19 +2,17 @@ import {
     DynamoDBDocumentClient, 
     TransactGetCommand, 
     TransactGetCommandInput, 
-    TransactGetCommandOutput
 } from '@aws-sdk/lib-dynamodb'
 
 import {AsyncArray} from '@asn.aeb/async-array'
-import {ClientCommand} from './ClientCommand'
+import {ClientCommandChain} from './ClientCommandChain'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {PrimaryKeys} from '../types/Key'
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {SERIALIZER, TABLE_NAME} from '../private/Symbols'
 import {Serializer} from '../serializer/Serializer'
 import {Response} from '../response/Response'
 import {TablesMap} from '../types/TablesMap'
+import {weakMap} from '../private/WeakMap'
 
 interface Chain<T extends typeof DynamORMTable> {
     get(...keys: PrimaryKeys<InstanceType<T>>): {
@@ -22,9 +20,9 @@ interface Chain<T extends typeof DynamORMTable> {
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
 }
-type GetRequest = {table: typeof DynamORMTable, keys: PrimaryKeys<DynamORMTable>}
+type GetRequest = {table: typeof DynamORMTable, keys: any[]}
 
-export class TransactGet extends ClientCommand {
+export class TransactGet extends ClientCommandChain {
     #requests: GetRequest[] = []
     #input: TransactGetCommandInput = {
         TransactItems: [],
@@ -36,8 +34,8 @@ export class TransactGet extends ClientCommand {
     }
 
     async #addRequest({table, keys}: GetRequest) {
-        const TableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
-        const serializer = TABLE_DESCR(table).get<Serializer<DynamORMTable>>(SERIALIZER)
+        const TableName = weakMap(table).tableName
+        const serializer = weakMap(table).serializer
 
         if (!serializer || !TableName) 
             throw 'Somethig was wrong' // TODO Proper error logging
@@ -84,8 +82,8 @@ export class TransactGet extends ClientCommand {
                 let j = 0
 
                 for (const {table, keys} of this.#requests) {
-                    const tableName = TABLE_DESCR(table).get<string>(TABLE_NAME)
-                    const serializer = TABLE_DESCR(table).get<Serializer<DynamORMTable>>(SERIALIZER)
+                    const tableName = weakMap(table).tableName
+                    const serializer = weakMap(table).serializer
 
                     if (!serializer) continue
 

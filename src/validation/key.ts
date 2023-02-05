@@ -1,21 +1,23 @@
-import type {AttributeDefinition, GlobalSecondaryIndex, KeySchemaElement, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {ScalarAttributeType} from '@aws-sdk/client-dynamodb'
 import type {Key} from '../types/Key'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
-import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMError} from '../errors/DynamORMError'
-import {ATTRIBUTE_DEFINITIONS, GLOBAL_INDEXES, KEY_SCHEMA, LOCAL_INDEXES} from '../private/Symbols'
+import {weakMap} from '../private/WeakMap'
 
-export function isValidKey<T extends DynamORMTable>(constructor: Constructor<T>, key: Record<string, unknown>, indexName?: string):
-    key is Key {
-    const attributeDefinitions = TABLE_DESCR(constructor).get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)
-    let keySchema = TABLE_DESCR(constructor).get<KeySchemaElement[]>(KEY_SCHEMA)
+export function isValidKey<T extends DynamORMTable>(
+    table: Constructor<T>, 
+    key: Record<string, unknown>, 
+    indexName?: string
+): key is Key {
+    const wm = weakMap(table)
+    const attributeDefinitions = wm.attributeDefinitions
+    let keySchema = wm.keySchema
 
     if (indexName) {
         const joinedIndexes = []
-        const localIndexes = TABLE_DESCR(constructor).get<GlobalSecondaryIndex[]>(LOCAL_INDEXES)
-        const globalIndexes = TABLE_DESCR(constructor).get<LocalSecondaryIndex[]>(GLOBAL_INDEXES)
+        const localIndexes = wm.localIndexes
+        const globalIndexes = wm.globalIndexes
 
         if (localIndexes)
             joinedIndexes.push(...localIndexes)
@@ -55,7 +57,7 @@ export function isValidKey<T extends DynamORMTable>(constructor: Constructor<T>,
     }
 
     if (!check(hashName, hashType) || !check(rangeName, rangeType)) {
-        DynamORMError.invalidKey(constructor, key)
+        DynamORMError.invalidKey(table, key)
         return false
     }
 

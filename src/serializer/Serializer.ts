@@ -5,12 +5,11 @@ import type {SharedInfo} from '../interfaces/SharedInfo'
 import type {Key} from '../types/Key'
 import type {AttributeValues} from '../types/Native'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {TABLE_DESCR} from '../private/Weakmaps'
-import {ATTRIBUTES, KEY_SCHEMA} from '../private/Symbols'
 import {isObject} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
 import {isValidKeyType, isValidType} from '../validation/type'
 import {DynamoDBType} from '../types/Native'
+import {weakMap} from '../private/WeakMap'
 
 export class Serializer<T extends DynamORMTable> {
     #table: Constructor<T>
@@ -19,8 +18,8 @@ export class Serializer<T extends DynamORMTable> {
 
     public constructor(table: Constructor<T>) {
         this.#table = table
-        this.#keySchema = TABLE_DESCR(table).get<KeySchemaElement[]>(KEY_SCHEMA)
-        this.#attributes = TABLE_DESCR(this.#table).get(ATTRIBUTES)
+        this.#keySchema = weakMap(table).keySchema
+        this.#attributes = weakMap(table).attributes
     }
 
     #finalizeValue(key: string, value: unknown) {
@@ -109,7 +108,7 @@ export class Serializer<T extends DynamORMTable> {
                 break
         }
 
-        return DynamORMError.invalidConversion(this.#table, key, value, type ?? 'undefined')
+        return DynamORMError.invalidConversion(<any>this.#table, key, value, type ?? 'undefined')
     }
 
     #extractKey<T extends Record<PropertyKey, any>>(element: T) {
@@ -158,7 +157,7 @@ export class Serializer<T extends DynamORMTable> {
     }
 
     public deserialize(element: AttributeValues) {
-        const instance = new (<new (...args: any) => T>this.#table)()
+        const instance = new (this.#table as new (...args: any) => T)()
 
         if (this.#attributes) for (const [k, value] of Object.entries(element))
             for (const [$k, {AttributeName}] of Object.entries(this.#attributes))

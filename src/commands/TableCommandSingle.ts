@@ -13,22 +13,18 @@ export abstract class TableCommandSingle<
     protected constructor(table: Constructor<T>) {
         super(table)
 
-        this.once(TableCommandSingle.commandEvent, command => {
-            const sendCommand = async () => {
-                const response: {output?: O, error?: Error} = {}
+        this.once(TableCommandSingle.commandEvent, async command => {
+            const response: {output?: O, error?: Error} = {}
 
-                try {
-                    response.output = await this.client?.send<any, O>(command)
-                }
-
-                catch (error) {
-                    response.error = <Error>error
-                }
-
-                this.emit(TableCommand.responsesEvent, new AsyncArray(response))
+            try {
+                response.output = await this.client.send<any, O>(command)
             }
 
-            sendCommand()
+            catch (error) {
+                response.error = <Error>error
+            }
+
+            this.emit(TableCommand.responsesEvent, new AsyncArray(response))
         })
     }
 }

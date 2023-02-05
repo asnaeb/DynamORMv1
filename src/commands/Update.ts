@@ -1,7 +1,6 @@
 import {UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {ConditionalOperator, ConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {Constructor} from '../types/Utils'
 import {Key} from "../types/Key"
 import {Condition} from '../types/Condition'
 import {Update as TUpdate} from '../types/Update'
@@ -10,9 +9,17 @@ import {alphaNumeric, mergeNumericProps} from '../utils/General'
 import {TableCommand} from './TableCommand'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput'
+import {Constructor} from '../types/Utils'
+
+interface UpdateParams<T extends DynamORMTable> {
+    keys: AsyncArray<Key>
+    updates: TUpdate<T>
+    conditions?: Condition<T>[]
+    create?: boolean
+}
 
 export class Update<T extends DynamORMTable> extends TableCommand<T, UpdateCommandOutput> {
-    constructor(table: Constructor<T>, keys: AsyncArray<Key>, updates: TUpdate<T>, conditions?: Condition<T>[]) {
+    constructor(table: Constructor<T>, {keys, updates, conditions, create}: UpdateParams<T>) {
         super(table)
 
         const hash = this.keySchema[0]?.AttributeName
@@ -20,10 +27,16 @@ export class Update<T extends DynamORMTable> extends TableCommand<T, UpdateComma
 
         updates = this.serializer.serialize(updates, 'preserve').Item
 
-        keys.async.map(async key => {
-            const commands = await generateUpdate(this.tableName, key, updates, conditions)
+        keys.async.map(async Key => {
+            const commands = await generateUpdate({
+                TableName: this.tableName, 
+                Key, 
+                updates, 
+                conditions, 
+                create
+            })
 
-            for (const k in key) if ((!range && k === hash) || (range && k === range)) {
+            for (const k in Key) if ((!range && k === hash) || (range && k === range)) {
                 const expression = commands[0].input.ConditionExpression
                 const $key = alphaNumeric(k)
 
@@ -50,12 +63,15 @@ export class Update<T extends DynamORMTable> extends TableCommand<T, UpdateComma
                     const command = commands[j]
 
                     try {
-                        const {Attributes, ConsumedCapacity, $metadata} = await this.client?.send(command)
+                        let output
 
-                        infos.push({ConsumedCapacity})
+                        if (this.daxClient) output = await this.daxClient?.update(command.input as any).promise()
+                        else output = await this.client?.send(command)
+
+                        infos.push({ConsumedCapacity: output.ConsumedCapacity})
 
                         if (j === commandsLength - 1)
-                            response.output = {Attributes, $metadata}
+                            response.output = {Attributes: output.Attributes}
                     }
 
                     catch (error) {

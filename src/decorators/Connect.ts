@@ -1,34 +1,40 @@
-import {alphaNumericDotDash} from '../utils/General'
-import {
-    TABLE_NAME,
-    CLIENT,
-    DOCUMENT_CLIENT,
-    CLIENT_CONFIG,
-    KEY_SCHEMA,
-    ATTRIBUTE_DEFINITIONS,
-    LOCAL_INDEXES,
-    GLOBAL_INDEXES,
-    TTL,
-    ATTRIBUTES, SERIALIZER
-} from '../private/Symbols'
-import {TABLE_DESCR} from '../private/Weakmaps'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {ConnectionParams} from '../interfaces/ConnectionParams'
 import {Serializer} from '../serializer/Serializer'
+import {DynamoDB} from 'aws-sdk'
+import {weakMap} from '../private/WeakMap'
+import {alphaNumericDotDash} from '../utils/General'
+import AmazonDaxClient from 'amazon-dax-client'
 
-function decoratorFactory({TableName, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
-    return function<T extends new (...args: any) => DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
-        TABLE_DESCR(target).set(TABLE_NAME, alphaNumericDotDash(TableName ?? target.name))
-        TABLE_DESCR(target).set(CLIENT, Client)
-        TABLE_DESCR(target).set(DOCUMENT_CLIENT, DocumentClient)
-        TABLE_DESCR(target).set(CLIENT_CONFIG, ClientConfig)
-        TABLE_DESCR(target).set(KEY_SCHEMA, SharedInfo.KeySchema)
-        TABLE_DESCR(target).set(ATTRIBUTE_DEFINITIONS, SharedInfo.AttributeDefinitions)
-        TABLE_DESCR(target).set(LOCAL_INDEXES, SharedInfo.LocalSecondaryIndexes)
-        TABLE_DESCR(target).set(GLOBAL_INDEXES, SharedInfo.GlobalSecondaryIndexes)
-        TABLE_DESCR(target).set(TTL, SharedInfo.TimeToLiveAttribute)
-        TABLE_DESCR(target).set(ATTRIBUTES, SharedInfo.Attributes)
-        TABLE_DESCR(target).set(SERIALIZER, new Serializer(target))
+function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
+    return function<T extends typeof DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
+        const wm = weakMap(target)
+
+        if (DAX) {
+            const dax = new AmazonDaxClient({
+                region: <string>ClientConfig.region || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION, 
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                sessionToken: process.env.AWS_SESSION_TOKEN,
+                endpoint: <string>ClientConfig.endpoint || process.env.AWS_ENDPOINT,
+                maxRetries: Number(ClientConfig.maxAttempts) || Number(process.env.AWS_MAX_ATTEMPTS),
+                endpoints: [DAX]
+            }) 
+            const documentClientV2 = new DynamoDB.DocumentClient({service: <any>dax})
+
+            wm.daxClient = documentClientV2
+        }
+
+        wm.tableName = alphaNumericDotDash(TableName ?? target.name)
+        wm.client = Client
+        wm.documentClient = DocumentClient
+        wm.keySchema = SharedInfo.KeySchema
+        wm.attributeDefinitions = SharedInfo.AttributeDefinitions
+        wm.localIndexes = SharedInfo.LocalSecondaryIndexes
+        wm.globalIndexes = SharedInfo.GlobalSecondaryIndexes
+        wm.timeToLive = SharedInfo.TimeToLiveAttribute
+        wm.attributes = SharedInfo.Attributes
+        wm.serializer = new Serializer(target)
 
         // IMPORTANT! Reset SharedInfo object
         for (const k of Reflect.ownKeys(SharedInfo)) delete SharedInfo[<keyof typeof SharedInfo>k]
@@ -36,7 +42,7 @@ function decoratorFactory({TableName, ClientConfig, Client, DocumentClient, Shar
 }
 
 export function Connect(params: ConnectionParams) {
-    return function({TableName}: {TableName?: string} = {}) {
-        return decoratorFactory({...params, TableName})
+    return function({TableName, DAX}: {TableName?: string, DAX?: string} = {}) {
+        return decoratorFactory({...params, DAX, TableName})
     }
 }

@@ -3,10 +3,6 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
 
 import {
-    AsyncArray
-} from '@asn.aeb/async-array'
-
-import {
     paginateQuery,
     paginateScan,
     QueryCommand,
@@ -15,9 +11,8 @@ import {
     ScanCommandOutput
 } from '@aws-sdk/lib-dynamodb'
 
-import {
-    TableCommand
-} from './TableCommand'
+import {AsyncArray} from '@asn.aeb/async-array'
+import {TableCommand} from './TableCommand'
 
 export abstract class TablePaginateCommand
     <
@@ -31,33 +26,52 @@ export abstract class TablePaginateCommand
         super(table)
 
         this.once(TablePaginateCommand.commandEvent, (command: ScanCommand | QueryCommand) => {
-            let paginator: typeof paginateScan | typeof paginateQuery
-
-            if (command instanceof ScanCommand)
-                paginator = paginateScan
-
-            if (command instanceof QueryCommand)
-                paginator = paginateQuery
-
             const responses: ResolvedOutput<ScanCommandOutput | QueryCommandOutput>[] = new AsyncArray()
 
-            const paginate = async () => {
-                const pages = paginator({client: this.documentClient}, command.input)
+            if (this.daxClient) {
+                let method: 'scan' | 'query'
 
-                try {
-                    for await (const page of pages) {
-                        responses.push({output: page})
-                    }
-                }
+                if (command instanceof ScanCommand) method = 'scan'
+                else method = 'query'
+                
+                this.daxClient[method](command.input as any).eachPage((error, page) => {
+                    if (error) responses.push({error})
 
-                catch (error: any) {
-                    responses.push({error})
-                }
-
-                this.emit(TableCommand.responsesEvent, responses)
+                    if (page) responses.push({output: <any>page})
+                    
+                    if (page === null) this.emit(TableCommand.responsesEvent, responses)
+                    
+                    return true
+                })
             }
 
-            paginate()
+            else {
+                let paginator: typeof paginateScan | typeof paginateQuery
+
+                if (command instanceof ScanCommand)
+                    paginator = paginateScan
+
+                if (command instanceof QueryCommand)
+                    paginator = paginateQuery
+
+                const paginate = async () => {
+                    const pages = paginator({client: this.client}, command.input)
+
+                    try {
+                        for await (const page of pages) {
+                            responses.push({output: page})
+                        }
+                    }
+
+                    catch (error: any) {
+                        responses.push({error})
+                    }
+
+                    this.emit(TableCommand.responsesEvent, responses)
+                }
+
+                paginate()
+            }
         })
     }
 }

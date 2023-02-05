@@ -1,28 +1,29 @@
 import {HashKey, Connect, Table, TransactWrite, TransactGet, Attribute, ListTables} from '../lib/index.js'
 import {AttributeExists, BeginsWith, Equal, Greater, Overwrite} from '../lib/operators.js'
+import {Hash} from '../lib/types/Key.js'
 import {DynamoDBLocal} from './env/DynamoDBLocal.js'
 
 @Connect({TableName: 'TransactionTest_X'})
 class X extends Table {
     @HashKey.N()
-    x = 0
+    x = 0 as Hash<number>
 
-    @Attribute()
+    @Attribute.S()
     str?: string
 
-    @Attribute()
+    @Attribute.N()
     num?: number
 }
 
 @Connect({TableName: 'TransactionTest_Y'})
 class Y extends Table {
     @HashKey.N()
-    y = 0
+    y? = 0 as Hash<number>
 
-    @Attribute()
+    @Attribute.S()
     str?: string
 
-    @Attribute()
+    @Attribute.N()
     num?: number
 }
 
@@ -54,7 +55,7 @@ const g = await TransactGet()
     .get(1, 2, 3)
 .run()
 
-const x = await ListTables()
-console.dir(x, {depth: null})
+console.dir(t, {depth: null})
+console.dir(g, {depth: null})
 
 process.exit()

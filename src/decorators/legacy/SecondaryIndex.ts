@@ -1,15 +1,13 @@
-import type {AttributeDefinition, GlobalSecondaryIndex, LocalSecondaryIndex} from '@aws-sdk/client-dynamodb'
+import type {GlobalSecondaryIndex} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
 import {alphaNumericDotDash} from '../../utils/General'
-import {TABLE_DESCR} from '../../private/Weakmaps'
-import {ATTRIBUTE_DEFINITIONS, ATTRIBUTES, GLOBAL_INDEXES, KEY_SCHEMA, LOCAL_INDEXES} from '../../private/Symbols'
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {CreateSecondaryIndexParams} from '../../interfaces/CreateSecondaryIndexParams'
 import {LocalIndexParams} from '../../interfaces/LocalIndexParams'
 import {GlobalIndexParams} from '../../interfaces/GlobalIndexParams'
-import {SharedInfo} from '../../interfaces/SharedInfo'
 import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../../types/Native'
+import {weakMap} from '../../private/WeakMap'
 
 interface LegacyFactoryParams {
     Kind: 'Local' | 'Global'
@@ -24,7 +22,9 @@ interface LegacyFactoryParams {
 function decoratorFactory<Z>({AttributeType, MappedAttributeName, ...params}: LegacyFactoryParams) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
-        AttributeName: T[K] extends Z | undefined ? K : never) {
+        AttributeName: T[K] extends Z | undefined ? K : never
+    ) {
+        const wm = weakMap(prototype.constructor as any)
         const AttributeDefinitions = {
             [params.KeyType]: {
                 AttributeName: MappedAttributeName ?? <string>AttributeName, 
@@ -32,13 +32,11 @@ function decoratorFactory<Z>({AttributeType, MappedAttributeName, ...params}: Le
             }
         }
 
-        if (!TABLE_DESCR(prototype.constructor).has(ATTRIBUTES))
-            TABLE_DESCR(prototype.constructor).set(ATTRIBUTES, {})
-
-        const Attributes = TABLE_DESCR(prototype.constructor).get<SharedInfo['Attributes']>(ATTRIBUTES)!
-
-        Attributes[<string>AttributeName] = {AttributeType}
-        Attributes[<string>AttributeName].AttributeName = MappedAttributeName ?? <string>AttributeName
+        wm.attributes ??= {}
+        wm.attributes[<string>AttributeName] = {
+            AttributeType, 
+            AttributeName: MappedAttributeName ?? <string>AttributeName
+        }
 
         AddIndexInfo(prototype.constructor, {...params, AttributeDefinitions})
     }
@@ -83,12 +81,12 @@ export function LegacyGlobalIndex() {
         }
 
         return {
-            GlobalHash: {
+            HashKey: {
                 S: decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.HASH}),
                 N: decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.HASH}),
                 B: decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.HASH})
             },
-            GlobalRange: {
+            RangeKey: {
                 S: decorator<string>({...params, AttributeType: DynamoDBType.S, KeyType: KeyType.RANGE}),
                 N: decorator<number>({...params, AttributeType: DynamoDBType.N, KeyType: KeyType.RANGE}),
                 B: decorator<Uint8Array>({...params, AttributeType: DynamoDBType.B, KeyType: KeyType.RANGE})
@@ -106,7 +104,7 @@ export function AddIndexInfo(
         ProvisionedThroughput, 
         UID
     }: Omit<CreateSecondaryIndexParams, 'SharedInfo'>) {
-    const wm = TABLE_DESCR(target)
+    const infos = weakMap(target)
     const secondaryIndex: GlobalSecondaryIndex = {
         KeySchema: undefined,
         IndexName: undefined,
@@ -144,24 +142,23 @@ export function AddIndexInfo(
             secondaryIndex.Projection = {ProjectionType: ProjectionType.KEYS_ONLY}
     }
 
-    if (!wm.has(ATTRIBUTE_DEFINITIONS))
-        wm.set(ATTRIBUTE_DEFINITIONS, [])
+    infos.attributeDefinitions ??= []
 
     if (AttributeDefinitions.RANGE) {
-        if (!wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)?.some(a => isDeepStrictEqual(a, AttributeDefinitions.RANGE)))
-            wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)?.push(AttributeDefinitions.RANGE)
+        if (!infos.attributeDefinitions.some(a => isDeepStrictEqual(a, AttributeDefinitions.RANGE)))
+            infos.attributeDefinitions.push(AttributeDefinitions.RANGE)
     }
 
     if (AttributeDefinitions.HASH) {
-        if (!wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)?.some(a => isDeepStrictEqual(a, AttributeDefinitions.HASH)))
-            wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)?.push(AttributeDefinitions.HASH)
+        if (!infos.attributeDefinitions.some(a => isDeepStrictEqual(a, AttributeDefinitions.HASH)))
+            infos.attributeDefinitions.push(AttributeDefinitions.HASH)
     }
 
     // LOCAL INDEX LOGIC
     if (Kind === 'Local' && AttributeDefinitions.RANGE) {
         secondaryIndex.KeySchema = [
             {
-                AttributeName: wm.get(KEY_SCHEMA)?.[0].AttributeName,
+                AttributeName: infos.keySchema?.[0].AttributeName,
                 KeyType: 'HASH'
             },
             {
@@ -170,11 +167,9 @@ export function AddIndexInfo(
             }
         ]
 
-        if (!wm.get<LocalSecondaryIndex[]>(LOCAL_INDEXES)?.some(i => isDeepStrictEqual(i, secondaryIndex))) {
-            if (!wm.has(LOCAL_INDEXES))
-                wm.set(LOCAL_INDEXES, [])
-
-            wm.get(LOCAL_INDEXES).push(secondaryIndex)
+        if (!infos.localIndexes?.some(i => isDeepStrictEqual(i, secondaryIndex))) {
+            infos.localIndexes ??= []
+            infos.localIndexes.push(secondaryIndex)
         }
     }
     // GLOBAL INDEX LOGIC
@@ -187,7 +182,7 @@ export function AddIndexInfo(
             secondaryIndex.KeySchema ??= []
             secondaryIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
 
-            if (wm.get(GLOBAL_INDEXES)?.length) for (const globalIndex of wm.get(GLOBAL_INDEXES)) {
+            if (infos.globalIndexes?.length) for (const globalIndex of infos.globalIndexes) {
                 if (globalIndex?.IndexName === secondaryIndex.IndexName && globalIndex.KeySchema?.length) {
                     globalIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
                     isEqual = true
@@ -195,11 +190,9 @@ export function AddIndexInfo(
             }
         }
 
-        if (!isEqual && !wm.get<GlobalSecondaryIndex[]>(GLOBAL_INDEXES)?.some(i => isDeepStrictEqual(i, secondaryIndex))) {
-            if (!wm.has(GLOBAL_INDEXES))
-                wm.set(GLOBAL_INDEXES, [])
-
-            wm.get(GLOBAL_INDEXES)?.push(secondaryIndex)
+        if (!isEqual && !infos.globalIndexes?.some(i => isDeepStrictEqual(i, secondaryIndex))) {
+            infos.globalIndexes ??= []
+            infos.globalIndexes.push(secondaryIndex)
         }
     }
 

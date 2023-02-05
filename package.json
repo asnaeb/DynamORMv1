@@ -10,19 +10,27 @@
     "build-test-env": "tsc --project ./tests/env/tsconfig.json",
     "build-tests": "tsc --project ./tests/tsconfig.json",
     "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
+    "build-babel-tests": "cd ./tests/babel && babel . --out-dir . --out-file-extension .min.js",
     "prebundle": "tsc --project ./tsconfig.declarations.json",
     "bundle": "esbuild src/index.ts src/operators.ts --bundle --packages=external --platform=node --target=node16 --outdir=bundle",
     "clean": "rm -r bundle && rm -r lib",
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@asn.aeb/async-array": "../AsyncArray",
-    "@aws-sdk/client-dynamodb": "^3.238.0",
-    "@aws-sdk/lib-dynamodb": "^3.238.0"
+    "@asn.aeb/async-array": "^1.5.9",
+    "@aws-sdk/client-dynamodb": "^3.254.0",
+    "@aws-sdk/lib-dynamodb": "^3.254.0",
+    "@types/amazon-dax-client": "^1.2.4",
+    "amazon-dax-client": "^1.2.9",
+    "aws-sdk": "^2.1299.0"
   },
   "devDependencies": {
-    "@types/node": "^18.11.17",
-    "esbuild": "^0.16.10",
-    "typescript": "https://typescript.visualstudio.com/cf7ac146-d525-443c-b23c-0d58337efebc/_apis/build/builds/140520/artifacts?artifactName=tgz&fileId=28C08DA085FB3678734A64D646B1A9699DEB2DE046BDFE1966FDD2FE8D6054B902&fileName=/typescript-5.0.0-insiders.20221215.tgz"
+    "@babel/cli": "^7.20.7",
+    "@babel/core": "^7.20.12",
+    "@babel/plugin-proposal-decorators": "^7.20.13",
+    "@babel/preset-env": "^7.20.2",
+    "@types/node": "^18.11.18",
+    "esbuild": "^0.17.4",
+    "typescript": "^5.0.0-beta"
   }
 }

@@ -30,14 +30,13 @@ function decoratorFactory<X>({
 }: FactoryParams) {
     return function<T extends X | undefined>(
         _: undefined, 
-        {name}: ClassFieldDecoratorContext<DynamORMTable, T>
+        {name}: ClassFieldDecoratorContext<DynamORMTable, T> & {static: false; private: false}
     ) {
         const AttributeDefinitions = {[KeyType]: {AttributeName: AttributeName ?? name, AttributeType}}
 
         name = String(name)
         SharedInfo.Attributes ??= {}
-        SharedInfo.Attributes[name] = {AttributeType}
-        SharedInfo.Attributes[name].AttributeName = AttributeName ?? name
+        SharedInfo.Attributes[name] = {AttributeType, AttributeName: AttributeName ?? name}
 
         AddIndexInfo({...params, SharedInfo, AttributeDefinitions})
     }
@@ -49,7 +48,7 @@ function decorator<T>(params: FactoryParams) {
     }
 }
 
-export function LocalIndex(SharedInfo: SharedInfo) {
+function LocalIndex(SharedInfo: SharedInfo) {
     return function({
         IndexName, 
         ProjectedAttributes
@@ -70,14 +69,13 @@ export function LocalIndex(SharedInfo: SharedInfo) {
     }
 }
 
-export function GlobalIndex(SharedInfo: SharedInfo) {
+function GlobalIndex(SharedInfo: SharedInfo) {
     return function({
         IndexName, 
         ProjectedAttributes, 
         ProvisionedThroughput
     }: Omit<GlobalIndexParams, 'SharedInfo'> = {}) {
         let UID = 0
-        let _IndexName: string | undefined
 
         while (UID < (SharedInfo.GlobalSecondaryIndexesCount ?? 0))
             UID++
@@ -94,7 +92,7 @@ export function GlobalIndex(SharedInfo: SharedInfo) {
         }
 
         return {
-            GlobalHash: {
+            HashKey: {
                 S: decorator<S>({
                     ...params, 
                     AttributeType: DynamoDBType.S, 
@@ -111,7 +109,7 @@ export function GlobalIndex(SharedInfo: SharedInfo) {
                     KeyType: KeyType.HASH
                 })
             },
-            GlobalRange: {
+            RangeKey: {
                 S: decorator<S>({
                     ...params, 
                     AttributeType: DynamoDBType.S, 
@@ -152,11 +150,11 @@ export function AddIndexInfo({
         secondaryIndex.IndexName = alphaNumericDotDash(IndexName)
     else {
         secondaryIndex.IndexName = `Dynam0RM.${Kind}Index`
+
         if (UID !== undefined && Kind === 'Global')
             secondaryIndex.IndexName += `.${UID}`
-        else
-            if (AttributeDefinitions.RANGE?.AttributeName)
-                secondaryIndex.IndexName += `.${AttributeDefinitions.RANGE.AttributeName}.range`
+        else if (AttributeDefinitions.RANGE?.AttributeName)
+            secondaryIndex.IndexName += `.${AttributeDefinitions.RANGE.AttributeName}.range`
     }
 
     if (Kind === 'Global' && ProvisionedThroughput)
@@ -209,19 +207,18 @@ export function AddIndexInfo({
     else if (Kind === 'Global') {
         let isEqual = false
 
-        for (const [k,v] of Object.entries(AttributeDefinitions)) {
-            let i = k === KeyType.HASH ? 0 : 1
+        for (const [k, {AttributeName}] of Object.entries(AttributeDefinitions)) {
+            const i = k === KeyType.HASH ? 0 : 1
 
             secondaryIndex.KeySchema ??= []
-            secondaryIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
+            secondaryIndex.KeySchema[i] = {AttributeName, KeyType: k}
 
             if (SharedInfo.GlobalSecondaryIndexes?.length) 
-                for (const globalIndex of SharedInfo.GlobalSecondaryIndexes) {
-                    if (globalIndex?.IndexName === secondaryIndex.IndexName && globalIndex.KeySchema?.length) {
-                        globalIndex.KeySchema[i] = {AttributeName: v.AttributeName, KeyType: k}
+                for (const {IndexName, KeySchema} of SharedInfo.GlobalSecondaryIndexes) 
+                    if (IndexName === secondaryIndex.IndexName && KeySchema?.length) {
+                        KeySchema[i] = {AttributeName, KeyType: k}
                         isEqual = true
                     }
-                }
         }
 
         if (!isEqual && !SharedInfo.GlobalSecondaryIndexes?.some(i => isDeepStrictEqual(i, secondaryIndex))) {
@@ -233,6 +230,4 @@ export function AddIndexInfo({
                 SharedInfo.GlobalSecondaryIndexes.push(secondaryIndex)
         }
     }
-
-    return {IndexName: secondaryIndex.IndexName}
 }

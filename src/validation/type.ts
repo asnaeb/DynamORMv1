@@ -26,26 +26,12 @@ export function isValidType(value: unknown): boolean {
             if (value instanceof Uint8Array)
                 return true
             if (value instanceof Set) {
-                let strings = false
-                let numbers = false
-                let binary = false
-                let invalid = false
-                for (const item of value) {
-                    if (typeof item === 'string')
-                        strings = true
-                    else if (typeof item === 'number' || typeof item === 'bigint')
-                        numbers = true
-                    else if (item instanceof Uint8Array)
-                        binary = true
-                    else
-                        invalid = true
-                }
-                if ((!invalid && strings && !numbers && !binary) ||
-                    (!invalid && numbers && !strings && !binary) ||
-                    (!invalid && binary && !strings && !numbers) ||
-                    (!invalid && !binary && !strings && !numbers)) {
+                const array = [...value]
+                const ss = array.every(i => typeof i === 'string')
+                const ns = array.every(i => typeof i === 'number')
+                const bs = array.every(i => i instanceof Uint8Array)
+                if (ss || ns || bs) 
                     return true
-                }
             }
             if (isObject(value)) {
                 if (!Object.keys(value).length)
