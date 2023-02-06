@@ -50,10 +50,10 @@ export class Select<T extends DynamORMTable> {
         }
     }
 
-    public get({ConsistentRead}: {ConsistentRead?: boolean} = {}) {
+    public get(params?: {ConsistentRead: boolean}) {
         return new Promise<Awaited<TableBatchGet<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new TableBatchGet(this.#table, keys, !!ConsistentRead).response)
+                resolve(new TableBatchGet(this.#table, keys, !!params?.ConsistentRead).response)
             })
         })
     }
@@ -61,11 +61,12 @@ export class Select<T extends DynamORMTable> {
     public update(updates: TUpdate<T>, create = true) {
         return new Promise<Awaited<Update<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(
-                    new Update(this.#table, {
-                        keys, updates, conditions: this.#conditions, create
-                    }).response
-                )
+                const {response} = new Update(this.#table, {
+                    keys, updates, conditions: this.#conditions, create
+                })
+
+                this.#conditions = []
+                resolve(response)
             })
         })
     }
@@ -73,7 +74,9 @@ export class Select<T extends DynamORMTable> {
     public delete() {
         return new Promise<Awaited<Delete<T>['response']>>(resolve => {
             this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new Delete(this.#table, keys, this.#conditions).response)
+                const {response} = new Delete(this.#table, keys, this.#conditions)
+                this.#conditions = []
+                resolve(response)
             })
         })
     }

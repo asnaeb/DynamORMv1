@@ -4,9 +4,7 @@ import {
     TableClass
 } from '@aws-sdk/client-dynamodb'
 
-
-export interface CreateTableParams {
-    ProvisionedThroughput?: ProvisionedThroughput
-    TableClass?: TableClass
-    StreamViewType?: StreamViewType
-}
+export type CreateTableParams =
+| {ProvisionedThroughput: ProvisionedThroughput}
+| {TableClass: TableClass}
+| {StreamViewType: StreamViewType}

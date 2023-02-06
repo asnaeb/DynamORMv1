@@ -29,10 +29,12 @@ import {LocalIndex} from '../indexes/LocalIndex'
 import {GlobalIndex} from '../indexes/GlobalIndex'
 import {ImportTable} from '../commands/ImportTable'
 import {weakMap} from '../private/WeakMap'
-import {Waiter} from '../commands/Waiter'
-import {Timeout} from '../interfaces/Timeout'
+import {TableWaiter} from '../waiter/TableWaiter'
 
 export abstract class DynamORMTable {
+    public static get wait() {
+        return new TableWaiter(this)
+    }
     protected static localIndex<
         T extends DynamORMTable, 
         K extends keyof Scalars<NonKey<T>>
@@ -54,7 +56,7 @@ export abstract class DynamORMTable {
     }
 
     public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: Native<T>) {
-        const instance = new (<new (...args: any) => T>this)()
+        const instance = new (<new (...args: any) => T>this)
 
         if (isObject(attributes))
             for (const [key, value] of Object.entries(attributes))
@@ -67,10 +69,6 @@ export abstract class DynamORMTable {
         return new CreateTable(this, params).response
     }
 
-    public static wait(timeout?: Timeout) {
-        return new Waiter(this, timeout)
-    }
-
     public static importTable(params: ImportTableParams) {
         return new ImportTable(this, params).response
     }
@@ -79,7 +77,7 @@ export abstract class DynamORMTable {
         return new DeleteTable(this).response
     }
 
-    public static describeTable(params?: DescribeTableParams) {
+    public static describe(params: DescribeTableParams) {
         return new DescribeTable(this, params).response
     }
 
@@ -87,12 +85,12 @@ export abstract class DynamORMTable {
         return new CreateBackup(this, BackupName).response
     }
 
-    public static sync() {
+    public static updateTable() {
         // TODO Implement UpdateTable method
     }
 
-    public static scan<T extends DynamORMTable>(this: Constructor<T>, params: ScanOptions = {}) {
-        return new Scan(this, params).response
+    public static scan<T extends DynamORMTable>(this: Constructor<T>, params?: ScanOptions) {
+        return new Scan(this, params || {}).response
     }
 
     public static query<T extends DynamORMTable>(
@@ -108,8 +106,8 @@ export abstract class DynamORMTable {
     ): Query<T>['response']
     public static query<T extends DynamORMTable>(
         hashValue: HashType<T>,
-        Q?: QueryObject<RangeType<T>> | (QueryOptions & {IndexName?: string}),
-        O?: QueryOptions & {IndexName?: string}
+        Q?: QueryObject<RangeType<T>> | QueryOptions,
+        O?: QueryOptions
     ) {
         let params: QueryParams<T>
 

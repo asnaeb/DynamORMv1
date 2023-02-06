@@ -13,17 +13,14 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {CreateTableParams} from "../interfaces/CreateTableParams"
 import type {Constructor} from '../types/Utils'
 import {TableCommandSingle} from './TableCommandSingle'
-import {Waiter} from './Waiter'
+import {TableWaiter} from '../waiter/TableWaiter'
 
 export interface Output extends CreateTableCommandOutput, Pick<UpdateTimeToLiveCommandOutput, 'TimeToLiveSpecification'> {
     TableDescription: TableDescription 
 }
 
 export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, Output> {
-    public constructor(
-        table: Constructor<T>, 
-        {ProvisionedThroughput, TableClass, StreamViewType}: CreateTableParams = {}
-    ) {
+    public constructor(table: Constructor<T>, params?: CreateTableParams) {
         super(table)
 
         const command = new CreateTableCommand({
@@ -32,12 +29,12 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
             KeySchema: this.keySchema,
             LocalSecondaryIndexes: this.localSecondaryIndexes,
             GlobalSecondaryIndexes: this.globalSecondaryIndexes,
-            TableClass,
-            ProvisionedThroughput,
-            BillingMode: ProvisionedThroughput ? BillingMode.PROVISIONED : BillingMode.PAY_PER_REQUEST,
+            TableClass: (params && 'TableClass' in params && params.TableClass) || undefined, 
+            ProvisionedThroughput: (params && 'ProvisionedThroughput' in params && params.ProvisionedThroughput) || undefined,
+            BillingMode: (params && 'ProvisionedThroughput' in params) ? BillingMode.PROVISIONED : BillingMode.PAY_PER_REQUEST,
             StreamSpecification: {
-                StreamEnabled: StreamViewType !== undefined,
-                StreamViewType
+                StreamEnabled: !!(params && 'StreamViewType' in params && !!params.StreamViewType),
+                StreamViewType: params && 'StreamViewType' in params && params.StreamViewType || undefined
             }
         })
 
@@ -64,7 +61,7 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
                 }
 
                 const ttl = async (): Promise<void> => {
-                    const waiter = new Waiter(table)
+                    const waiter = new TableWaiter(table)
                     if (await waiter.activation()) {
                         try {
                             const {TimeToLiveSpecification} = await this.client.send(ttlCommand)

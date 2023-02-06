@@ -1,7 +1,4 @@
-import {Readline} from 'readline/promises'
-import {DynamoDBLocal} from './env/DynamoDBLocal.js'
 import {Server} from 'http'
-import {Equal} from '../lib/operators.js'
 import {awsCredentials} from './env/AwsCredentials.js'
 import type {Hash, Range} from '../lib/types/Key.js'
 
@@ -15,24 +12,24 @@ const {Table, HashKey, RangeKey, Connect, TimeToLive, Attribute} = await import(
 
 @Connect()
 export class SecondaryIndexes extends Table {
-    static myGlobal = this.globalIndex('num')
+    //static myGlobal = this.globalIndex('num')
 
     @HashKey.S()
     hash!: Hash<string>
 
-    @RangeKey.N({AttributeName: 'Sort Key'})
+    @RangeKey.N()
     range!: Range<number>
 
-    @Attribute.S({AttributeName: 'Generic Attribute'})
+    @Attribute.S()
     attr!: string
 
-    @Attribute.S({AttributeName: 'String Attribute'})
+    @Attribute.S()
     str?: string
 
-    @Attribute.N({AttributeName: 'Numeric Attribute'})
+    @Attribute.N()
     num?: number
 
-    @Attribute.SS({AttributeName: 'String SET'})
+    @Attribute.SS()
     ss?: Set<string>
 }
 
@@ -54,17 +51,21 @@ const j = SecondaryIndexes.make({
 })
 
 const server = new Server(async (req, res) => {
+    const url = new URL(req.url!, 'http://localhost')
+
     res.setHeader('Content-Type', 'application/json')
-    switch(req.url) {
+    switch(url.pathname) {
         case '/create': {
             const result = await SecondaryIndexes.createTable()
-            await SecondaryIndexes.wait({Minutes: 1}).activation()
+            const activation = await SecondaryIndexes.wait.activation()
+            console.log('activation', activation)
             res.write(JSON.stringify(result))
             res.end()
             break
         }
         case '/describe': {
-            const result = await SecondaryIndexes.describeTable({
+            const result = await SecondaryIndexes.describe({
+                Table: true,
                 ContinuousBackups: true,
                 ContributorInsights: true,
                 KinesisStreamingDestination: true,
@@ -75,14 +76,29 @@ const server = new Server(async (req, res) => {
             break
         }
         case '/put': {
-            const result = await SecondaryIndexes.put(i, j)
+            const i = +url.searchParams.get('range')!
+            const item = SecondaryIndexes.make({
+                hash: 'hash',
+                range: i,
+                attr: 'This is the number ' + i,
+                num: i+100,
+                ss: new Set(['asn', 'aeb', i.toString()])
+            })
+            const result = await SecondaryIndexes.put(item)
+            res.write(JSON.stringify(result))
+            res.end()
+            break
+        }
+        case '/get': {
+            const i =  +url.searchParams.get('range')!
+            const result = await SecondaryIndexes.select({'hash': i}).get()
             res.write(JSON.stringify(result))
             res.end()
             break
         }
         case '/delete': {
             const result = await SecondaryIndexes.deleteTable()
-            await SecondaryIndexes.wait({Minutes: 1}).deletion()
+            await SecondaryIndexes.wait.deletion()
             res.write(JSON.stringify(result))
             res.end()
             break

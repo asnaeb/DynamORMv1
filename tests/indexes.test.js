@@ -33,13 +33,13 @@ var __runInitializers = (this && this.__runInitializers) || function (thisArg, i
     return useValue ? value : void 0;
 };
 import { Server } from 'http';
-import { awsCredentials } from './env/GetAwsCredentials.js';
+import { awsCredentials } from './env/AwsCredentials.js';
 const credentials = await awsCredentials();
-process.env.AWS_ACCESS_KEY_ID = credentials.aws_access_key_id;
-process.env.AWS_SECRET_ACCESS_KEY = credentials.aws_secret_access_key;
+process.env.AWS_ACCESS_KEY_ID = credentials?.aws_access_key_id;
+process.env.AWS_SECRET_ACCESS_KEY = credentials?.aws_secret_access_key;
 process.env.AWS_REGION = 'us-east-1';
 const { Table, HashKey, RangeKey, Connect, TimeToLive, Attribute } = await import('../lib/index.js');
-let SecondaryIndexes = (() => {
+export let SecondaryIndexes = (() => {
     let _classDecorators = [Connect()];
     let _classDescriptor;
     let _classExtraInitializers = [];
@@ -59,12 +59,12 @@ let SecondaryIndexes = (() => {
     let _ss_initializers = [];
     var SecondaryIndexes = class extends Table {
         static {
-            _hash_decorators = [HashKey.S({ AttributeName: 'Partition Key' })];
-            _range_decorators = [RangeKey.N({ AttributeName: 'Sort Key' })];
-            _attr_decorators = [Attribute.S({ AttributeName: 'Generic Attribute' })];
-            _str_decorators = [Attribute.S({ AttributeName: 'String Attribute' })];
-            _num_decorators = [Attribute.N({ AttributeName: 'Numeric Attribute' })];
-            _ss_decorators = [Attribute.SS({ AttributeName: 'String SET' })];
+            _hash_decorators = [HashKey.S()];
+            _range_decorators = [RangeKey.N()];
+            _attr_decorators = [Attribute.S()];
+            _str_decorators = [Attribute.S()];
+            _num_decorators = [Attribute.N()];
+            _ss_decorators = [Attribute.SS()];
             __esDecorate(null, null, _hash_decorators, { kind: "field", name: "hash", static: false, private: false }, _hash_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _range_decorators, { kind: "field", name: "range", static: false, private: false }, _range_initializers, _instanceExtraInitializers);
             __esDecorate(null, null, _attr_decorators, { kind: "field", name: "attr", static: false, private: false }, _attr_initializers, _instanceExtraInitializers);
@@ -73,21 +73,18 @@ let SecondaryIndexes = (() => {
             __esDecorate(null, null, _ss_decorators, { kind: "field", name: "ss", static: false, private: false }, _ss_initializers, _instanceExtraInitializers);
             __esDecorate(null, _classDescriptor = { value: this }, _classDecorators, { kind: "class", name: this.name }, null, _classExtraInitializers);
             SecondaryIndexes = _classThis = _classDescriptor.value;
+            __runInitializers(_classThis, _classExtraInitializers);
         }
-        static myGlobal = _classThis.globalIndex('num');
+        //static myGlobal = this.globalIndex('num')
         hash = (__runInitializers(this, _instanceExtraInitializers), __runInitializers(this, _hash_initializers, void 0));
         range = __runInitializers(this, _range_initializers, void 0);
         attr = __runInitializers(this, _attr_initializers, void 0);
         str = __runInitializers(this, _str_initializers, void 0);
         num = __runInitializers(this, _num_initializers, void 0);
         ss = __runInitializers(this, _ss_initializers, void 0);
-        static {
-            __runInitializers(_classThis, _classExtraInitializers);
-        }
     };
     return SecondaryIndexes = _classThis;
 })();
-export { SecondaryIndexes };
 const i = SecondaryIndexes.make({
     hash: 'buf',
     range: 0,
@@ -105,17 +102,20 @@ const j = SecondaryIndexes.make({
     ss: new Set(['c', 'e'])
 });
 const server = new Server(async (req, res) => {
+    const url = new URL(req.url, 'http://localhost');
     res.setHeader('Content-Type', 'application/json');
-    switch (req.url) {
+    switch (url.pathname) {
         case '/create': {
             const result = await SecondaryIndexes.createTable();
-            await SecondaryIndexes.wait({ Minutes: 1 }).activation();
+            const activation = await SecondaryIndexes.wait.activation();
+            console.log('activation', activation);
             res.write(JSON.stringify(result));
             res.end();
             break;
         }
         case '/describe': {
-            const result = await SecondaryIndexes.describeTable({
+            const result = await SecondaryIndexes.describe({
+                Table: true,
                 ContinuousBackups: true,
                 ContributorInsights: true,
                 KinesisStreamingDestination: true,
@@ -126,14 +126,29 @@ const server = new Server(async (req, res) => {
             break;
         }
         case '/put': {
-            const result = await SecondaryIndexes.put(i, j);
+            const i = +url.searchParams.get('range');
+            const item = SecondaryIndexes.make({
+                hash: 'hash',
+                range: i,
+                attr: 'This is the number ' + i,
+                num: i + 100,
+                ss: new Set(['asn', 'aeb', i.toString()])
+            });
+            const result = await SecondaryIndexes.put(item);
+            res.write(JSON.stringify(result));
+            res.end();
+            break;
+        }
+        case '/get': {
+            const i = +url.searchParams.get('range');
+            const result = await SecondaryIndexes.select({ 'hash': i }).get();
             res.write(JSON.stringify(result));
             res.end();
             break;
         }
         case '/delete': {
             const result = await SecondaryIndexes.deleteTable();
-            await SecondaryIndexes.wait({ Minutes: 1 }).deletion();
+            await SecondaryIndexes.wait.deletion();
             res.write(JSON.stringify(result));
             res.end();
             break;

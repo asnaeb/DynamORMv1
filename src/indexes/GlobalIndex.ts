@@ -16,13 +16,11 @@ import {isDeepStrictEqual} from 'util'
 import {QueryObject} from '../types/Query'
 import {Query, QueryParams} from '../commands/Query'
 import {Scan} from '../commands/Scan'
-import {ScanOptions} from '../interfaces/ScanOptions'
 import {QueryOptions} from '../interfaces/QueryOptions'
 import {isQueryObject} from '../validation/symbols'
 import {UpdateGlobalIndex} from './UpdateGlobalIndex'
 import {weakMap} from '../private/WeakMap'
-import {Timeout} from '../interfaces/Timeout'
-import {Waiter} from '../commands/Waiter'
+import {IndexWaiter} from '../waiter/IndexWaiter'
 
 export function GlobalIndex<
     T extends DynamORMTable,
@@ -99,6 +97,7 @@ export function GlobalIndex<
 
     return new class {
         indexName = IndexName!
+        wait = new IndexWaiter(table, this.indexName)
 
         /** Query the secondary index */
         query(
@@ -123,8 +122,8 @@ export function GlobalIndex<
             return new Query(table, params).response
         }
 
-        scan({Limit}: Omit<ScanOptions, 'ConsistentRead'> = {}) {
-            return new Scan(table, {Limit, ConsistentRead: false, IndexName}).response
+        scan(params?: {Limit: number}) {
+            return new Scan(table, {Limit: params?.Limit, ConsistentRead: false, IndexName}).response
         }
 
         create() {
@@ -139,10 +138,6 @@ export function GlobalIndex<
 
         update(provisionedThroughput?: TProvisionedThroughput) {
             return UpdateGlobalIndex(table, globalIndex, 'Update', {provisionedThroughput})
-        }
-
-        wait(timeout: Timeout) {
-            return new Waiter(table, timeout)
         }
 
         describe() {

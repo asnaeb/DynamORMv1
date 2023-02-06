@@ -1,6 +1,6 @@
-export interface DescribeTableParams {
-    ContinuousBackups?: boolean,
-    KinesisStreamingDestination?: boolean,
-    TimeToLive?: boolean,
-    ContributorInsights?: boolean
-}
+export type DescribeTableParams = 
+| {Table: boolean} 
+| {ContinuousBackups: true} 
+| {KinesisStreamingDestination: true}
+| {TimeToLive: true}
+| {ContributorInsights: true}

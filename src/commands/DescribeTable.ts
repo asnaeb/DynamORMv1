@@ -26,25 +26,26 @@ Pick<DescribeTimeToLiveCommandOutput, 'TimeToLiveDescription'> &
 {ContributorInsights?: Omit<DescribeContributorInsightsCommandOutput, '$metadata'> }
 
 export class DescribeTable<T extends DynamORMTable> extends TableCommandSingle<T, O> {
-    public constructor(table: Constructor<T>, params?: DescribeTableParams) {
+    public constructor(table: Constructor<T>, params: DescribeTableParams) {
         super(table)
 
         const TableName = this.tableName
         const promises: Promise<ServiceOutputTypes>[] = []
         
-        promises.push(this.client.send(new DescribeTableCommand({TableName})))
+        if ('Table' in params && params.Table)
+            promises.push(this.client.send(new DescribeTableCommand({TableName})))
 
-        if (params?.ContinuousBackups)
+        if ('ContinuousBackups' in params && params.ContinuousBackups)
             promises.push(this.client.send(new DescribeContinuousBackupsCommand({TableName})))
 
-        if (params?.ContributorInsights) {
+        if ('ContributorInsights' in params && params.ContributorInsights) {
             promises.push(this.client.send(new DescribeContributorInsightsCommand({TableName})))
         }
 
-        if (params?.KinesisStreamingDestination) 
+        if ('KinesisStreamingDestination' in params && params.KinesisStreamingDestination) 
             promises.push(this.client.send(new DescribeKinesisStreamingDestinationCommand({TableName})))
 
-        if (params?.TimeToLive)
+        if ('TimeToLive' in params && params.TimeToLive)
             promises.push(this.client.send(new DescribeTimeToLiveCommand({TableName})))
 
         Promise.allSettled(promises).then(settled => {

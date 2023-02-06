@@ -89,8 +89,12 @@ export function LocalIndex<T extends DynamORMTable, K extends keyof Scalars<NonK
             return new Query(table, params).response
         }
 
-        scan({Limit, ConsistentRead}: ScanOptions = {}) {
-            return new Scan(table, {Limit, ConsistentRead, IndexName}).response
+        scan(params: ScanOptions) {
+            return new Scan(table, {
+                Limit: 'Limit' in params && params.Limit || undefined, 
+                ConsistentRead: 'ConsistentRead' in params && params.ConsistentRead, 
+                IndexName
+            }).response
         }
 
         describe() {
