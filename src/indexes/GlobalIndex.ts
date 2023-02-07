@@ -97,7 +97,9 @@ export function GlobalIndex<
 
     return new class {
         indexName = IndexName!
-        wait = new IndexWaiter(table, this.indexName)
+        get wait() {
+            return new IndexWaiter(table, this.indexName)
+        }
 
         /** Query the secondary index */
         query(

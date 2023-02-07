@@ -14,7 +14,7 @@ import type {QueryParams} from '../commands/Query'
 import {Query} from '../commands/Query'
 import {CreateTable} from '../commands/CreateTable'
 import {DeleteTable} from '../commands/DeleteTable'
-import {DescribeTable} from '../commands/DescribeTable'
+import {Describe} from '../commands/Describe'
 import {Put} from '../commands/Put'
 import {Delete} from '../commands/Delete'
 import {Scan} from '../commands/Scan'
@@ -30,11 +30,30 @@ import {GlobalIndex} from '../indexes/GlobalIndex'
 import {ImportTable} from '../commands/ImportTable'
 import {weakMap} from '../private/WeakMap'
 import {TableWaiter} from '../waiter/TableWaiter'
+import {UpdateTable} from '../commands/UpdateTable'
 
 export abstract class DynamORMTable {
     public static get wait() {
         return new TableWaiter(this)
     }
+    public static set wait(value) {
+        this.wait = value
+    }
+
+    public static get describe() {
+        return new Describe(this)
+    }
+    public static set describe(value) {
+        this.describe = value
+    }
+
+    public static get update() {
+        return new UpdateTable(this)
+    }
+    public static set update(value) {
+        this.update = value
+    }
+
     protected static localIndex<
         T extends DynamORMTable, 
         K extends keyof Scalars<NonKey<T>>
@@ -77,16 +96,8 @@ export abstract class DynamORMTable {
         return new DeleteTable(this).response
     }
 
-    public static describe(params: DescribeTableParams) {
-        return new DescribeTable(this, params).response
-    }
-
     public static createBackup({BackupName}: {BackupName: string}) {
         return new CreateBackup(this, BackupName).response
-    }
-
-    public static updateTable() {
-        // TODO Implement UpdateTable method
     }
 
     public static scan<T extends DynamORMTable>(this: Constructor<T>, params?: ScanOptions) {

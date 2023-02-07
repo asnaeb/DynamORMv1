@@ -29,11 +29,10 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
             KeySchema: this.keySchema,
             LocalSecondaryIndexes: this.localSecondaryIndexes,
             GlobalSecondaryIndexes: this.globalSecondaryIndexes,
-            TableClass: (params && 'TableClass' in params && params.TableClass) || undefined, 
-            ProvisionedThroughput: (params && 'ProvisionedThroughput' in params && params.ProvisionedThroughput) || undefined,
+            ...params,
             BillingMode: (params && 'ProvisionedThroughput' in params) ? BillingMode.PROVISIONED : BillingMode.PAY_PER_REQUEST,
             StreamSpecification: {
-                StreamEnabled: !!(params && 'StreamViewType' in params && !!params.StreamViewType),
+                StreamEnabled: !!(params && 'StreamViewType' in params),
                 StreamViewType: params && 'StreamViewType' in params && params.StreamViewType || undefined
             }
         })
@@ -60,7 +59,7 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
                     return this.emit(CreateTable.responsesEvent, new AsyncArray({output, error}))
                 }
 
-                const ttl = async (): Promise<void> => {
+                const addTTL = async (): Promise<void> => {
                     const waiter = new TableWaiter(table)
                     if (await waiter.activation()) {
                         try {
@@ -82,9 +81,10 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
                     else error = new Error('TimeToLive Error: Table status is not ACTIVE.')
                 }
 
-                await ttl()
-
+                //await ttl()
                 this.emit(CreateTable.responsesEvent, new AsyncArray({output, error}))
+                
+                addTTL() //TODO consider how to handle errors here
             }
 
             sendCommands()

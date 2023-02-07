@@ -11,6 +11,6 @@ export class DeleteTable<T extends DynamORMTable> extends TableCommandSingle<T, 
     }
 
     public get response() {
-        return this.make_response(['TableDescription'], 'Deleted', undefined)
+        return this.make_response(['TableDescription'])
     }
 }

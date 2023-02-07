@@ -1,7 +1,15 @@
-import {HashKey, Connect, Table, TransactWrite, TransactGet, Attribute, ListTables} from '../lib/index.js'
 import {AttributeExists, BeginsWith, Equal, Greater, Overwrite} from '../lib/operators.js'
 import {Hash} from '../lib/types/Key.js'
+import {awsCredentials} from './env/AwsCredentials.js'
 import {DynamoDBLocal} from './env/DynamoDBLocal.js'
+
+const credentials = await awsCredentials()
+
+process.env.AWS_ACCESS_KEY_ID = credentials?.aws_access_key_id
+process.env.AWS_SECRET_ACCESS_KEY = credentials?.aws_secret_access_key
+process.env.AWS_REGION = 'us-east-1'
+
+const {Table, HashKey, TransactGet, Connect, TransactWrite, Attribute} = await import('../lib/index.js')
 
 @Connect({TableName: 'TransactionTest_X'})
 class X extends Table {
@@ -30,9 +38,10 @@ class Y extends Table {
 const X_items = Array(50).fill(0).map((e, x) => X.make({x}))
 const Y_items = Array(50).fill(0).map((e, y) => Y.make({y}))
 
-await new DynamoDBLocal().start()
+//await new DynamoDBLocal().start()
 
 await Promise.all([X.createTable(), Y.createTable()])
+await Promise.all([X.wait.activation(), Y.wait.activation()])
 await Promise.all([X.batchPut(...X_items), Y.batchPut(...Y_items)])
 
 const t = await TransactWrite()

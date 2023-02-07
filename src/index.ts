@@ -38,3 +38,4 @@ export namespace RangeKey {
 
 export {DynamORMClient} 
 export {DynamORMTable as Table} from './table/DynamORMTable'
+export {TableClass, StreamViewType} from '@aws-sdk/client-dynamodb'

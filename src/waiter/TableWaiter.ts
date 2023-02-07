@@ -25,7 +25,7 @@ export class TableWaiter<T extends DynamORMTable> {
                 switch (Table?.TableStatus) {
                     case TableStatus.ACTIVE: 
                         console.log('Table returned ACTIVE status after %d tries', tries)
-                        return true
+                        return true // TODO {TableStatus: 'ACTIVE'}
                     case TableStatus.UPDATING:
                     case TableStatus.CREATING:
                         await new Promise(r => setTimeout(r, Math.round(delay)))
