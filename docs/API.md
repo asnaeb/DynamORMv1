@@ -1,5 +1,5 @@
 # Class: `Table`
-This class must be subclassed to create your own classes which will represent DynamoDB tables. Children of this class will inherit static and instance methods that will allow every operation on the table supported by DynamoDB. 
+Must be subclassed by your own classes which will represent DynamoDB tables. Children of this class will inherit static and instance methods that will allow every operation on the table supported by DynamoDB. 
 
 ```typescript
 import {Table} from 'dynamorm'
@@ -40,7 +40,7 @@ Puts any number of items in parallel. Faster than [put](#put) but overvwites ite
 
 **Parameters**
 
-| Position | Description                                 | Required |
+| Position | Type                                        | Required |
 |:--------:|---------------------------------------------|:--------:|
 |    0     | Any number of [`Table`]()'s child instances |   yes    |
 
@@ -59,4 +59,16 @@ const item_2 = new myTable()
 const {Info, Errors} = await myTable.batchPut(item_1, item2)
 ```
 ### createTable
-Creates a new Table
+Creates a new Table with the given configuration.
+
+|  Kind   | Static | Async |
+|:-------:|:------:|:-----:|
+| method  |  true  | true  |
+
+**Parameter Object**
+
+| Property              | Type                                                                                                                                          | Required | Description                                                                                          |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|:--------:|------------------------------------------------------------------------------------------------------|
+| ProvisionedThroughput | [ProvisionedThroughput](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html) |    no    | Sets the ProvisionedThroughput for the table. If omitted, table will be created as `PAY_PER_REQUEST` |
+| TableClass            | [TableClass](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html)                            |    no    | Sets the TableClass for the table. Defaults to `STANDARD`                                            |
+| StreamViewType        | [StreamViewType](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html)                    |    no    | Sets the StreamViewType for the table. Stream will be disabled if omitted.                           |
