@@ -29,7 +29,7 @@ class myTable extends Table {
 - [update]()
 - [wait]()
 
-### batchPut
+## batchPut
 Puts any number of items in parallel. Faster than [put](#put) but overvwites items with the same primary key if they already exist.
 
 **Signature**
@@ -46,10 +46,10 @@ Puts any number of items in parallel. Faster than [put](#put) but overvwites ite
 
 **Response Object**
 
-| Property | Type                                   | Optional |
-|:--------:|----------------------------------------|:--------:|
-|  Items   | Array of [`Table`]()'s child instances |   yes    |
-|  Errors  | Array of `Error`                       |   yes    |
+| Property | Type                                                                                                                                                                  | Optional |
+|:---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
+| Info     | <code>{ConsumedCapacity?: [ConsumedCapacity](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html)}</code> |   yes    |
+| Errors   | Array of `Error`                                                                                                                                                      |   yes    |
 
 **Example**
 ```typescript
@@ -58,7 +58,7 @@ const item_2 = new myTable()
 
 const {Info, Errors} = await myTable.batchPut(item_1, item2)
 ```
-### createTable
+## createTable
 Creates a new Table with the given configuration.
 
 |  Kind   | Static | Async |
