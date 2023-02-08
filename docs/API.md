@@ -10,52 +10,64 @@ class myTable extends Table {
 ```
 
 ## Members
-- [batchPut](#batchput)
-- [createTable](#createtable) 
-- [createBackup]()
-- [delete]()
-- [deleteTable]()
-- [describe]()
-- [globalIndex]()
-- [importTable]()
-- [localIndex]()
-- [make]()
-- [put]()
-- [query]()
-- [save]()
-- [scan]()
-- [select]()
-- [serialize]()
-- [update]()
-- [wait]()
+
+| Name                          | Type     | Static | Description                                            |
+|-------------------------------|----------|--------|--------------------------------------------------------|
+| [batchPut](#batchput)         | function | true   | Puts / overwrites any number of new items in parallel  |
+| [createTable](#createtable)   | function | true   | Create the table                                       |
+| [createBackup](#createbackup) | function | true   | Create a backup of the table                           |
+| [delete](#delete)             | function | false  | Deletes an item from the table                         |
+| [deleteTable](#deletetable)   | function | true   | Deletes the table                                      |
+| [describe](#describe)         | object   | true   | Contains methods for gathering info about the table    | 
+| [globalIndex](#globalindex)   | function | true   | Defines a global secondary index                       |
+| [importTable](#importtable)   | function | true   | Creates a table with data from a backup                |
+| [localIndex](#localindex)     | function | true   | Defines a local secondary index                        | 
+| [make](#make)                 | function | true   | Creates an item for the table                          |
+| [put](#put)                   | function | true   | Puts any number of new items without overwriting       |
+| [query](#query)               | function | true   | Executed a query on the table                          |
+| [save](#save)                 | function | false  | Puts or Updates an item on the table                   |
+| [scan](#scan)                 | function | true   | Retrieves all items from the table                     |
+| [select](#select)             | function | true   | Selects any number of items to be updated or deleted   |
+| [serialize](#serialize)       | function | false  | Transforms the item to how it looks on the database    | 
+| [update](#update)             | object   | true   | Contains methods to update the table settings          |
+| [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
 ## batchPut
+**Parameters**
+- `...items` [\<Table[]\>](#class-table) A rest parameter accepting any number of its class instances
 ```typescript
+import {Table} from 'dynamorm'
+
+class myTable extends Table {
+    // ...
+}
+
 const item_1 = new myTable()
 const item_2 = new myTable()
 
-const {Info, Errors} = await myTable.batchPut(item_1, item2)
+const {Info, Errors} = await myTable.batchPut(item_1, item_2)
 ```
-|  Kind   | Static | Async | Description                                                                                                                          |
-|:-------:|:------:|:-----:|--------------------------------------------------------------------------------------------------------------------------------------|
-| method  |  true  | true  | Puts any number of items in parallel. Faster than [put](#put) but overvwites items with the same primary key if they already exist.  |
 
-**Parameters**
-
-|    Position    | Type                                        | Required |
-|:--------------:|---------------------------------------------|:--------:|
-| rest parameter | Any number of [`Table`]()'s child instances |   yes    |
-
-**Response Object**
-
-| Property | Type                                                                                                                                                                 | Optional |
-|:---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
-| Info     | <code>{ConsumedCapacity: [ConsumedCapacity](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html)}</code> |   yes    |
-| Errors   | Array of `Error`                                                                                                                                                     |   yes    |
-
+**Return Object**
+- `Info`
+  - `ConsumedCapacity` [<ConsumedCapacity\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html) The read / write capacity consumed by the operation
+  - `SuccessfulPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of successfully put items
+  - `FailedPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of items that failed to be put
+- `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) 
+  
 ## createTable
-
+**Parameters**
+- `TableConfig`
+  - `ProvisionedThroughput` [<ProvisionedThroughput\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html) The provisioned throughput for the table. If omitted, the table will be created as [`PAY_PER_REQUEST`]()
+  - `TableClass` [<TableClass\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html) Sets the TableClass for the table. Defaults to `STANDARD` 
+  - `StreamViewType` [<StreamViewType\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html) Sets the StreamViewType for the table. Stream will be disabled if omitted.
 ```typescript
+import {Table} from 'dynamorm'
+
+class myTable extends Table {
+  // ...
+}
+
 const {Info, Errors} = await myTable.createTable({
     ProvisionedThroughput: {
         ReadCapacityUnits: 10,
@@ -65,22 +77,7 @@ const {Info, Errors} = await myTable.createTable({
     StreamViewType: StreamViewType.KEYS_ONLY
 })
 ```
-
-|  Kind   | Static | Async | Description                                       |
-|:-------:|:------:|:-----:|---------------------------------------------------|
-| method  |  true  | true  | Creates a new Table with the given configuration. | 
-
-**Parameter Object**
-
-| Property              | Type                                                                                                                                          | Required | Description                                                                                          |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|:--------:|------------------------------------------------------------------------------------------------------|
-| ProvisionedThroughput | [ProvisionedThroughput](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html) |    no    | Sets the ProvisionedThroughput for the table. If omitted, table will be created as `PAY_PER_REQUEST` |
-| TableClass            | [TableClass](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html)                            |    no    | Sets the TableClass for the table. Defaults to `STANDARD`                                            |
-| StreamViewType        | [StreamViewType](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html)                    |    no    | Sets the StreamViewType for the table. Stream will be disabled if omitted.                           |
-
-**Response Object**
-
-| Property | Type                                                                                                                                                                 | Optional |
-|:---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
-| Info     | <code>{TableDescription: [TableDescription](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html)}</code> |   yes    |
-| Errors   | Array of `Error`                                                                                                                                                     |   yes    |
+**Return Object**
+- `Info`
+  - `TableDescription` [<TableDescription\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html) A DynamoDB table description object
+- `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
