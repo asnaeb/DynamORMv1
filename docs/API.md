@@ -48,16 +48,17 @@ const item_2 = new myTable()
 const {Info, Errors} = await myTable.batchPut(item_1, item_2)
 ```
 
-**Return Object**
-- `Info`
-  - `ConsumedCapacity` [<ConsumedCapacity\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html) The read / write capacity consumed by the operation
-  - `SuccessfulPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of successfully put items
-  - `FailedPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of items that failed to be put
-- `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) 
+**Return Value**
+- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+  - `Info`
+    - `ConsumedCapacity` [<ConsumedCapacity\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html)
+    - `SuccessfulPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of successfully put items
+    - `FailedPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of items that failed to be put
+  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) 
   
 ## createTable
 **Parameters**
-- `TableConfig`
+- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
   - `ProvisionedThroughput` [<ProvisionedThroughput\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html) The provisioned throughput for the table. If omitted, the table will be created as [`PAY_PER_REQUEST`]()
   - `TableClass` [<TableClass\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html) Sets the TableClass for the table. Defaults to `STANDARD` 
   - `StreamViewType` [<StreamViewType\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html) Sets the StreamViewType for the table. Stream will be disabled if omitted.
@@ -77,7 +78,28 @@ const {Info, Errors} = await myTable.createTable({
     StreamViewType: StreamViewType.KEYS_ONLY
 })
 ```
-**Return Object**
-- `Info`
-  - `TableDescription` [<TableDescription\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html) A DynamoDB table description object
-- `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+**Return Value**
+- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+  - `Info`
+    - `TableDescription` [<TableDescription\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html)
+  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+
+## createBackup
+**Parameters**
+- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+  - `BackupName` [<string\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type) The name of the backup being created
+
+```typescript
+import {Table} from 'dynamorm'
+
+class myTable extends Table {
+  // ...
+}
+
+const {Info, Errors} = await myTable.createBackup({BackupName: 'myBackup'})
+```
+**Return Value**
+- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+  - `Info`
+    - `BackupDetails` [<BackupDetails\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/backupdetails.html) 
+  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
