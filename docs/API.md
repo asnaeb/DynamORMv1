@@ -34,7 +34,7 @@ class myTable extends Table {
 
 ## batchPut
 **Parameters**
-- `...items` [\<Table[]\>](#class-table) A rest parameter accepting any number of its class instances
+- `...items` [\<Table[]\>](#class-table) A rest parameter accepting any number of the current class instances.
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -62,7 +62,7 @@ const {Info, Errors} = await myTable.batchPut(item_1, item_2)
   - `TableClass` [<TableClass\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html) Sets the TableClass for the table. Defaults to `STANDARD` 
   - `StreamViewType` [<StreamViewType\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html) Sets the StreamViewType for the table. Stream will be disabled if omitted.
 ```typescript
-import {Table} from 'dynamorm'
+import {Table, TableClass, StreamViewType} from 'dynamorm'
 
 class myTable extends Table {
   // ...
