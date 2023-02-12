@@ -43,10 +43,9 @@ class myTable extends Table {
 | [update](#update)             | object   | true   | Contains methods to update the table settings          |
 | [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
-### Reading Guide
-Parameters and properties marked with a `*` are **required**
-
-All Return Values properties can also be [<undefined\>]
+## Reading Guide
+- Parameters and properties marked with a `*` are **required**
+- All Return Values properties can also be [<undefined\>]
 
 ## batchPut
 ```typescript
