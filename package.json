@@ -31,6 +31,6 @@
     "@types/amazon-dax-client": "^1.2.5",
     "@types/node": "^18.13.0",
     "esbuild": "^0.17.6",
-    "typescript": "^5.0.0-dev.20230207"
+    "typescript": "^5.0.0-dev.20230210"
   }
 }

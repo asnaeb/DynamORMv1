@@ -1,3 +1,15 @@
+[<ConsumedCapacity\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html
+[<ProvisionedThroughput\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html
+[<TableDescription\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html
+[<BackupDetails\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/backupdetails.html
+[<TableClass\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html
+[<StreamViewType\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html
+[<Error\[\]\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+[<Object\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[<number\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type
+[<string\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type
+[<undefined\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#undefined_type
+
 # Class: `Table`
 Must be subclassed by your own classes which will represent DynamoDB tables. Children of this class will inherit static and instance methods that will allow every operation on the table supported by DynamoDB. 
 
@@ -33,8 +45,6 @@ class myTable extends Table {
 | [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
 ## batchPut
-**Parameters**
-- `...items` [\<Table[]\>](#class-table) A rest parameter accepting any number of the current class instances.
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -47,21 +57,18 @@ const item_2 = new myTable()
 
 const {Info, Errors} = await myTable.batchPut(item_1, item_2)
 ```
+**Parameters**
+- `...items` * [\<Table[]\>](#class-table) - A rest parameter accepting any number of the current class instances.
 
 **Return Value**
-- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+- [<Object\>]
   - `Info`
-    - `ConsumedCapacity` [<ConsumedCapacity\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html)
-    - `SuccessfulPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of successfully put items
-    - `FailedPuts` [<number\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type) The number of items that failed to be put
-  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) 
+    - `ConsumedCapacity` [<ConsumedCapacity\>] The number of unsuccesfully put items
+    - `SuccessfulPuts` [<number\>] The number of successfully put items
+    - `FailedPuts` [<number\>]
+  - `Errors` [<Error\[\]\>] 
   
 ## createTable
-**Parameters**
-- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-  - `ProvisionedThroughput` [<ProvisionedThroughput\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html) The provisioned throughput for the table. If omitted, the table will be created as [`PAY_PER_REQUEST`]()
-  - `TableClass` [<TableClass\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html) Sets the TableClass for the table. Defaults to `STANDARD` 
-  - `StreamViewType` [<StreamViewType\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html) Sets the StreamViewType for the table. Stream will be disabled if omitted.
 ```typescript
 import {Table, TableClass, StreamViewType} from 'dynamorm'
 
@@ -78,17 +85,19 @@ const {Info, Errors} = await myTable.createTable({
     StreamViewType: StreamViewType.KEYS_ONLY
 })
 ```
+**Parameters**
+- [<Object\>] 
+  - `ProvisionedThroughput` [<ProvisionedThroughput\>]
+  - `TableClass` [<TableClass\>] Sets the TableClass for the table. Defaults to `STANDARD`
+  - `StreamViewType` [<StreamViewType\>] Sets the StreamViewType for the table. Stream will be disabled if omitted.
+
 **Return Value**
-- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+- [<Object\>]
   - `Info`
-    - `TableDescription` [<TableDescription\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html)
-  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+    - `TableDescription` [<TableDescription\>]
+  - `Errors` [<Error\[\]\>] 
 
 ## createBackup
-**Parameters**
-- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-  - `BackupName` [<string\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type) The name of the backup being created
-
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -98,8 +107,36 @@ class myTable extends Table {
 
 const {Info, Errors} = await myTable.createBackup({BackupName: 'myBackup'})
 ```
+**Parameters**
+- [<Object\>] *
+  - `BackupName` * [<string\>] The name of the backup
+
 **Return Value**
-- [<Object\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+- [<Object\>]
   - `Info`
-    - `BackupDetails` [<BackupDetails\>](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/backupdetails.html) 
-  - `Errors` [<Error[]\>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+    - `BackupDetails` [<BackupDetails\>] 
+  - `Errors` [<Error\[\]\>]
+  
+## delete
+```typescript
+import {Table} from 'dynamorm'
+
+class myTable extends Table {
+  // ...
+}
+
+const item = new myTable()
+const {Info, Items, Errors} = await item.delete()
+```
+**Parameters**
+
+*None*
+
+**Return Value**
+- [<Object\>]
+  - `Info`
+    - `ConsumedCapacity` [<ConsumedCapacity\>]
+    - `SuccessfulDeletes` [<number\>] The number of items that were successfully deleted. Can be either `1` or [<undefined\>]
+    - `FailedDeletes` [<number\>] The number of items that failed to delete. Can be either `1` or [<undefined\>]
+  - `Items` [\<Table[]\>](#class-table) An array containing a single instance of the current class representing the item just deleted.
+  - `Errors` [<Error\[\]\>]

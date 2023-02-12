@@ -1,7 +1,6 @@
 import {Server} from 'http'
 import {awsCredentials} from './env/AwsCredentials.js'
 import type {Hash, Range} from '../lib/types/Key.js'
-import {StreamViewType} from '@aws-sdk/client-dynamodb'
 
 const credentials = await awsCredentials()
 
@@ -13,7 +12,7 @@ const {Table, HashKey, RangeKey, Connect, Attribute} = await import('../lib/inde
 
 @Connect()
 export class SecondaryIndexes extends Table {
-    //static myGlobal = this.globalIndex('num')
+    static myGlobal = this.localIndex('num')
 
     @HashKey.S()
     hash!: Hash<string>
@@ -92,13 +91,13 @@ const server = new Server(async (req, res) => {
             res.end()
             break
         }
-        case '/exit': {
-            process.exit()
-        }
         default: 
             res.write('Not found')
             res.end()
             break
+        case '/exit': {
+            process.exit()
+        }
     }
 })
 
