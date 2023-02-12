@@ -20,7 +20,6 @@ class myTable extends Table {
     // ...
 }
 ```
-
 ## Members
 
 | Name                          | Type     | Static | Description                                            |
@@ -40,10 +39,14 @@ class myTable extends Table {
 | [save](#save)                 | function | false  | Puts or Updates an item on the table                   |
 | [scan](#scan)                 | function | true   | Retrieves all items from the table                     |
 | [select](#select)             | function | true   | Selects any number of items to be updated or deleted   |
-| [serialize](#serialize)       | function | false  | Transforms the item to how it looks on the database    | 
+| [serialize](#serialize)       | function | false  | Returns a 1:1 representation of the item from the db   | 
 | [update](#update)             | object   | true   | Contains methods to update the table settings          |
 | [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
+> Parameters and properties marked with a `*` are **required**
+
+> All Return Values properties can also be [<undefined\>]
+> 
 ## batchPut
 ```typescript
 import {Table} from 'dynamorm'
