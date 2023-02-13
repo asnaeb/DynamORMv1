@@ -46,7 +46,8 @@ const server = new Server(async (req, res) => {
             break
         }
         case '/describe': {
-            const result = await SecondaryIndexes.describe.all()
+            const result = await SecondaryIndexes.describe.timeToLive()
+            result.Info
             res.write(JSON.stringify(result))
             res.end()
             break

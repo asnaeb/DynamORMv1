@@ -1,14 +1,21 @@
 [<ConsumedCapacity\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/consumedcapacity.html
 [<ProvisionedThroughput\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/provisionedthroughput.html
+[<ContinuousBackupsDescription\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/continuousbackupsdescription.html
+[<KinesisDataStreamDestination\[\]\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/kinesisdatastreamdestination.html
 [<TableDescription\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/tabledescription.html
+[<TimeToLiveDescription\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/timetolivedescription.html
 [<BackupDetails\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/backupdetails.html
 [<TableClass\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/tableclass.html
 [<StreamViewType\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/enums/streamviewtype.html
+[<FailureException\>]: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-dynamodb/interfaces/failureexception.html
 [<Error\[\]\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [<Object\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[<Function\>]: http://
 [<number\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#number_type
 [<string\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type
+[<string\[\]\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#string_type
 [<undefined\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#undefined_type
+[<Date\>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 
 # Class: `Table`
 Must be subclassed by your own classes which will represent DynamoDB tables. Children of this class will inherit static and instance methods that will allow every operation on the table supported by DynamoDB. 
@@ -24,11 +31,11 @@ class myTable extends Table {
 
 | Name                          | Type     | Static | Description                                            |
 |-------------------------------|----------|--------|--------------------------------------------------------|
-| [batchPut](#batchput)         | function | true   | Puts / overwrites any number of new items in parallel  |
+| [batchPut](#batchput)         | function | true   | Put / overwrite any number of new items in parallel    |
 | [createTable](#createtable)   | function | true   | Create the table                                       |
 | [createBackup](#createbackup) | function | true   | Create a backup of the table                           |
-| [delete](#delete)             | function | false  | Deletes an item from the table                         |
-| [deleteTable](#deletetable)   | function | true   | Deletes the table                                      |
+| [delete](#delete)             | function | false  | Delete an item from the table                          |
+| [deleteTable](#deletetable)   | function | true   | Delete the table                                       |
 | [describe](#describe)         | object   | true   | Contains methods for gathering info about the table    | 
 | [globalIndex](#globalindex)   | function | true   | Defines a global secondary index                       |
 | [importTable](#importtable)   | function | true   | Creates a table with data from a backup                |
@@ -43,11 +50,11 @@ class myTable extends Table {
 | [update](#update)             | object   | true   | Contains methods to update the table settings          |
 | [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
-## Reading Guide
+## Reading guide
 - Parameters and properties marked with a `*` are **required**
 - All Return Values properties can also be [<undefined\>]
 
-## batchPut
+## batchPut [<Function\>]
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -61,17 +68,19 @@ const item_2 = new myTable()
 const {Info, Errors} = await myTable.batchPut(item_1, item_2)
 ```
 **Parameters**
-- `...items` * [\<Table[]\>](#class-table) - A rest parameter accepting any number of the current class instances.
+- `...items` * [\<Table[]\>](#class-table) A [rest parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters) accepting any number of the current class instances.
 
 **Return Value**
 - [<Object\>]
   - `Info`
-    - `ConsumedCapacity` [<ConsumedCapacity\>] The number of unsuccesfully put items
+    - `ConsumedCapacity` [<ConsumedCapacity\>] 
     - `SuccessfulPuts` [<number\>] The number of successfully put items
-    - `FailedPuts` [<number\>]
+    - `FailedPuts` [<number\>] The number of unsuccesfully put items
   - `Errors` [<Error\[\]\>] 
+
+<hr>
   
-## createTable
+## createTable [<Function\>]
 ```typescript
 import {Table, TableClass, StreamViewType} from 'dynamorm'
 
@@ -100,7 +109,9 @@ const {Info, Errors} = await myTable.createTable({
     - `TableDescription` [<TableDescription\>]
   - `Errors` [<Error\[\]\>] 
 
-## createBackup
+<hr>
+
+## createBackup [<Function\>]
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -120,7 +131,9 @@ const {Info, Errors} = await myTable.createBackup({BackupName: 'myBackup'})
     - `BackupDetails` [<BackupDetails\>] 
   - `Errors` [<Error\[\]\>]
   
-## delete
+<hr>
+
+## delete [<Function\>]
 ```typescript
 import {Table} from 'dynamorm'
 
@@ -143,3 +156,106 @@ const {Info, Items, Errors} = await item.delete()
     - `FailedDeletes` [<number\>] The number of items that failed to delete. Can be either `1` or [<undefined\>]
   - `Items` [\<Table[]\>](#class-table) An array containing a single instance of the current class representing the item just deleted.
   - `Errors` [<Error\[\]\>]
+
+<hr>
+
+## deleteTable [<Function\>]
+```typescript
+import {Table} from 'dynamorm'
+
+class myTable extends Table {
+  // ...
+}
+
+const {Info, Errors} = await myTable.deleteTable()
+```
+**Parameters**
+
+*None*
+
+**Return Value**
+- [<Object\>]
+  - `Info`
+    - `TableDescription` [<TableDescription\>]
+  - `Errors` [<Error\[\]\>] 
+
+<hr>
+
+## describe [<Object\>]
+- ### `all` [<Function\>] Groups all other describes functions in one single operation
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
+      - `ContributorInsights`
+        - `ContributorInsightsRuleList` [<string\[\]\>]
+        - `ContributorInsightsStatus` [<string\>]
+        - `FailureException` [<FailureException\>]
+        - `LastUpdateDateTime` [<Date\>]
+      - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
+      - `TableDescription` [<TableDescription\>]
+      - `TimeToLiveDescription` [<TimeToLiveDescription\>]
+    - `Errors` [<Error\[\]\>]
+  
+- ### `continuousBackups` [<Function\>] Describe the continuous backups and point in time recovery settings on the table
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
+    - `Errors` [<Error\[\]\>]
+
+- ### `contributorInsights` [<Function\>] Describe the contributor insights settings on the table 
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `ContributorInsightsRuleList` [<string\[\]\>]
+      - `ContributorInsightsStatus` [<string\>]
+      - `FailureException` [<FailureException\>]
+      - `LastUpdateDateTime` [<Date\>]
+    - `Errors` [<Error\[\]\>]
+
+- ### `kinesisDataStreamDestinations` [<Function\>] Describe a Kinesis data stream destination
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
+    - `Errors` [<Error\[\]\>]
+
+- ### `table` [<Function\>] Describe the properties of a table
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `TableDescription` [<TableDescription\>]
+    - `Errors` [<Error\[\]\>]
+
+- ### `timeToLive` [<Function\>] Describe the Time to Live status on the specified table
+  **Parameters**
+
+  *None*
+
+  **Return Value**
+  - [<Object\>]
+    - `Info`
+      - `TimeToLiveDescription` [<TimeToLiveDescription\>]
+    - `Errors` [<Error\[\]\>]
+
