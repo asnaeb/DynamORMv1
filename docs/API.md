@@ -77,8 +77,6 @@ const {Info, Errors} = await myTable.batchPut(item_1, item_2)
     - `SuccessfulPuts` [<number\>] The number of successfully put items
     - `FailedPuts` [<number\>] The number of unsuccesfully put items
   - `Errors` [<Error\[\]\>] 
-
-<hr>
   
 ## createTable [<Function\>]
 ```typescript
@@ -109,8 +107,6 @@ const {Info, Errors} = await myTable.createTable({
     - `TableDescription` [<TableDescription\>]
   - `Errors` [<Error\[\]\>] 
 
-<hr>
-
 ## createBackup [<Function\>]
 ```typescript
 import {Table} from 'dynamorm'
@@ -130,8 +126,6 @@ const {Info, Errors} = await myTable.createBackup({BackupName: 'myBackup'})
   - `Info`
     - `BackupDetails` [<BackupDetails\>] 
   - `Errors` [<Error\[\]\>]
-  
-<hr>
 
 ## delete [<Function\>]
 ```typescript
@@ -157,8 +151,6 @@ const {Info, Items, Errors} = await item.delete()
   - `Items` [\<Table[]\>](#class-table) An array containing a single instance of the current class representing the item just deleted.
   - `Errors` [<Error\[\]\>]
 
-<hr>
-
 ## deleteTable [<Function\>]
 ```typescript
 import {Table} from 'dynamorm'
@@ -179,10 +171,17 @@ const {Info, Errors} = await myTable.deleteTable()
     - `TableDescription` [<TableDescription\>]
   - `Errors` [<Error\[\]\>] 
 
-<hr>
-
 ## describe [<Object\>]
-- ### `all` [<Function\>] Groups all other describes functions in one single operation
+- ### `all` [<Function\>] 
+  ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.all()
+  ```
   **Parameters**
 
   *None*
@@ -201,7 +200,16 @@ const {Info, Errors} = await myTable.deleteTable()
       - `TimeToLiveDescription` [<TimeToLiveDescription\>]
     - `Errors` [<Error\[\]\>]
   
-- ### `continuousBackups` [<Function\>] Describe the continuous backups and point in time recovery settings on the table
+- ### `continuousBackups` [<Function\>] 
+  ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.continuousBackups()
+  ```
   **Parameters**
 
   *None*
@@ -212,7 +220,16 @@ const {Info, Errors} = await myTable.deleteTable()
       - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
     - `Errors` [<Error\[\]\>]
 
-- ### `contributorInsights` [<Function\>] Describe the contributor insights settings on the table 
+- ### `contributorInsights` [<Function\>] 
+  ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.contributorInsights()
+  ```
   **Parameters**
 
   *None*
@@ -226,7 +243,16 @@ const {Info, Errors} = await myTable.deleteTable()
       - `LastUpdateDateTime` [<Date\>]
     - `Errors` [<Error\[\]\>]
 
-- ### `kinesisDataStreamDestinations` [<Function\>] Describe a Kinesis data stream destination
+- ### `kinesisDataStreamDestinations` [<Function\>] 
+  ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.kinesisDataStreamDestinations()
+  ```
   **Parameters**
 
   *None*
@@ -237,7 +263,16 @@ const {Info, Errors} = await myTable.deleteTable()
       - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
     - `Errors` [<Error\[\]\>]
 
-- ### `table` [<Function\>] Describe the properties of a table
+- ### `table` [<Function\>] 
+   ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.table()
+  ```
   **Parameters**
 
   *None*
@@ -248,7 +283,16 @@ const {Info, Errors} = await myTable.deleteTable()
       - `TableDescription` [<TableDescription\>]
     - `Errors` [<Error\[\]\>]
 
-- ### `timeToLive` [<Function\>] Describe the Time to Live status on the specified table
+- ### `timeToLive` [<Function\>] 
+  ```typescript
+    import {Table} from 'dynamorm'
+
+    class myTable extends Table {
+      // ...
+    }
+
+    const {Info, Errors} = await myTable.describe.timeToLive()
+  ```
   **Parameters**
 
   *None*
