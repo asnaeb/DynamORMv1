@@ -173,133 +173,133 @@ const {Info, Errors} = await myTable.deleteTable()
 
 ## describe [<Object\>]
 - ### `all` [<Function\>] 
-  ```typescript
-    import {Table} from 'dynamorm'
+    ```typescript
+      import {Table} from 'dynamorm'
 
-    class myTable extends Table {
-      // ...
-    }
+      class myTable extends Table {
+        // ...
+      }
 
-    const {Info, Errors} = await myTable.describe.all()
-  ```
-  **Parameters**
+      const {Info, Errors} = await myTable.describe.all()
+    ```
+    **Parameters**
 
-  *None*
+    *None*
 
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
-      - `ContributorInsights`
+    **Return Value**
+    - [<Object\>]
+      - `Info`
+        - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
+        - `ContributorInsights`
+          - `ContributorInsightsRuleList` [<string\[\]\>]
+          - `ContributorInsightsStatus` [<string\>]
+          - `FailureException` [<FailureException\>]
+          - `LastUpdateDateTime` [<Date\>]
+        - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
+        - `TableDescription` [<TableDescription\>]
+        - `TimeToLiveDescription` [<TimeToLiveDescription\>]
+      - `Errors` [<Error\[\]\>]
+  
+- ### `continuousBackups` [<Function\>] 
+    ```typescript
+      import {Table} from 'dynamorm'
+
+      class myTable extends Table {
+        // ...
+      }
+
+      const {Info, Errors} = await myTable.describe.continuousBackups()
+    ```
+    **Parameters**
+
+    *None*
+
+    **Return Value**
+    - [<Object\>]
+      - `Info`
+        - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
+      - `Errors` [<Error\[\]\>]
+
+- ### `contributorInsights` [<Function\>] 
+    ```typescript
+      import {Table} from 'dynamorm'
+
+      class myTable extends Table {
+        // ...
+      }
+
+      const {Info, Errors} = await myTable.describe.contributorInsights()
+    ```
+    **Parameters**
+
+    *None*
+
+    **Return Value**
+    - [<Object\>]
+      - `Info`
         - `ContributorInsightsRuleList` [<string\[\]\>]
         - `ContributorInsightsStatus` [<string\>]
         - `FailureException` [<FailureException\>]
         - `LastUpdateDateTime` [<Date\>]
-      - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
-      - `TableDescription` [<TableDescription\>]
-      - `TimeToLiveDescription` [<TimeToLiveDescription\>]
-    - `Errors` [<Error\[\]\>]
-  
-- ### `continuousBackups` [<Function\>] 
-  ```typescript
-    import {Table} from 'dynamorm'
-
-    class myTable extends Table {
-      // ...
-    }
-
-    const {Info, Errors} = await myTable.describe.continuousBackups()
-  ```
-  **Parameters**
-
-  *None*
-
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `ContinuousBackupsDescription` [<ContinuousBackupsDescription\>]
-    - `Errors` [<Error\[\]\>]
-
-- ### `contributorInsights` [<Function\>] 
-  ```typescript
-    import {Table} from 'dynamorm'
-
-    class myTable extends Table {
-      // ...
-    }
-
-    const {Info, Errors} = await myTable.describe.contributorInsights()
-  ```
-  **Parameters**
-
-  *None*
-
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `ContributorInsightsRuleList` [<string\[\]\>]
-      - `ContributorInsightsStatus` [<string\>]
-      - `FailureException` [<FailureException\>]
-      - `LastUpdateDateTime` [<Date\>]
-    - `Errors` [<Error\[\]\>]
+      - `Errors` [<Error\[\]\>]
 
 - ### `kinesisDataStreamDestinations` [<Function\>] 
-  ```typescript
-    import {Table} from 'dynamorm'
+    ```typescript
+      import {Table} from 'dynamorm'
 
-    class myTable extends Table {
-      // ...
-    }
+      class myTable extends Table {
+        // ...
+      }
 
-    const {Info, Errors} = await myTable.describe.kinesisDataStreamDestinations()
-  ```
-  **Parameters**
+      const {Info, Errors} = await myTable.describe.kinesisDataStreamDestinations()
+    ```
+    **Parameters**
 
-  *None*
+    *None*
 
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
-    - `Errors` [<Error\[\]\>]
+    **Return Value**
+    - [<Object\>]
+      - `Info`
+        - `kinesisDataStreamDestinations` [<KinesisDataStreamDestination\[\]\>] 
+      - `Errors` [<Error\[\]\>]
 
 - ### `table` [<Function\>] 
-   ```typescript
-    import {Table} from 'dynamorm'
+    ```typescript
+      import {Table} from 'dynamorm'
 
-    class myTable extends Table {
-      // ...
-    }
+      class myTable extends Table {
+        // ...
+      }
 
-    const {Info, Errors} = await myTable.describe.table()
-  ```
-  **Parameters**
+      const {Info, Errors} = await myTable.describe.table()
+    ```
+    **Parameters**
 
-  *None*
+    *None*
 
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `TableDescription` [<TableDescription\>]
-    - `Errors` [<Error\[\]\>]
+    **Return Value**
+    - [<Object\>]
+      - `Info`
+        - `TableDescription` [<TableDescription\>]
+      - `Errors` [<Error\[\]\>]
 
 - ### `timeToLive` [<Function\>] 
-  ```typescript
-    import {Table} from 'dynamorm'
+    ```typescript
+      import {Table} from 'dynamorm'
 
-    class myTable extends Table {
-      // ...
-    }
+      class myTable extends Table {
+        // ...
+      }
 
-    const {Info, Errors} = await myTable.describe.timeToLive()
-  ```
-  **Parameters**
+      const {Info, Errors} = await myTable.describe.timeToLive()
+    ```
+    **Parameters**
 
-  *None*
+    *None*
 
-  **Return Value**
-  - [<Object\>]
-    - `Info`
-      - `TimeToLiveDescription` [<TimeToLiveDescription\>]
-    - `Errors` [<Error\[\]\>]
+    **Return Value**
+    - [<Object\>]
+      - `Info`
+        - `TimeToLiveDescription` [<TimeToLiveDescription\>]
+      - `Errors` [<Error\[\]\>]
 
