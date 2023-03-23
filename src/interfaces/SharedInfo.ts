@@ -15,7 +15,7 @@ export interface SharedInfo {
     GlobalSecondaryIndexesCount?: number
     Attributes?: {
         [p: string]: {
-            AttributeType: DynamoDBType | 'ANY',
+            AttributeType: DynamoDBType,
             AttributeName: string
         }
     }

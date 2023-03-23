@@ -1,36 +1,50 @@
 {
   "name": "dynamorm",
+  "author": "asnaeb",
+  "description": "Full-featured DynamoDB ORM client",
+  "keywords": [
+    "dynamodb",
+    "orm",
+    "aws",
+    "typescript",
+    "decorators",
+    "database"
+  ],
+  "license": "GPL-v3.0-or-later",
   "version": "1.0.0",
-  "engines": {
-    "node": ">=18.12.1"
+  "repository": "https://github.com/asnaeb/DynamORM.git",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": "./lib/index.js",
+    "./legacy": "./lib/legacy.js",
+    "./operators": "./lib/operators.js"
   },
-  "types": "bundle/index.d.ts",
+  "files": ["lib"],
   "scripts": {
+    "prebuild": "rm -r lib || true",
     "build": "tsc",
-    "build-test-env": "tsc --project ./tests/env/tsconfig.json",
-    "build-tests": "tsc --project ./tests/tsconfig.json",
-    "build-legacy-tests": "tsc --project ./tests/legacy/tsconfig.json",
-    "build-babel-tests": "cd ./tests/babel && babel . --out-dir . --out-file-extension .min.js",
-    "prebundle": "tsc --project ./tsconfig.declarations.json",
-    "bundle": "esbuild src/index.ts src/operators.ts --bundle --packages=external --platform=node --target=node16 --outdir=bundle",
-    "clean": "rm -r bundle && rm -r lib",
-    "watch": "tsc --watch"
+    "test": "ts-node -T --",
+    "build:babel-tests": "babel ./test/babel --out-dir ./tests/babel --out-file-extension .min.js"
   },
   "dependencies": {
     "@asn.aeb/async-array": "^1.5.9",
-    "@aws-sdk/client-dynamodb": "^3.266.0",
-    "@aws-sdk/lib-dynamodb": "^3.266.0",
+    "@aws-sdk/client-dynamodb": "^3.297.0",
+    "@aws-sdk/lib-dynamodb": "^3.297.0",
     "amazon-dax-client": "^1.2.9",
-    "aws-sdk": "^2.1310.0"
+    "aws-cdk-lib": "^2.70.0",
+    "aws-sdk": "^2.1341.0",
+    "constructs": "^10.1.288"
   },
   "devDependencies": {
-    "@babel/cli": "^7.20.7",
-    "@babel/core": "^7.20.12",
-    "@babel/plugin-proposal-decorators": "^7.20.13",
+    "@asn.aeb/dynamodb-local": "^0.0.3",
+    "@babel/cli": "^7.21.0",
+    "@babel/core": "^7.21.3",
+    "@babel/plugin-proposal-decorators": "^7.21.0",
     "@babel/preset-env": "^7.20.2",
     "@types/amazon-dax-client": "^1.2.5",
-    "@types/node": "^18.13.0",
-    "esbuild": "^0.17.6",
-    "typescript": "^5.0.0-dev.20230210"
+    "@types/node": "^18.15.5",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.2"
   }
 }

@@ -42,10 +42,8 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
 
         const it = async (update: Update<T>, path: string[] = [], top = true) => {
             const keys = AsyncArray.to(Object.keys(update))
-
             await keys.async.forEach(key => {
-                const value = (<any>update)[key]
-
+                const value = update[<keyof Update<T>>key]
                 let $path, $key = alphaNumeric(key)
 
                 Object.assign(this.#attributeNames, {[`#${$key}`]: key})

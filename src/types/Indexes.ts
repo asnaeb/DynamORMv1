@@ -1,5 +1,5 @@
-import {BeginsWith, Greater} from '../operators'
-import {Hash, HashType, Range, RangeType} from './Key'
+import {BeginsWith, Greater} from '../operators/Functions'
+import {HashKey, HashType, RangeKey, RangeType} from './Key'
 import {QueryObject} from './Query'
 import {ValueOf} from './Utils'
 
@@ -31,8 +31,8 @@ type LocalIndexName<T> = ValueOf<{
 }> extends LocalIndex<infer N, infer _> | undefined ? N : never
 
 class T {
-  a?: Hash<string>
-  b?: Range<number>
+  a?: HashKey<string>
+  b?: RangeKey<number>
   local?: LocalIndex<'myLocal', string> 
   globalHash?: GlobalIndex.Hash<'myGlob', string> 
   globalRange?: GlobalIndex.Range<'myGlob', number>

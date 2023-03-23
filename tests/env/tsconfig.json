@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "outDir": "./"
-  },
-  "include": ["/**/*.ts"],
-  "exclude": ["dynamodb_local"]
-}

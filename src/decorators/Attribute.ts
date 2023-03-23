@@ -4,7 +4,7 @@ import {SharedInfo} from '../interfaces/SharedInfo'
 
 interface FactoryParams {
     SharedInfo: SharedInfo
-    AttributeType: DynamoDBType | 'ANY'
+    AttributeType: DynamoDBType
     AttributeName?: string
 }
 
@@ -16,12 +16,11 @@ function decoratorFactory<X>({SharedInfo, AttributeType, AttributeName}: Factory
         name = String(name)
         SharedInfo.Attributes ??= {}
         SharedInfo.Attributes[name] = {AttributeType, AttributeName: AttributeName ?? name}
-
     }
 }
 
-export function Attribute(SharedInfo: SharedInfo) {
-    function decorator<T>(AttributeType: DynamoDBType | 'ANY') {
+export function AttributeFactory(SharedInfo: SharedInfo) {
+    function decorator<T>(AttributeType: DynamoDBType) {
         return function({AttributeName}: {AttributeName?: string} = {}) {
             return decoratorFactory<T>({SharedInfo, AttributeType, AttributeName})
         }

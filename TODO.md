@@ -27,7 +27,7 @@
 - ExportTableToPointInTime
 - ~~GetItem~~
 - ~~ImportTable~~
-- ListBackups
+- ~~ListBackups~~
 - ListContributorInsights
 - ListExports
 - ListGlobalTables
@@ -48,6 +48,6 @@
 - UpdateGlobalTable
 - UpdateGlobalTableSettings
 - ~~UpdateItem~~
-- UpdateTable
+- ~~UpdateTable~~
 - UpdateTableReplicaAutoScaling
-- UpdateTimeToLive
+- ~~UpdateTimeToLive~~

@@ -2,6 +2,7 @@ import {M, NativeType, DynamoDBType, Native} from './Native'
 import {ValueOf} from './Utils'
 import {CONDITION} from '../private/Symbols'
 import * as SYMBOLS from '../private/Symbols'
+import {InferKeyType} from './Key'
 
 export type SizeOperator = '<' | '<=' | '=' | '<>' | '>=' | '>'
 
@@ -23,8 +24,8 @@ export type ConditionOperators<K extends symbol, V> =
 
 export type Condition<T> = {
     [K in keyof Native<T>]?:
-    T[K] extends Exclude<NativeType, M> | undefined ? {[O in ConditionSymbols]?: ConditionOperators<O, T[K]>} :
-    T[K] extends M | undefined ?
-    {[SYMBOLS.ATTRIBUTE_EXISTS] : boolean} | {[SYMBOLS.ATTRIBUTE_TYPE] : DynamoDBType} | Condition<T[K]> :
+    Native<T>[K] extends Exclude<NativeType, M> | undefined ? {[O in ConditionSymbols]?: ConditionOperators<O, Native<T>[K]>} :
+    Native<T>[K] extends M | undefined ?
+    {[SYMBOLS.ATTRIBUTE_EXISTS] : boolean} | {[SYMBOLS.ATTRIBUTE_TYPE] : DynamoDBType} | Condition<Native<T>[K]> :
     never
 }

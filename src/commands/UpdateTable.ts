@@ -6,7 +6,9 @@ import {
     TableClass, 
     UpdateTableCommand, 
     UpdateTableCommandInput, 
-    type UpdateTableCommandOutput
+    UpdateTimeToLiveCommand,
+    type UpdateTableCommandOutput,
+    UpdateTimeToLiveCommandOutput
 } from '@aws-sdk/client-dynamodb'
 
 import type {DynamORMTable} from '../table/DynamORMTable'
@@ -62,6 +64,27 @@ class UpdateTableClass<T extends DynamORMTable> extends Update<T> {
     }
 }
 
+class UpdateTimeToLive<T extends DynamORMTable> extends TableCommandSingle<T, UpdateTimeToLiveCommandOutput> {
+    constructor(table: Constructor<T>) {
+        super(table)
+
+        const wm = weakMap(table)
+        const command = new UpdateTimeToLiveCommand({
+            TableName: wm.tableName,
+            TimeToLiveSpecification: {
+                Enabled: !!(wm.timeToLive),
+                AttributeName: wm.timeToLive
+            }
+        })
+
+        this.emit(UpdateTimeToLive.commandEvent, command)
+    }
+
+    public get response() {
+        return this.make_response(['TimeToLiveSpecification'])
+    }
+}
+
 export class UpdateTable<T extends DynamORMTable> {
     #table
     constructor(table: Constructor<T>) {
@@ -86,6 +109,10 @@ export class UpdateTable<T extends DynamORMTable> {
 
     public payPerRequest() {
         return new RemoveProvisionedThroughPut(this.#table).response
+    }
+
+    public timeToLive() {
+        return new UpdateTimeToLive(this.#table).response
     }
 }
 

@@ -67,28 +67,4 @@ export function Remove(): typeof SYMBOLS.REMOVE {
     return SYMBOLS.REMOVE
 }
 
-export default {
-    Equal,
-    Greater,
-    GreaterEqual,
-    Lesser,
-    LesserEqual,
-    BeginsWith,
-    Between,
-    Contains,
-    In,
-    NotEqual,
-    AttributeExists,
-    AttributeType,
-    Size,
-    AddToSet,
-    Increment,
-    Decrement,
-    DeleteFromSet,
-    ListAppend,
-    ListPrepend,
-    Remove,
-    Overwrite
-}
-
 

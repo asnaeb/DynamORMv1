@@ -13,7 +13,7 @@ import {Scan} from '../commands/Scan'
 import {QueryObject} from '../types/Query'
 import {isDeepStrictEqual} from 'util'
 import {Constructor} from '../types/Utils'
-import {LocalIndexProps} from '../interfaces/LocalIndexParams'
+import {LocalIndexProps} from '../interfaces/LocalIndexProps'
 import {QueryOptions} from '../interfaces/QueryOptions'
 import {isQueryObject} from '../validation/symbols'
 import {ScanOptions} from '../interfaces/ScanOptions'
@@ -22,7 +22,7 @@ import {weakMap} from '../private/WeakMap'
 export function LocalIndex<T extends DynamORMTable, K extends keyof Scalars<NonKey<T>>>(
     table: Constructor<T>, 
     AttributeName: K,
-    {IndexName, ProjectedAttributes}: LocalIndexProps<T> = {}
+    {IndexName, ProjectedAttributes}: LocalIndexProps<T, K> = {}
 ) {
     const wm = weakMap(table)
 
@@ -86,7 +86,7 @@ export function LocalIndex<T extends DynamORMTable, K extends keyof Scalars<NonK
             if (Q && isQueryObject(Q)) params = {hashValue, rangeQuery: Q, ...O}
             else params = {hashValue, ...Q}
 
-            return new Query(table, params).response
+            return new Query(table, {...params, IndexName}).response
         }
 
         scan(params: ScanOptions) {

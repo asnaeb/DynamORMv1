@@ -12,13 +12,12 @@ function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient,
 
         if (DAX) {
             const dax = new AmazonDaxClient({
-                region: <string>ClientConfig.region || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION, 
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                sessionToken: process.env.AWS_SESSION_TOKEN,
-                endpoint: <string>ClientConfig.endpoint || process.env.AWS_ENDPOINT,
-                maxRetries: Number(ClientConfig.maxAttempts) || Number(process.env.AWS_MAX_ATTEMPTS),
-                endpoints: [DAX]
+                region: ClientConfig.region, 
+                accessKeyId: ClientConfig.credentials.accessKeyId,
+                secretAccessKey: ClientConfig.credentials.secretAccessKey,
+                sessionToken: ClientConfig.credentials.sessionToken,
+                endpoint: ClientConfig.endpoint,
+                endpoints: DAX
             }) 
             const documentClientV2 = new DynamoDB.DocumentClient({service: <any>dax})
 
@@ -41,8 +40,8 @@ function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient,
     }
 }
 
-export function Connect(params: ConnectionParams) {
-    return function({TableName, DAX}: {TableName?: string, DAX?: string} = {}) {
+export function ConnectFactory(params: ConnectionParams) {
+    return function({TableName, DAX}: {TableName?: string, DAX?: string[]} = {}) {
         return decoratorFactory({...params, DAX, TableName})
     }
 }

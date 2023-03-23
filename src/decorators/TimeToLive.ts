@@ -17,7 +17,7 @@ function decoratorFactory(SharedInfo: SharedInfo, AttributeName?: string) {
     }
 }
 
-export function TimeToLive(SharedInfo: SharedInfo) {
+export function TimeToLiveFactory(SharedInfo: SharedInfo) {
     return function({AttributeName}: {AttributeName?: string} = {}) {
         return decoratorFactory(SharedInfo, AttributeName)
     }

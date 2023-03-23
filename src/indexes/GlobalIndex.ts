@@ -7,7 +7,7 @@ import {
     ProvisionedThroughput as TProvisionedThroughput, 
 } from '@aws-sdk/client-dynamodb'
 
-import {GlobalIndexProps} from '../interfaces/GlobalIndexParams'
+import {GlobalIndexProps} from '../interfaces/GlobalIndexProps'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {NonKey} from '../types/Key'
 import {Scalars} from '../types/Native'
@@ -29,7 +29,8 @@ export function GlobalIndex<
 >(
     table: Constructor<T>,
     HashKey: H,
-    {RangeKey, IndexName, ProjectedAttributes, ProvisionedThroughput}: GlobalIndexProps<T> & {RangeKey?: R} = {}
+    RangeKey: R | undefined,
+    {IndexName, ProjectedAttributes, ProvisionedThroughput}: GlobalIndexProps<T, H , R> = {}
 ) {
     const wm = weakMap(table)
 
@@ -105,23 +106,23 @@ export function GlobalIndex<
         query(
             hashValue: Exclude<T[H], undefined>, 
             rangeQuery: QueryObject<Exclude<T[R], undefined>>, 
-            options?: Omit<QueryOptions, 'ConsistentRead'>
+            options?: Exclude<QueryOptions, {ConsistentRead: any}>
         ): Query<T>['response']
         query(
             hashValue: Exclude<T[H], undefined>, 
-            options?: Omit<QueryOptions, 'ConsistentRead'>
+            options?: Exclude<QueryOptions, {ConsistentRead: any}>
         ): Query<T>['response']
         query(
             hashValue: any, 
             Q?: QueryObject<T[R]> | Omit<QueryOptions, 'ConsistentRead'>, 
-            O?: Omit<QueryOptions, 'ConsistentRead'>
+            O?: Exclude<QueryOptions, {ConsistentRead: any}>
         ) {
             let params: QueryParams<T>
 
             if (Q && isQueryObject(Q)) params = {hashValue, rangeQuery: Q, ...O}
             else params = {hashValue, ...Q}
 
-            return new Query(table, params).response
+            return new Query(table, {...params, IndexName}).response
         }
 
         scan(params?: {Limit: number}) {

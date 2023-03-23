@@ -18,12 +18,12 @@ export async function UpdateGlobalIndex(
     {attributeDefinitions, provisionedThroughput}: 
     {attributeDefinitions?: AttributeDefinition[], provisionedThroughput?: ProvisionedThroughput} = {}
 ) {
-    const infos = weakMap(table)
+    const wm = weakMap(table)
 
-    if (!infos.tableName || !infos.client) throw 'Something went wrong' // TODO proper error logging
+    if (!wm.tableName || !wm.client) throw 'Something went wrong' // TODO proper error logging
     
     const command = new UpdateTableCommand({
-        TableName: infos.tableName,
+        TableName: wm.tableName,
         GlobalSecondaryIndexUpdates: []
     })
 
@@ -53,7 +53,7 @@ export async function UpdateGlobalIndex(
     let errors: Error[] = []
 
     try {
-        const {TableDescription} = await infos.client.send(command)
+        const {TableDescription} = await wm.client.send(command)
         
         if (TableDescription?.GlobalSecondaryIndexes)
             for (const GlobalIndex of TableDescription?.GlobalSecondaryIndexes) {

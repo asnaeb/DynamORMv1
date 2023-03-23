@@ -1,15 +1,15 @@
 import type {Constructor} from '../types/Utils'
-import type {AttributeValues, Native, Scalars} from '../types/Native'
+import type {Scalars} from '../types/Native'
 import type {QueryObject} from '../types/Query'
-import type {HashType, NonKey, PrimaryKeys, RangeType} from '../types/Key'
+import type {HashType, NonKey, OnlyKey, InferKeyType, PrimaryKeys, RangeType} from '../types/Key'
 import type {QueryOptions} from '../interfaces/QueryOptions'
 import type {ScanOptions} from '../interfaces/ScanOptions'
-import type {DescribeTableParams} from '../interfaces/DescribeTableParams'
-import type {LocalIndexProps} from '../interfaces/LocalIndexParams'
-import type {GlobalIndexProps} from '../interfaces/GlobalIndexParams'
+import type {LocalIndexProps} from '../interfaces/LocalIndexProps'
+import type {GlobalIndexProps} from '../interfaces/GlobalIndexProps'
 import type {ImportTableParams} from '../interfaces/ImportTableParams'
 import type {CreateTableParams} from '../interfaces/CreateTableParams'
 import type {QueryParams} from '../commands/Query'
+import type {Construct} from 'constructs'
 
 import {Query} from '../commands/Query'
 import {CreateTable} from '../commands/CreateTable'
@@ -19,7 +19,6 @@ import {Put} from '../commands/Put'
 import {Delete} from '../commands/Delete'
 import {Scan} from '../commands/Scan'
 import {isQueryObject} from '../validation/symbols'
-import {isObject} from '../utils/General'
 import {Select} from './Select'
 import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
@@ -31,6 +30,7 @@ import {ImportTable} from '../commands/ImportTable'
 import {weakMap} from '../private/WeakMap'
 import {TableWaiter} from '../waiter/TableWaiter'
 import {UpdateTable} from '../commands/UpdateTable'
+import {CdkTable, type CdkTableProps} from '../cdk/CdkTable'
 
 export abstract class DynamORMTable {
     public static get wait() {
@@ -54,34 +54,8 @@ export abstract class DynamORMTable {
         this.update = value
     }
 
-    protected static localIndex<
-        T extends DynamORMTable, 
-        K extends keyof Scalars<NonKey<T>>
-    >(this: Constructor<T>, RangeKey: K, props?: LocalIndexProps<T>) {
-        return LocalIndex(this, RangeKey, props)
-    }
-    
-    protected static globalIndex<
-        T extends DynamORMTable,
-        H extends keyof Scalars<NonKey<T>>,
-        R extends Exclude<keyof Scalars<NonKey<T>>, H>
-    >(this: Constructor<T>, HashKey: H, props: GlobalIndexProps<T> & {RangeKey: R}): ReturnType<typeof GlobalIndex<T, H, R>>
-    protected static globalIndex<
-        T extends DynamORMTable,
-        H extends keyof Scalars<NonKey<T>>
-    >(this: Constructor<T>, HashKey: H, props?: GlobalIndexProps<T>): ReturnType<typeof GlobalIndex<T, H, never>>
-    protected static globalIndex(HashKey: never, props?: {}) {
-        return GlobalIndex(this, HashKey, props)
-    }
-
-    public static make<T extends DynamORMTable>(this: Constructor<T>, attributes: Native<T>) {
-        const instance = new (<new (...args: any) => T>this)
-
-        if (isObject(attributes))
-            for (const [key, value] of Object.entries(attributes))
-                Object.assign(instance, {[key]: value})
-
-        return instance
+    public static cdkTable(scope: Construct, id: string, props?: CdkTableProps) {
+        return new CdkTable(scope, id, {...props, table: this})
     }
 
     public static createTable(params?: CreateTableParams) {
@@ -140,6 +114,11 @@ export abstract class DynamORMTable {
         return new Select(this, keys)
     }
 
+    public setKey<T extends DynamORMTable>(this: T, key: Required<InferKeyType<OnlyKey<T>>>) {
+        // TODO key validation
+        Object.assign(this, key)
+    }
+
     public save<T extends DynamORMTable>(this: T): Save<T>['response']
     public save<T extends DynamORMTable, B extends boolean>(this: T, {overwrite}: {overwrite: B}):
     [B] extends [true] ? Save<T>['response'] : Put<T>['response']
@@ -164,13 +143,55 @@ export abstract class DynamORMTable {
         return new Delete(table, new AsyncArray(Key)).response
     }
 
-    public serialize() {
+    public record<T extends DynamORMTable>(this: T) {
+        return {...this} as {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
+    }
+
+    public dynamodbJSON() {
         const {Item} = weakMap(<any>this.constructor).serializer?.serialize(this)!
 
         for (const [k, v] of Object.entries(Item))
             if (v instanceof Uint8Array)
                 (<any>Item)[k] = Buffer.from(v).toString('base64')
 
-        return Item as unknown as AttributeValues
+        return JSON.stringify(Item, null, 4)
+    }
+}
+
+export abstract class DynamORMTableES extends DynamORMTable {
+    protected static _localSecondaryIndex<
+        T extends DynamORMTable, 
+        K extends keyof Scalars<NonKey<T>>
+    >(this: Constructor<T>, props: LocalIndexProps<T, K> & {RangeKey: K}) {
+        return LocalIndex(this, props.RangeKey, props)
+    }
+    protected static localSecondaryIndex<
+        T extends DynamORMTable, 
+        K extends keyof Scalars<NonKey<T>>
+    >(this: Constructor<T>, RangeKey: K, props?: LocalIndexProps<T, K>) {
+        return LocalIndex(this, RangeKey, props)
+    }
+
+    protected static _globalSecondaryIndex<
+        T extends DynamORMTable,
+        H extends keyof Scalars<NonKey<T>>,
+        R extends Exclude<keyof Scalars<NonKey<T>>, H>,
+    >(this: Constructor<T>, props: GlobalIndexProps<T, H, R> & {HashKey: H, RangeKey?: R}) {
+        return GlobalIndex(this, props.HashKey, props.RangeKey, props)
+    }
+    
+    protected static globalSecondaryIndex<
+        T extends DynamORMTable,
+        H extends keyof Scalars<NonKey<T>>,
+        R extends Exclude<keyof Scalars<NonKey<T>>, H>
+    >(this: Constructor<T>, HashKey: H, RangeKey: R, props?: GlobalIndexProps<T, H, R>): ReturnType<typeof GlobalIndex<T, H, R>>
+    protected static globalSecondaryIndex<
+        T extends DynamORMTable,
+        H extends keyof Scalars<NonKey<T>>
+    >(this: Constructor<T>, HashKey: H, props?: GlobalIndexProps<T, H, never>): ReturnType<typeof GlobalIndex<T, H, never>>
+    protected static globalSecondaryIndex(H: unknown, R?: unknown, P?: any) {
+        const range = typeof R === 'string' ? R : undefined
+        const props = typeof R === 'object' ? R : P
+        return GlobalIndex(this, <never>H, <never>range, props)
     }
 }

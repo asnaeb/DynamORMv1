@@ -51,7 +51,7 @@ class myTable extends Table {
 | [wait](#wait)                 | object   | true   | Allows waiting for the table ACTIVE status or deletion |
 
 ## Reading guide
-- Parameters and properties marked with a `*` are **required**
+- Parameters and properties marked with a **!** are **required**
 - All Return Values properties can also be [<undefined\>]
 
 ## batchPut [<Function\>]
@@ -68,7 +68,7 @@ const item_2 = new myTable()
 const {Info, Errors} = await myTable.batchPut(item_1, item_2)
 ```
 **Parameters**
-- `...items` * [\<Table[]\>](#class-table) A [rest parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters) accepting any number of the current class instances.
+- `...items` <b>*</b> [\<Table[]\>](#class-table) A [rest parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/rest_parameters) accepting any number of the current class instances.
 
 **Return Value**
 - [<Object\>]
@@ -97,7 +97,7 @@ const {Info, Errors} = await myTable.createTable({
 ```
 **Parameters**
 - [<Object\>] 
-  - `ProvisionedThroughput` [<ProvisionedThroughput\>]
+  - `ProvisionedThroughput` [<ProvisionedThroughput\>] The provisioned throughput for the table. If omitted, table will be created as `PAY_PER_REQUEST`
   - `TableClass` [<TableClass\>] Sets the TableClass for the table. Defaults to `STANDARD`
   - `StreamViewType` [<StreamViewType\>] Sets the StreamViewType for the table. Stream will be disabled if omitted.
 
@@ -118,8 +118,8 @@ class myTable extends Table {
 const {Info, Errors} = await myTable.createBackup({BackupName: 'myBackup'})
 ```
 **Parameters**
-- [<Object\>] *
-  - `BackupName` * [<string\>] The name of the backup
+- [<Object\>] <b>*</b>
+  - `BackupName` <b>*</b> [<string\>] The name of the backup
 
 **Return Value**
 - [<Object\>]
@@ -303,3 +303,45 @@ const {Info, Errors} = await myTable.deleteTable()
         - `TimeToLiveDescription` [<TimeToLiveDescription\>]
       - `Errors` [<Error\[\]\>]
 
+## globalIndex [<Function\>]
+```typescript
+import {Table, HahsKey, Attribute} from 'dynamorm'
+
+class myTable extends Table {
+  static myGlobalIndex = this.globalIndex('attr', {
+    RangeKey: 'attr_2',
+    IndexName: 'my_Global_Index',
+    ProjectedAttributes: ['attr_3'],
+    ProvisionedThroughPut: {
+      ReadCapacityUnits: 30,
+      WriteCapacityUnits: 30
+    }
+  })
+  
+  @HashKey.S()
+  hash!: string
+  
+  @Attribute.S()
+  attr?: string
+  
+  @Attribute.N()
+  attr_2?: number
+
+  @Attribute.N()
+  attr_3?: number
+}
+```
+**Parameters**
+
+- `hashKey` <b>*</b> [<string\>] The hash key for the global secondary index
+- [<Object\>]
+  - `IndexName` A custom name for the global index. If omitted, a self generated name will be used.
+  - `ProjectedAttributes` [<string\[\]\>] | `KEYS_ONLY` The attributes to be projected into the index. If omitted, all attributes will be projected
+  - `ProvisionedThroughput` [<ProvisionedThroughput\>]
+  - `RangeKey` [<string\>] The range key for the global secondary index
+
+**Return Value**
+- [<Object\>]
+  - `Info`
+    - `TableDescription` [<TableDescription\>]
+  - `Errors` [<Error\[\]\>] 
