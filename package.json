@@ -25,7 +25,7 @@
     "prebuild": "rm -r lib || true",
     "build": "tsc",
     "test": "ts-node -T --",
-    "build:babel-tests": "babel ./test/babel --out-dir ./tests/babel --out-file-extension .min.js"
+    "build:babel-tests": "babel ./test/babel --out-dir ./test/babel --out-file-extension .min.js"
   },
   "dependencies": {
     "@asn.aeb/async-array": "^1.5.9",
