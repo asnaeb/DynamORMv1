@@ -20,7 +20,6 @@ function decoratorFactory<X>({SharedInfo, KeyType, AttributeType, AttributeName}
         name = String(name)
         SharedInfo.Attributes ??= {}
         SharedInfo.Attributes[name] = {AttributeType, AttributeName: AttributeName ?? name}
-
         AddKeyInfo({SharedInfo, KeyType, AttributeType, AttributeName: AttributeName ?? name})
     }
 }

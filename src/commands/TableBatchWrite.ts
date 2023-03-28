@@ -24,7 +24,7 @@ export class TableBatchWrite<T extends DynamORMTable> extends TableCommand<T, Ba
             
             else 
                 items = elements.map(item => {
-                    const {Item} = this.serializer.serialize(item)
+                    const {item: Item} = this.serializer.serialize(item)
                     return {PutRequest: {Item}}
                 })
 

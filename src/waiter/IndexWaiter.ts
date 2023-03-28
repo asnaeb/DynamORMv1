@@ -10,7 +10,7 @@ export class IndexWaiter<T extends DynamORMTable> {
         const wm = weakMap(table)
         const command = new DescribeTableCommand({TableName: wm.tableName})
         
-        this.#describe = () => wm.client!.send(command)
+        this.#describe = () => wm.client.send(command)
         this.#indexName = indexName
     }
 

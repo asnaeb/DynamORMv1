@@ -26,31 +26,10 @@ export function removeUndefined<T extends Record<PropertyKey, any>>(target: T) {
     return target
 }
 
-export function splitToChunks<T>(array: T[], maxLength: number): Promise<T[][]> {
-    return new Promise(resolve => {
-        if (array.length > maxLength) {
-            const chunks: T[][] = []
-            const length = array.length
-
-            function iterateArray(i = 0) {
-                if (i >= length)
-                    return resolve(chunks)
-
-                chunks.push(array.slice(i, i + maxLength))
-
-                setImmediate(iterateArray, i + maxLength)
-            }
-
-            iterateArray()
-        } else
-            resolve([array])
-    })
-}
-
-export function splitToChunksSync<T>(array: T[], maxLength: number): T[][] {
+export function splitToChunks<T>(array: T[], maxLength: number): T[][] {
     if (array.length > maxLength) {
         const chunks: T[][] = []
-        for (let i = 0; i < array.length; i += maxLength) {
+        for (let i = 0, len = array.length; i < len; i += maxLength) {
             chunks.push(array.slice(i, i + maxLength))
         }
         return chunks
@@ -66,18 +45,22 @@ export function alphaNumeric(name: string) {
     return name.replace(/[^a-zA-Z0-9_]/g, '')
 }
 
-export function mergeNumericPropsSync<T extends Record<string, any>>(responses: T[]) {
-    let ResponseInfo = <T>{}
+export function mergeNumericProps<T extends Record<string, any>>(responses: T[]) {
+    const ResponseInfo = <T>{}
 
-    function traverse(main: T, response: T) {
-        if (main && response) for (const k in response) {
-            if (!(k in main))
-                if (isObject(response[k]))
+    const traverse = (main: T, response: T) => {
+        for (const k in response) {
+            if (!(k in main)) {
+                if (isObject(response[k])) {
                     Object.assign(main, {[k]: {}})
-                else if (typeof response[k] !== 'number')
+                }
+                else if (typeof response[k] !== 'number') {
                     main[k] = response[k]
-            if (isObject(response[k]))
+                }
+            }
+            if (isObject(response[k])) {
                 traverse(main[k], response[k])
+            }
             else if (typeof response[k] === 'number') {
                 main[k] ??= <any>0;
                 (<any>main)[k] += response[k]
@@ -89,44 +72,7 @@ export function mergeNumericPropsSync<T extends Record<string, any>>(responses: 
         traverse(ResponseInfo, response)
     }
 
-    if (Object.keys(ResponseInfo).length)
+    if (Object.keys(ResponseInfo).length) {
         return ResponseInfo
-}
-
-export function mergeNumericProps<T extends Record<string, any>>(responses: T[]) {
-    const responsesLength = responses.length
-
-    let ResponseInfo = <T>{}
-
-    function traverse(main: T, response: T) {
-        if (main && response) for (const k in response) {
-            if (!(k in main))
-                if (isObject(response[k]))
-                    Object.assign(main, {[k]: {}})
-
-                else if (typeof response[k] !== 'number')
-                    main[k] = response[k]
-
-            if (isObject(response[k]))
-                traverse(main[k], response[k])
-                
-            else if (typeof response[k] === 'number') {
-                main[k] ??= <any>0;
-                (<any>main)[k] += response[k]
-            }
-        }
     }
-
-    return new Promise<T>(resolve => {
-        function iterateResponses(i = 0) {
-            if (i === responsesLength)
-                return resolve(ResponseInfo)
-
-            traverse(ResponseInfo, responses[i])
-
-            setImmediate(iterateResponses, ++i)
-        }
-
-        iterateResponses()
-    })
 }

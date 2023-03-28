@@ -1,75 +1,41 @@
-import {DynamORMTable} from '../table/DynamORMTable'
-import {BatchGetCommand, BatchGetCommandOutput} from '@aws-sdk/lib-dynamodb'
-import {Constructor} from '../types/Utils'
-import {Key} from "../types/Key"
-import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {AsyncArray} from '@asn.aeb/async-array'
+import type {DynamORMTable} from '../table/DynamORMTable'
+import type {Constructor} from '../types/Utils'
+import type {Key, SelectKey, TupleFromKey} from "../types/Key"
+import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {BatchGetCommand, type BatchGetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
-import {ResolvedOutput} from '../interfaces/ResolvedOutput'
+import {mergeNumericProps, splitToChunks} from '../utils/General'
+import {DynamORMError} from '../errors/DynamORMError'
+import {DynamoDBBatchGetException} from '../errors/DynamoDBErrors'
 
-const commandsEvent = Symbol('commands')
+interface TableBatchGetParams {
+    keys: Key[]
+    consistentRead: boolean
+}
 
-export class TableBatchGet<T extends DynamORMTable> extends TableCommand<T, BatchGetCommandOutput> {
-    constructor(table: Constructor<T>, Keys: AsyncArray<Key>, ConsistentRead: boolean) {
+export class TableBatchGet<
+    T extends DynamORMTable,
+    K extends SelectKey<T>,
+    R = TupleFromKey<T, null, K>
+> extends TableCommand<T, BatchGetCommandOutput> {
+    #keys
+    #promises: Promise<BatchGetCommandOutput>[] = []
+    constructor(table: Constructor<T>, {keys: Keys, consistentRead: ConsistentRead}: TableBatchGetParams) {
         super(table)
-
-        this.once(commandsEvent, async (commands: AsyncArray<BatchGetCommand>) => {
-            const promises = await commands.async.map(command => this.client.send(command), false) as
-                Promise<BatchGetCommandOutput>[]
-            const settled = await Promise.allSettled(promises)
-            const results = new AsyncArray<ResolvedOutput<BatchGetCommandOutput>>()
-
-            const retry = async ($settled = settled): Promise<boolean> => {
-                const retries: Promise<BatchGetCommandOutput>[] = []
-
-                await AsyncArray.to($settled).async.forEach(data => {
-                    if (data.status === 'fulfilled') {
-                        const {value} = data
-                        
-                        results.push({output: value})
-
-                        if (
-                            'UnprocessedKeys' in value &&
-                            Object.keys(value.UnprocessedKeys!).length
-                        ) {
-                            const command = new BatchGetCommand({
-                                RequestItems: value.UnprocessedKeys
-                            })
-
-                            retries.push(this.client.send(command))
-                        }
-                    }
-
-                    else results.push({error: data.reason})
-                })
-
-                if (retries.length) {
-                    const settled = await Promise.allSettled(retries)
-                    
-                    return retry(settled)
-                }
-
-                return this.emit(TableCommand.responsesEvent, results, Keys.length)
-            }
-
-            retry()
-        })
-
+        const commands: BatchGetCommand[] = []
         if (Keys.length > 100) {
-            Keys.async.splitToChunks(100)
-            
-            .then(async chunks => {
-                const commands = await chunks.async.map(Keys => new BatchGetCommand({
+            const chunks = splitToChunks(Keys, 100)
+            for (let i = 0, len = chunks.length; i < len; i++) {
+                const Keys = chunks[i]
+                const command = new BatchGetCommand({
                     ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                     RequestItems: {
                         [this.tableName]: {Keys, ConsistentRead}
                     }
-                }))
-
-                this.emit(commandsEvent, commands)
-            })
-        } 
-        
+                })
+                commands.push(command)
+            }
+        }
         else {
             const command = new BatchGetCommand({
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
@@ -77,8 +43,65 @@ export class TableBatchGet<T extends DynamORMTable> extends TableCommand<T, Batc
                     [this.tableName]: {Keys, ConsistentRead}
                 }
             })
-            
-            this.emit(commandsEvent, new AsyncArray(command))
+            commands.push(command)
+        }
+        for (let i = 0, len = commands.length; i < len; i++) {
+            const command = commands[i]
+            this.#promises.push(this.client.send(command))
+        }
+        this.#keys = Keys
+    }
+
+    public async execute(
+        items = new Array(this.#keys.length).fill(null),
+        consumedCapacities: ConsumedCapacity[] = []
+    ): Promise<{items: R, consumedCapacity?: ConsumedCapacity}> {
+        const results = await Promise.allSettled(this.#promises)
+        this.#promises.length = 0
+        for (let i = 0, len = results.length; i < len; i++) {
+            const result = results[i]
+            if (result.status === 'rejected') {
+                if (result.reason instanceof DynamoDBBatchGetException) {
+                    // TODO 
+                }
+                return Promise.reject(new DynamORMError(this.table, result.reason))
+            }
+            else {
+                const responses = result.value.Responses?.[this.tableName]
+                const consumedCapacity = result.value.ConsumedCapacity
+                const unprocessedKeys = result.value.UnprocessedKeys
+                if (unprocessedKeys) {
+                    const command = new BatchGetCommand({
+                        RequestItems: unprocessedKeys,
+                        ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
+                    })
+                    this.#promises.push(this.client.send(command))
+                }
+                if (consumedCapacity) {
+                    consumedCapacities.push(...consumedCapacity)
+                }
+                if (responses) {
+                    for (let i = 0, len = responses.length; i < len; i++) {
+                        const response = responses[i]
+                        keys: for (let i = 0, len = this.#keys.length; i < len; i++) {
+                            const key = this.#keys[i]
+                            if (response[this.hashKey] === key[this.hashKey]) {
+                                if (!this.rangeKey || response[this.rangeKey] === key[this.rangeKey]) {
+                                    items[i] = this.serializer.deserialize(response)
+                                    break keys
+                                }
+                            }
+                        }
+                    }
+                }
+            } 
+        }
+        if (this.#promises.length) {
+            return this.execute(items, consumedCapacities)
+        }
+        return {
+            items: <R>items, 
+            consumedCapacity: mergeNumericProps(consumedCapacities)
         }
     }
 

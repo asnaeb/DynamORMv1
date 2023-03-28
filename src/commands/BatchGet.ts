@@ -9,7 +9,7 @@ import {type ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dyn
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {ClientCommandChain} from './ClientCommandChain'
-import {PrimaryKeys} from '../types/Key'
+import {KeysObject} from '../types/Key'
 import {Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {TablesMap} from '../types/TablesMap'
@@ -17,7 +17,7 @@ import {weakMap} from '../private/WeakMap'
 
 interface GetRequest {table: typeof DynamORMTable, keys: any[]}
 interface Chain<T extends typeof DynamORMTable> {
-    get(...keys: PrimaryKeys<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
+    get(...keys: KeysObject<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
         run(): ReturnType<BatchGet['run']>
     }
@@ -89,7 +89,7 @@ export class BatchGet extends ClientCommandChain {
 
     public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
         return {
-            get: (...keys: PrimaryKeys<InstanceType<T>>) => {
+            get: (...keys: KeysObject<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
                 return {in: this.in.bind(this), run: this.run.bind(this)}
             }

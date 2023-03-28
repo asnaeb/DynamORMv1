@@ -19,11 +19,11 @@ type UpdateOperators<T> =
     T extends number | undefined ? Increment | Decrement :
     never
 
-export type Update<T> = {
-    [K in keyof Native<NonKey<T>>]?: 
+export type Update<T> = NonKey<{
+    [K in keyof T]?: 
         T[K] extends Exclude<NativeType, M> | undefined ? Overwrite<T[K]> | Remove | UpdateOperators<T[K]> :
-        T[K] extends M | undefined ? Overwrite<T[K]> | Remove | Update<T[K]> : 
+        T[K] extends M | undefined ? Update<T[K]> | Overwrite<T[K]> | Remove : 
         never
-}
+}>
 
 export type UpdateSymbols = ValueOf<{[K in keyof typeof UPDATE]: typeof SYMBOLS[K]}>

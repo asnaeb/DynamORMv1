@@ -8,8 +8,10 @@ import AmazonDaxClient from 'amazon-dax-client'
 
 function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
     return function<T extends typeof DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
+        if (!SharedInfo.KeySchema?.[0] || !SharedInfo.AttributeDefinitions || !SharedInfo.Attributes) {
+            throw `@HashKey decorator was not set on class ${target.name}` // TODO error
+        }
         const wm = weakMap(target)
-
         if (DAX) {
             const dax = new AmazonDaxClient({
                 region: ClientConfig.region, 
@@ -20,10 +22,8 @@ function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient,
                 endpoints: DAX
             }) 
             const documentClientV2 = new DynamoDB.DocumentClient({service: <any>dax})
-
             wm.daxClient = documentClientV2
         }
-
         wm.tableName = alphaNumericDotDash(TableName ?? target.name)
         wm.client = Client
         wm.documentClient = DocumentClient

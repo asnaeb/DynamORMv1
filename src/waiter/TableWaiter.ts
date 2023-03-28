@@ -1,72 +1,67 @@
 import type {Constructor} from '../types/Utils'
+import {WaiterState, WaiterResult} from '@aws-sdk/util-waiter'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {weakMap} from '../private/WeakMap'
-import {DescribeTableCommand, TableStatus} from '@aws-sdk/client-dynamodb'
+import {waitUntilTableExists, waitUntilTableNotExists} from '@aws-sdk/client-dynamodb'
+import {DynamORMError} from '../errors/DynamORMError'
+
+interface WaiterOptions {
+    timeout: number
+    onTimeout?(): void 
+}
 
 export class TableWaiter<T extends DynamORMTable> {
-    readonly #describe
-
+    readonly #client
+    readonly #tableName
+    readonly #table
     public constructor(table: Constructor<T>) {
         const wm = weakMap(table)
-        const describeCommand = new DescribeTableCommand({TableName: wm.tableName})
-
-        if (!wm.client) throw `Table ${table.name} has no client` // TODO Proper error log
-        this.#describe = () => wm.client!.send(describeCommand)
+        this.#client = wm.client
+        this.#tableName = wm.tableName
+        this.#table = table
     }
 
-    public activation() {
-        let tries = 0
-        const check = async (delay: number): Promise<boolean> => {
-            try {
-                const {Table} = await this.#describe()
-
-                tries++
-
-                switch (Table?.TableStatus) {
-                    case TableStatus.ACTIVE: 
-                        console.log('Table returned ACTIVE status after %d tries', tries)
-                        return true // TODO {TableStatus: 'ACTIVE'}
-                    case TableStatus.UPDATING:
-                    case TableStatus.CREATING:
-                        await new Promise(r => setTimeout(r, Math.round(delay)))
-                        return check(delay/1.5)
+    #handle(error: unknown, options: WaiterOptions) {
+        if (error instanceof Error) {
+            if (error.name === 'TimeoutError') {
+                if (options.onTimeout) {
+                    return options.onTimeout()
                 }
-
-                return false
+                throw new DynamORMError(this.#table, {
+                    name: DynamORMError.TIMEOUT,
+                    message: `Max timeout expired while waiting: ${options.timeout} seconds`
+                })
             } 
-            
-            catch {}
-
-            return false
+            throw new DynamORMError(this.#table, error)
         }
-    
-        return check(3000)
+        throw error
     }
 
-    public deletion() {
-        let tries = 0
-        const check = async (delay: number): Promise<boolean> => {
-            try {
-                const {Table} = await this.#describe()
-
-                tries++
-
-                if (Table?.TableStatus === TableStatus.DELETING) {
-                    await new Promise(r => setTimeout(r, Math.round(delay)))
-                    return check(delay/1.5)
-                }
-            }
-
-            catch (error) {
-                if (error instanceof Error && error.name === 'ResourceNotFoundException') {
-                    console.log('Table was deleted after %d tries', tries)
-                    return true
-                }
-            }
-
-            return false
+    public async activation(options: WaiterOptions) {
+        try {
+            await waitUntilTableExists({
+                client: this.#client,
+                maxWaitTime: options.timeout,
+                minDelay: 1,
+            }, {TableName: this.#tableName})
+            return
         }
+        catch (error) {
+            return this.#handle(error, options)
+        }
+    }
 
-        return check(3000)
+    public async deletion(options: WaiterOptions) {
+        try {
+            await waitUntilTableNotExists({
+                client: this.#client,
+                maxWaitTime: options.timeout,
+                minDelay: 1,
+            }, {TableName: this.#tableName})
+            return
+        }
+        catch (error) {
+            return this.#handle(error, options)
+        }
     }
 }

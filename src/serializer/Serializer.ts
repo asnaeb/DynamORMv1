@@ -1,225 +1,264 @@
-import {AsyncArray} from '@asn.aeb/async-array'
-import type {KeySchemaElement} from '@aws-sdk/client-dynamodb'
 import type {Constructor} from '../types/Utils'
-import type {SharedInfo} from '../interfaces/SharedInfo'
 import type {Key} from '../types/Key'
 import type {AttributeValues} from '../types/Native'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {isObject} from '../utils/General'
-import {DynamORMError} from '../errors/DynamORMError'
 import {isValidKeyType, isValidType} from '../validation/type'
 import {DynamoDBType} from '../types/Native'
 import {weakMap} from '../private/WeakMap'
+import {DynamORMError} from '../errors/DynamORMError'
 
 export class Serializer<T extends DynamORMTable> {
-    #table: Constructor<T>
-    #keySchema?: KeySchemaElement[]
-    #attributes: SharedInfo['Attributes']
+    #table
+    #hashKey
+    #rangeKey
+    #attributes
 
     public constructor(table: Constructor<T>) {
+        const wm = weakMap(table)
         this.#table = table
-        this.#keySchema = weakMap(table).keySchema
-        this.#attributes = weakMap(table).attributes
+        this.#hashKey = wm.keySchema[0].AttributeName
+        this.#rangeKey = wm.keySchema[1]?.AttributeName
+        this.#attributes = wm.attributes
     }
 
-    #finalizeValue(key: string, value: unknown) {
-        let type: DynamoDBType | 'ANY' | undefined
-
-        if (this.#attributes) for (const [, {AttributeName, AttributeType}] of Object.entries(this.#attributes))
+    public inspect(key: string, value: unknown, normalize = false) {
+        let targetType: DynamoDBType | undefined;
+        const entries = Object.entries(this.#attributes)
+        for (let i = 0, len = entries.length; i < len; i++) {
+            const [, {AttributeName, AttributeType}] = entries[i]
             if (key === AttributeName) {
-                type = AttributeType
+                targetType = AttributeType
                 break
             }
-
-        if (type) switch (type) {
-            case DynamoDBType.S:
-                if (typeof value === 'string')
-                    return value
-
-                if (typeof value === 'number')
-                    return value.toString()
-
-                break
-
-            case DynamoDBType.N:
-                if (typeof value === 'number' || typeof value === 'bigint')
-                    return value
-
-                if (typeof value === 'string' && !Number.isNaN(+value))
-                    return +value
-
-                break
-
-            case DynamoDBType.B:
-                if (value instanceof Uint8Array)
-                    return value
-
-                if (typeof value === 'string')
-                    return Buffer.from(value, 'base64')
-
-                break
-
-            case DynamoDBType.BOOL:
-                if (typeof value === 'boolean')
-                    return value
-
-                break
-
-            case DynamoDBType.SS:
-                if (value instanceof Set && Array.from(value).every(v => typeof v === 'string')) // TODO check perf
-                    return value
-
-                break
-
-            case DynamoDBType.NS:
-                if (value instanceof Set && Array.from(value).every(v => typeof v === 'number'))
-                    return value
-
-                break
-
-            case DynamoDBType.BS:
-                if (value instanceof Set && Array.from(value).every(v => v instanceof Uint8Array))
-                    return value
-
-                break
-
-            case DynamoDBType.L:
-                if (value instanceof Array && value.every(v => isValidType(v)))
-                    return value
-
-                break
-
-            case DynamoDBType.M:
-                if (isObject(value) && isValidType(value))
-                    return value
-
-                break
-
-            case DynamoDBType.NULL:
-                if (value === null)
-                    return value
-
-                break
-
-            case 'ANY':
-                if (isValidType(value))
-                    return value
-
-                break
         }
+        if (targetType) {
+            const type = value?.constructor.name || typeof value
+            const error = new DynamORMError(this.#table, {
+                name: DynamORMError.INVALID_TYPE, 
+                message: `Property "${key}" must be of type ${DynamORMError.ddbToJS(targetType)} (Found: ${type})`
+            })
+            switch (targetType) {
+                case DynamoDBType.S:
+                    if (typeof value === 'string') {
+                        return value
+                    }
+                    if (normalize && typeof value === 'number') {
+                        return value.toString()
+                    }
+                    throw error
+                case DynamoDBType.N:
+                    if (typeof value === 'number' || typeof value === 'bigint') {
+                        return value
+                    }
+                    if (normalize && typeof value === 'string' && !Number.isNaN(+value)) {
+                        return +value
+                    }
+                    throw error
+                case DynamoDBType.B:
+                    if (value instanceof Uint8Array) {
+                        return value
+                    }
+                    if (normalize && typeof value === 'string') {
+                        return Buffer.from(<string>value, 'base64')
+                    }
+                    throw error
+                case DynamoDBType.BOOL:
+                    if (typeof value === 'boolean') {
+                        return value
+                    }
+                    throw error
+                case DynamoDBType.SS:
+                    if (value instanceof Set) {
+                        if (Array.from(value).every(v => typeof v === 'string')) {
+                            return value
+                        }
+                        throw new DynamORMError(this.#table, {
+                            name: DynamORMError.INVALID_TYPE,
+                            message: `Property "${key}" (Set) must only contain values of type String`
+                        })
+                    }
+                    throw error
+                case DynamoDBType.NS:
+                    if (value instanceof Set) {
+                        if (Array.from(value).every(v => typeof v === 'number')) {
+                            return value
+                        }
+                        throw new DynamORMError(this.#table, {
+                            name: DynamORMError.INVALID_TYPE,
+                            message: `Property "${key}" (Set) must only contain values of type Number or BigInt`
+                        })
+                    }
+                    throw error
+                case DynamoDBType.BS:
+                    if (value instanceof Set) {
+                        if (Array.from(value).every(v => v instanceof Uint8Array)) {
+                            return value
+                        }
+                        throw new DynamORMError(this.#table, {
+                            name: DynamORMError.INVALID_TYPE,
+                            message: `Property "${key}" (Set) must only contain values of type Uint8Array`
+                        })
+                    }
+                    throw error
 
-        return DynamORMError.invalidConversion(<any>this.#table, key, value, type ?? 'undefined')
+                case DynamoDBType.L:
+                    if (value instanceof Array) {
+                        if (value.every(v => isValidType(v))) {
+                            return value
+                        }
+                        throw new DynamORMError(this.#table, {
+                            name: DynamORMError.INVALID_TYPE,
+                            message: `Property "${key}" (Array) must only contain valid types`
+                        })
+                    }
+                    throw error
+                case DynamoDBType.M:
+                    if (isObject(value)) {
+                        if (isValidType(value)) {
+                            return value
+                        }
+                        throw `Property "${key}" (Object) must only have properties with valid types`
+                    }
+                    throw error
+                case DynamoDBType.NULL:
+                    if (value === null) {
+                        return value
+                    }
+                    throw error
+            }
+        }
+        throw new DynamORMError(this.#table, {
+            name: DynamORMError.INVALID_PROP,
+            message: `Property "${key}" was not found in this table's schema`
+        })
     }
 
-    #extractKey<T extends Record<PropertyKey, any>>(element: T) {
-        let key: Key = {}
-
-        for (const [k, v] of Object.entries(element))
-            if (this.#keySchema?.some(({AttributeName}) => k === AttributeName))
-                Object.assign(key, {[k]: v})
-
-        if (Object.keys(key).length > 0 && Object.keys(key).length <= 2)
-            return key
-    }
-
-    #excludeKey<T extends Record<PropertyKey, any>>(element: T) {
-        let attributes: AttributeValues = {}
-
-        for (const [k, v] of Object.entries(element))
-            if (this.#keySchema?.every(({AttributeName}) => k !== AttributeName))
-                Object.assign(attributes, {[k]: v})
-
-        if (Object.keys(attributes).length)
-            return attributes
-    }
-
-    public serialize<T extends Record<PropertyKey, any>>(element: T, preserve?: 'preserve') {
-        const attributes = {}
-
-        if (this.#attributes) for (let [k, v] of Object.entries(element)) {
-            if (k in this.#attributes) {
+    public serialize<T extends Record<string, any>>(element: T, options?: {throwOnExcess: boolean}) {
+        const item: Record<string, any> = {}
+        const key: Key = {}
+        const nonKey: AttributeValues = {}
+        const entries = Object.entries(element)
+        for (let i = 0, len = entries.length; i < len; i++) {
+            let [k, v] = entries[i]
+            if (options?.throwOnExcess && !(k in this.#attributes)) {
+                throw new DynamORMError(this.#table, {
+                    name: DynamORMError.INVALID_PROP,
+                    message: `Property "${k}" is not an Attribute`
+                })
+            }
+            if (v !== undefined && k in this.#attributes) {
                 const name = this.#attributes[k].AttributeName
-
                 if (name !== undefined && v !== undefined) {
-                    if (!preserve)
-                        v = this.#finalizeValue(name, v)
-
-                    Object.assign(attributes, {[name]: v})
+                    Object.assign(item, {[name]: v})
+                }
+                if (name === this.#hashKey || name === this.#rangeKey) {
+                    Object.assign(key, {[name]: v})
+                }
+                else {
+                    Object.assign(nonKey, {[name]: v})
                 }
             }
         }
-
-        return {
-            Item: <T>attributes,
-            Key: this.#extractKey(attributes),
-            Attributes: this.#excludeKey(attributes)
-        }
+        return {item, key, nonKey}
     }
 
     public deserialize(element: AttributeValues) {
         const instance = new (this.#table as new (...args: any) => T)()
-
-        if (this.#attributes) for (const [k, value] of Object.entries(element))
-            for (const [$k, {AttributeName}] of Object.entries(this.#attributes))
-                if (k === AttributeName || k === $k)
-                    Object.assign(instance, {[$k]: value})
-
+        const elEntries = Object.entries(element)
+        for (let i = 0, len = elEntries.length; i < len; i++) {
+            const [elKey, elValue] = elEntries[i]
+            const attrEntries = Object.entries(this.#attributes)
+            for (let i = 0, len = attrEntries.length; i < len; i++) {
+                const [attrKey, {AttributeName}] = attrEntries[i]
+                if (elKey === AttributeName || elKey === attrKey) {
+                    Object.assign(instance, {[attrKey]: elValue})
+                }
+            }
+        }
+        Object.defineProperty(instance, 'dbRecord', {get: () => element})
         return instance
     }
 
-    public async generateKeys(keys: AsyncArray<unknown>) {
-        const hashKey = this.#keySchema?.[0]?.AttributeName
-        const rangeKey = this.#keySchema?.[1]?.AttributeName
-        
-        const generatedKeys: AsyncArray<Key> = new AsyncArray()
-
-        await keys.async.forEach(async key => {
+    public generateKeys(keys: readonly unknown[]) {        
+        const generatedKeys: Key[] = []
+        for (let i = 0, len = keys.length; i < len; i++) {
+            const key = keys[i]
             if (key instanceof DynamORMTable) {
-                const {Key} = this.serialize(key)
-                if (Key) generatedKeys.push(Key)
+                const serialized = this.serialize(key)
+                generatedKeys.push(serialized.key)
             } 
-            
             else if (isObject(key)) {
-                if (hashKey && rangeKey) {
-                    await AsyncArray.to(Object.entries(key)).async.forEach(async ([hashValue, rangeValue]) => {
-                        if (Array.isArray(rangeValue)) {
-                            await AsyncArray.to(rangeValue).async.forEach(rangeValueItem => {
-                                const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
-                                const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValueItem)
-
-                                if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
+                if (this.#hashKey && this.#rangeKey) {
+                    const entries = Object.entries(key)
+                    for (let i = 0, len = entries.length; i < len; i++) {
+                        const [hashValue, rangeValue] = entries[i]
+                        const convertedHashValue = this.inspect(this.#hashKey, hashValue, true)
+                        if (isValidKeyType(convertedHashValue)) {
+                            if (Array.isArray(rangeValue)) {
+                                for (const rangeValueItem of rangeValue) {
+                                    const convertedRangeValue = this.inspect(this.#rangeKey, rangeValueItem, true)
+                                    if (isValidKeyType(convertedRangeValue)) {
+                                        generatedKeys.push({
+                                            [this.#hashKey]: convertedHashValue,
+                                            [this.#rangeKey]: convertedRangeValue
+                                        })
+                                    }
+                                    else {
+                                        throw `error: {${this.#rangeKey}: ${rangeValue}} is not a valid key` // TODO throw error
+                                    }
+                                }
+                            } 
+                            else {
+                                const convertedRangeValue = this.inspect(this.#rangeKey, rangeValue, true)
+                                if (isValidKeyType(convertedRangeValue)) {
                                     generatedKeys.push({
-                                        [hashKey]: convertedHashValue,
-                                        [rangeKey]: convertedRangeValue
+                                        [this.#hashKey]: convertedHashValue,
+                                        [this.#rangeKey]: convertedRangeValue
                                     })
-                            })
-                        } else {
-                            const convertedHashValue = this.#finalizeValue(hashKey, hashValue)
-                            const convertedRangeValue = this.#finalizeValue(rangeKey, rangeValue)
-
-                            if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue))
-                                generatedKeys.push({
-                                    [hashKey]: convertedHashValue,
-                                    [rangeKey]: convertedRangeValue
-                                })
+                                }
+                                else {
+                                    throw `error: {${this.#rangeKey}: ${rangeValue}} is not a valid key` // TODO throw error
+                                }
+                            }
                         }
-                    })
-                } else
-                    console.warn('invalid key', key)
+                        else {
+                            throw `error: {${this.#hashKey}: ${hashValue}} is not a valid key` // TODO throw error
+                        }
+                    }
+                } else {
+                    throw `invalid key: ${key}` // TODO throw error
+                }
+            }
+
+            else if (Array.isArray(key)) {
+                if (this.#hashKey && this.#rangeKey) {
+                    const convertedHashValue = this.inspect(this.#hashKey, key[0], true)
+                    const convertedRangeValue = this.inspect(this.#rangeKey, key[1], true)
+                    if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue)) {
+                        generatedKeys.push({
+                            [this.#hashKey]: convertedHashValue,
+                            [this.#rangeKey]: convertedRangeValue
+                        })
+                    }
+                    else throw `error: {${this.#hashKey}: ${key[0]}, ${this.#rangeKey}: ${key[1]}} is not a valid key` // TODO throw error
+                }
+                else throw `invalid key: ${key}` //TODO throw error
             }
 
             else {
-                if (hashKey && !rangeKey) {
-                    const convertedHashValue = this.#finalizeValue(hashKey, key)
-
-                    if (isValidKeyType(convertedHashValue))
+                if (this.#hashKey && !this.#rangeKey) {
+                    const convertedHashValue = this.inspect(this.#hashKey, key, true)
+                    if (isValidKeyType(convertedHashValue)) {
                         generatedKeys.push({
-                            [hashKey]: convertedHashValue
+                            [this.#hashKey]: convertedHashValue
                         })
-                } else
-                    console.warn('invalid key', key) //TODO proper error logging
+                    }
+                    else throw `error: {${this.#hashKey}: ${key}} is not a valid key`
+                } 
+                else throw `invalid key: ${key}` //TODO throw error
             }
-        })
+        }
 
         return generatedKeys
     }

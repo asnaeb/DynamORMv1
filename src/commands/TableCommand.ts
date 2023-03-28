@@ -29,6 +29,8 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
     protected readonly client
     protected readonly serializer
     protected readonly keySchema
+    protected readonly hashKey
+    protected readonly rangeKey
     protected readonly attributeDefinitions
     protected readonly daxClient?
     protected readonly localSecondaryIndexes?
@@ -49,7 +51,7 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
             || !info.client
             || !info.documentClient
             || !info.serializer
-            || !info.keySchema
+            || !info.keySchema?.[0]?.AttributeName
             || !info.attributeDefinitions
         ) throw new Error('Some required info is missing.') // TODO specific error message
 
@@ -59,6 +61,8 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
         this.daxClient = info.daxClient
         this.serializer = info.serializer
         this.keySchema = info.keySchema
+        this.hashKey = info.keySchema[0].AttributeName
+        this.rangeKey = info.keySchema[1]?.AttributeName
         this.attributeDefinitions = info.attributeDefinitions
         this.localSecondaryIndexes = info.localIndexes
         this.globalSecondaryIndexes = info.globalIndexes

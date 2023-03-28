@@ -11,7 +11,7 @@ import {
     AttributeValue
 } from '@aws-sdk/client-dynamodb'
 
-import type {Key, PrimaryKeys} from '../types/Key'
+import type {Key, KeysObject} from '../types/Key'
 import type {Serializer} from '../serializer/Serializer'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {ClientCommandChain} from './ClientCommandChain'
@@ -28,7 +28,7 @@ interface Chain<T extends typeof DynamORMTable> {
         run(): ReturnType<BatchWrite['run']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
-    delete(...keys: PrimaryKeys<InstanceType<T>>): Chain<T> & {
+    delete(...keys: KeysObject<InstanceType<T>>): Chain<T> & {
         run(): ReturnType<BatchWrite['run']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
@@ -55,7 +55,7 @@ export class BatchWrite extends ClientCommandChain {
             const $items = AsyncArray.to(request.items)
 
             requestItems = await $items.async.map(item => {
-                const {Item} = serializer.serialize(item)
+                const {item: Item} = serializer.serialize(item)
                 
                 return {
                     PutRequest: {Item}
@@ -122,7 +122,7 @@ export class BatchWrite extends ClientCommandChain {
                     in: this.in.bind(this)
                 }
             },
-            delete: (...keys: PrimaryKeys<InstanceType<T>>) => {
+            delete: (...keys: KeysObject<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
                 return {
                     ...this.in(table), 

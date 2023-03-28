@@ -26,30 +26,58 @@ import {DynamoDB} from 'aws-sdk'
 import {SharedInfo} from '../interfaces/SharedInfo'
 import {Serializer} from '../serializer/Serializer'
 import {Constructor} from '../types/Utils'
+import {DynamORMError} from '../errors/DynamORMError'
 
-const _weakMap = createWeakMap()
+const __wm = createWeakMap()
 
 export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
-    const wm = _weakMap(table)
-    const error = `${table} is not a DynamORM Table. Did you forget to use @Connect?`
-
+    if (!(table.prototype instanceof DynamORMTable)) {
+        throw new DynamORMError(table, {
+            name: DynamORMError.INVALID_TABLE,
+            message: 'A DynamORM class must extend class Table'
+        })
+    }
+    const wm = __wm(table)
+    const no_connect_msg = '@Connect decorator must be set on target class'
+    const no_hash_msg = 'A Table class must contain one property decorated with @HashKey'
     return new class {
         public get tableName() {
-            return wm.get<string>(TABLE_NAME)
+            const tableName = wm.get<string>(TABLE_NAME)
+            if (!tableName) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_connect_msg
+                })
+            }
+            return tableName
         }
-        public set tableName(value) {
+        public set tableName(value: string | undefined) {
             wm.set(TABLE_NAME, value)
         }
 
         public get client() {
-            return wm.get<DynamoDBClient>(CLIENT)
+            const client = wm.get<DynamoDBClient>(CLIENT)
+            if (!client) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_connect_msg
+                })
+            }
+            return client
         }
         public set client(value) {
             wm.set(CLIENT, value)
         }
 
         public get documentClient() {
-            return wm.get<DynamoDBDocumentClient>(DOCUMENT_CLIENT)
+            const documentClient = wm.get<DynamoDBDocumentClient>(DOCUMENT_CLIENT)
+            if (!documentClient) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_connect_msg
+                })
+            }
+            return documentClient
         }
         public set documentClient(value) {
             wm.set(DOCUMENT_CLIENT, value)
@@ -63,7 +91,14 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
 
         public get keySchema() {
-            return wm.get<KeySchemaElement[]>(KEY_SCHEMA)
+            const keySchema = wm.get<KeySchemaElement[]>(KEY_SCHEMA)
+            if (!keySchema) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_hash_msg
+                })
+            }
+            return keySchema
         }
 
         public set keySchema(value) {
@@ -71,7 +106,14 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
 
         public get attributeDefinitions() {
-            return wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)
+            const attributeDefinitions = wm.get<AttributeDefinition[]>(ATTRIBUTE_DEFINITIONS)
+            if (!attributeDefinitions) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_hash_msg
+                })
+            }
+            return attributeDefinitions
         }
         public set attributeDefinitions(value) {
             wm.set(ATTRIBUTE_DEFINITIONS, value)
@@ -99,14 +141,28 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
 
         public get attributes() {
-            return wm.get<SharedInfo['Attributes']>(ATTRIBUTES)
+            const attributes = wm.get<SharedInfo['Attributes']>(ATTRIBUTES)
+            if (!attributes) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_hash_msg
+                })
+            }
+            return attributes
         }
         public set attributes(value) {
             wm.set(ATTRIBUTES, value)
         }
 
         public get serializer() {
-            return wm.get<Serializer<T>>(SERIALIZER)
+            const serializer = wm.get<Serializer<T>>(SERIALIZER)
+            if (!serializer) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_connect_msg
+                })
+            }
+            return serializer
         }
         public set serializer(value) {
             wm.set(SERIALIZER, value)
@@ -114,30 +170,39 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
     }
 }
 
-function createWeakMap<T extends object>() {
+function createWeakMap<T extends Function>() {
     const wm = new WeakMap
     return function(target: T) {
         return {
-            get<T = any>(key: string|symbol) {
-                if (wm.has(target)) return wm.get(target)[key] as T
+            get<T>(key: string|symbol) {
+                if (wm.has(target)) {
+                    return wm.get(target)[key] as T
+                }
                 return undefined
             },
             all(): {[k: string|symbol]: unknown} | undefined {
-                if (wm.has(target)) return wm.get(target)
+                if (wm.has(target)) {
+                    return wm.get(target)
+                }
                 return undefined
             },
             set<T>(key: string|symbol, value: T): T {
-                if (!wm.has(target)) wm.set(target, {})
-                if (value !== undefined)
+                if (!wm.has(target)) {
+                    wm.set(target, {})
+                }
+                if (value !== undefined) {
                     Object.defineProperty(wm.get(target), key, {
                         value,
                         enumerable: true,
                         configurable: true
                     })
+                }
                 return wm.get(target)[key]
             },
             delete(key: string|symbol) {
-                if (wm.has(target)) return delete wm.get(target)[key]
+                if (wm.has(target)) {
+                    return delete wm.get(target)[key]
+                }
                 return false
             },
             has(key: string|symbol) {

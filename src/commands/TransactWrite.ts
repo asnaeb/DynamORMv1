@@ -8,7 +8,7 @@ import {
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {ClientCommandChain} from './ClientCommandChain'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {Key, PrimaryKeys} from '../types/Key'
+import {Key, KeysObject} from '../types/Key'
 import {Condition} from '../types/Condition'
 import {Update} from '../types/Update'
 import type {Serializer} from '../serializer/Serializer'
@@ -52,7 +52,7 @@ type Request<T extends typeof DynamORMTable = typeof DynamORMTable> =
 
 interface Chain<T extends typeof DynamORMTable> {
     put(...items: InstanceType<T>[]): Chain<T> & RunIn
-    select(...keys: PrimaryKeys<InstanceType<T>>): {
+    select(...keys: KeysObject<InstanceType<T>>): {
         update(update: Update<InstanceType<T>>): Chain<T>  & RunIn
         delete(): Chain<T> & RunIn
         if(condition: Condition<InstanceType<T>>): {
@@ -91,7 +91,7 @@ export class TransactWrite extends ClientCommandChain {
 
         if ('items' in request) {
             for (const item of request.items) {
-                const {Item} = serializer.serialize(item)
+                const {item: Item} = serializer.serialize(item)
 
                 this.#input.TransactItems?.push({
                     Put: {TableName, Item}
@@ -116,7 +116,7 @@ export class TransactWrite extends ClientCommandChain {
                     Key,
                     updates: request.update,
                     conditions: request.conditions,
-                    create: false
+                    recursive: false
                 })
 
                 for (const {input} of commands)
@@ -181,7 +181,7 @@ export class TransactWrite extends ClientCommandChain {
     public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
         const conditions: Condition<InstanceType<T>>[] = []
 
-        const check = (keys: PrimaryKeys<InstanceType<T>>) => ({
+        const check = (keys: KeysObject<InstanceType<T>>) => ({
             check: () => {
                 this.#requests.push({table, keys, conditions, check: true})
                 return {
@@ -192,7 +192,7 @@ export class TransactWrite extends ClientCommandChain {
             }
         })
 
-        const update_delete = (keys: PrimaryKeys<InstanceType<T>>) => ({
+        const update_delete = (keys: KeysObject<InstanceType<T>>) => ({
             update: (update: Update<InstanceType<T>>) => {
                 this.#requests.push({table, keys, update, conditions})
                 return {
@@ -211,7 +211,7 @@ export class TransactWrite extends ClientCommandChain {
             }
         })
 
-        const or = (keys: PrimaryKeys<InstanceType<T>>) => {
+        const or = (keys: KeysObject<InstanceType<T>>) => {
             const or = (condition: Condition<InstanceType<T>>) => {
                 conditions.push(condition)
                 return {
@@ -236,7 +236,7 @@ export class TransactWrite extends ClientCommandChain {
                     in: this.in.bind(this)
                 }
             },
-            select: (...keys: PrimaryKeys<InstanceType<T>>) => ({
+            select: (...keys: KeysObject<InstanceType<T>>) => ({
                 if: (condition: Condition<InstanceType<T>>) => {
                     conditions.push(condition)
                     return {

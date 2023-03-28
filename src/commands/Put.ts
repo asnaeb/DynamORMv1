@@ -26,8 +26,7 @@ export class Put<T extends DynamORMTable> extends TableCommandPool<T, PutCommand
         }
 
         AsyncArray.to(items).async.map(item => {
-            const {Item} = this.serializer.serialize(item)
-            
+            const {item: Item} = this.serializer.serialize(item)
             return new PutCommand({
                 TableName: this.tableName,
                 ExpressionAttributeNames,

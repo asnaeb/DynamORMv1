@@ -7,7 +7,7 @@ import {
 import {AsyncArray} from '@asn.aeb/async-array'
 import {ClientCommandChain} from './ClientCommandChain'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {PrimaryKeys} from '../types/Key'
+import {KeysObject} from '../types/Key'
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {Serializer} from '../serializer/Serializer'
 import {Response} from '../response/Response'
@@ -15,7 +15,7 @@ import {TablesMap} from '../types/TablesMap'
 import {weakMap} from '../private/WeakMap'
 
 interface Chain<T extends typeof DynamORMTable> {
-    get(...keys: PrimaryKeys<InstanceType<T>>): {
+    get(...keys: KeysObject<InstanceType<T>>): {
         run(): ReturnType<TransactGet['run']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
@@ -54,7 +54,7 @@ export class TransactGet extends ClientCommandChain {
 
     public in<T extends typeof DynamORMTable>(table: T): Chain<T>  {
         return {
-            get: (...keys: PrimaryKeys<InstanceType<T>>) => {
+            get: (...keys: KeysObject<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
                 return {
                     in: this.in.bind(this),

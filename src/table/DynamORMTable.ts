@@ -1,7 +1,7 @@
-import type {Constructor} from '../types/Utils'
-import type {Scalars} from '../types/Native'
+import type {Constructor, ValueOf} from '../types/Utils'
+import type {NativeType, Scalars} from '../types/Native'
 import type {QueryObject} from '../types/Query'
-import type {HashType, NonKey, OnlyKey, InferKeyType, PrimaryKeys, RangeType} from '../types/Key'
+import type {HashType, NonKey, OnlyKey, InferKeyType, KeysObject, RangeType, KeysTuple, SelectKey} from '../types/Key'
 import type {QueryOptions} from '../interfaces/QueryOptions'
 import type {ScanOptions} from '../interfaces/ScanOptions'
 import type {LocalIndexProps} from '../interfaces/LocalIndexProps'
@@ -59,7 +59,8 @@ export abstract class DynamORMTable {
     }
 
     public static createTable(params?: CreateTableParams) {
-        return new CreateTable(this, params).response
+        const createTable = new CreateTable(this, params)
+        return createTable.execute()
     }
 
     public static importTable(params: ImportTableParams) {
@@ -67,7 +68,8 @@ export abstract class DynamORMTable {
     }
 
     public static deleteTable() {
-        return new DeleteTable(this).response
+        const deleteTable = new DeleteTable(this)
+        return deleteTable.execute()
     }
 
     public static createBackup({BackupName}: {BackupName: string}) {
@@ -110,51 +112,89 @@ export abstract class DynamORMTable {
         return new TableBatchWrite(this, AsyncArray.to(elements), 'Put').response
     }
 
-    public static select<T extends DynamORMTable>(this: Constructor<T>, ...keys: T[] | PrimaryKeys<T>) {
-        return new Select(this, keys)
+    public static select<T extends DynamORMTable, K extends SelectKey<T>>(this: Constructor<T>, ...keys: K) {
+        return new Select<T, K>(this, keys)
     }
+
+    // INSTANCE SECTION
+    constructor() {
+        const wm = weakMap(this.constructor as Constructor<this>)
+        const serializer = wm.serializer
+        const attributes = wm.attributes
+        return new Proxy(this, {
+            set(target, key, value) {
+                if (value !== undefined && typeof key === 'string') {
+                    if (key in attributes) {
+                        const name = attributes[key].AttributeName
+                        value = serializer.inspect(name, value)
+                    }
+                }
+                return Reflect.set(target, key, value)
+            }
+        })
+    }
+
+    public readonly dbRecord?: Record<string, NativeType>
 
     public setKey<T extends DynamORMTable>(this: T, key: Required<InferKeyType<OnlyKey<T>>>) {
         // TODO key validation
         Object.assign(this, key)
     }
 
-    public save<T extends DynamORMTable>(this: T): Save<T>['response']
-    public save<T extends DynamORMTable, B extends boolean>(this: T, {overwrite}: {overwrite: B}):
-    [B] extends [true] ? Save<T>['response'] : Put<T>['response']
-    public save<T extends DynamORMTable>(this: T, {overwrite = true}: {overwrite?: boolean} = {}) {
+    public save<T extends DynamORMTable>(this: T, options?: {overwrite: true}): ReturnType<Save<T>['execute']>
+    public save<T extends DynamORMTable>(this: T, options: {overwrite: false}): Put<T>['response'] 
+    public save<T extends DynamORMTable>(this: T, options = {overwrite: true}) {
         const table = this.constructor as Constructor<T>
-        
-        if (!overwrite) return new Put(table, [this]).response
-
-        return new Save(table, this).response
+        if (!options.overwrite) {
+            return new Put(table, [this]).response
+        }
+        const save = new Save(table, this)
+        return save.execute()
     }
 
-    public delete<T extends DynamORMTable>(this: T) {
-        const table = this.constructor as typeof DynamORMTable
-        const serializer = weakMap(table).serializer
-
-        if (!serializer) throw 'Something went wrong' // TODO proper error logging
-
-        const {Key} = serializer.serialize(this)
-
-        if (!Key) throw 'Key is missing' // TODO proper error logging
-
-        return new Delete(table, new AsyncArray(Key)).response
+    public async delete<T extends DynamORMTable>(this: T) {
+        const table = this.constructor as Constructor<T>
+        const wm = weakMap(table)
+        if (!wm.serializer) {
+            throw 'Something went wrong' // TODO proper error logging
+        }
+        const {key: Key} = wm.serializer.serialize(this)
+        if (!Key) {
+            throw 'Key is missing' // TODO proper error logging
+        }
+        const del = new Delete(table, {keys: [Key]})
+        const {items, consumedCapacity} = await del.execute()
+        return {
+            item: items[0] as T | Error,
+            consumedCapacity
+        }
     }
 
     public record<T extends DynamORMTable>(this: T) {
         return {...this} as {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
     }
 
-    public dynamodbJSON() {
-        const {Item} = weakMap(<any>this.constructor).serializer?.serialize(this)!
-
-        for (const [k, v] of Object.entries(Item))
-            if (v instanceof Uint8Array)
-                (<any>Item)[k] = Buffer.from(v).toString('base64')
-
-        return JSON.stringify(Item, null, 4)
+    public toJSON<T extends DynamORMTable>(this: T) {
+        const table = this.constructor as Constructor<T>
+        const wm = weakMap(table)
+        if (!wm.serializer) {
+            throw 'Something went wrong' // TODO proper error logging
+        }
+        const {item} = wm.serializer.serialize(this)
+        const entries = Object.entries(item)
+        for (let i = 0, len = entries.length; i < len; i++) {
+            const [k, v] = entries[i]
+            if (v instanceof Uint8Array) {
+                const buffer = Buffer.from(v)
+                item[k] = buffer.toString('base64')
+            }
+        }
+        return JSON.stringify(item, (key, value) => {
+            if (value instanceof Set) {
+                return [...value]
+            }
+            return value
+        }, 4)
     }
 }
 

@@ -1,50 +1,62 @@
-import type {Constructor} from '../types/Utils'
-import type {DynamORMTable} from '../table/DynamORMTable'
+import {DynamoDBType} from '..'
+import {DynamORMTable} from '../table/DynamORMTable'
+import {Constructor} from '../types/Utils'
 
-export class DynamORMError extends Error {
-    constructor(message?: string) {
-        super(message)
-        super.name = 'Dynam0RMError'
-    }
+const inspect = Symbol.for('nodejs.util.inspect.custom')
 
-    public static invalidType<T extends DynamORMTable>(constructor: Constructor<T>, key: string | symbol) {
-        const error = {
-            message: `Unsupported type assigned to property [${String(key)}]. You may only use DynamoDB supported types.`,
-            name: 'InvalidType'
+enum ERR_NAME {
+    INVALID_TYPE = 'INVALID TYPE',
+    INVALID_PROP = 'INVALID PROPERTY',
+    INVALID_TABLE = 'INVALID TABLE',
+    TABLE_EXISTS = 'TABLE EXISTS',
+    TIMEOUT = 'TIMEOUT',
+    ABORTED = 'ABORTED'
+}
+
+export class DynamORMError<T extends DynamORMTable> extends Error {
+    static INVALID_TYPE = ERR_NAME.INVALID_TYPE
+    static INVALID_PROP = ERR_NAME.INVALID_PROP
+    static INVALID_TABLE =  ERR_NAME.INVALID_TABLE
+    static TIMEOUT = ERR_NAME.TIMEOUT
+    static ABORTED = ERR_NAME.ABORTED
+    static TABLE_EXISTS = ERR_NAME.TABLE_EXISTS
+    static ddbToJS(type: DynamoDBType) {
+        switch (type) {
+            case DynamoDBType.S: return 'String'
+            case DynamoDBType.N: return 'Number'
+            case DynamoDBType.BOOL: return 'Boolean'
+            case DynamoDBType.B: return 'Uint8Array'
+            case DynamoDBType.L: return 'Array'
+            case DynamoDBType.M: return 'Object'
+            case DynamoDBType.NULL: return 'null'
+            case DynamoDBType.SS: return 'Set (String)'
+            case DynamoDBType.NS: return 'Set (Number, BigInt)'
+            case DynamoDBType.BS: return 'Set (Uint8Array)'
         }
-        this.log(constructor, `${constructor.name} property assignment`, error)
     }
-
-    public static invalidConversion<T extends DynamORMTable>(constructor: Constructor<T>,
-        key: string,
-        inputValue: any,
-        outputType: string) {
-        const error = {
-            message: `Value "${inputValue}" of key [${key}] cannot be converted from type "${typeof inputValue}" to DynamoDB type "${outputType}"`,
-            name: 'Invalid Conversion'
+    #Table
+    constructor(table: Constructor<T>, error: Error)
+    constructor(table: Constructor<T>, {name, message}: {name: ERR_NAME; message: string}) 
+    constructor(table: Constructor<T>, arg1: unknown) {
+        super()
+        this.#Table = table
+        if (arg1 instanceof Error) {
+            this.name = arg1.name
+            this.message = arg1.message
+            this.stack = arg1.stack
         }
-        this.log(constructor, 'Converter', error)
-    }
-
-    public static invalidDecorator<T extends DynamORMTable>(constructor: Constructor<T>, decoratorName: string, message?: string) {
-        const error = {
-            message: message ?? `Decorator @${decoratorName} used on unsupported class or property.`,
-            name: 'InvalidDecorator'
+        else if (arg1 && typeof arg1 === 'object') {
+            if ('name' in arg1 && typeof arg1.name === 'string') {
+                this.name = arg1.name
+            }
+            if ('message' in arg1 && typeof arg1.message === 'string') {
+                this.message = arg1.message
+            }
         }
-        this.log(constructor, decoratorName, error)
+        this.message = `[${this.#Table.name}] ${this.message}`
     }
+    
+    private [inspect]() {
 
-    public static invalidKey<T extends DynamORMTable>(constructor: Constructor<T>, key: Record<PropertyKey, any>, message?: string) {
-        const error = {
-            message: message ?? `Key ${JSON.stringify(key).replace(/"/g, '').replace(/:/g, ': ')} is not a valid Primary Key.`,
-            name: 'InvalidKey'
-        }
-        this.log(constructor, `${constructor.name}.keys`, error)
-    }
-
-    public static log<T extends DynamORMTable>(target: Constructor<T>, caller: Function | string, error: Error) {
-        const className = target.name
-        const callerName = typeof caller === 'string' ? caller : caller.name
-        console.warn(`Dynam0RM: [Class: ${className}; Context: ${callerName}] -> ${error.name} -> ${error.message}`)
     }
 }

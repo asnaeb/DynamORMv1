@@ -1,8 +1,7 @@
 import {UpdateCommand, type UpdateCommandInput} from '@aws-sdk/lib-dynamodb'
 import {ReturnConsumedCapacity, ReturnValue} from '@aws-sdk/client-dynamodb'
-import {EventEmitter} from 'node:events'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {AttributeNames, AttributeValues, Native} from '../types/Native'
+import {AttributeNames, AttributeValues} from '../types/Native'
 import {Key} from "../types/Key"
 import {Condition} from '../types/Condition'
 import {Update} from '../types/Update'
@@ -10,7 +9,8 @@ import {alphaNumeric, isObject} from '../utils/General'
 import {isUpdateObject} from '../validation/symbols'
 import {ADD, APPEND, DECREMENT, DELETE, INCREMENT, OVERWRITE, PREPEND, REMOVE} from '../private/Symbols'
 import {generateCondition} from './ConditionsGenerator'
-import {AsyncArray} from '@asn.aeb/async-array'
+import {DynamORMError} from '../errors/DynamORMError'
+import {Constructor} from '../types/Utils'
 
 interface ExpressionsMap {
     SET: string[]
@@ -20,66 +20,70 @@ interface ExpressionsMap {
 }
 
 interface UpdateGeneratorParams<T extends DynamORMTable> {
-    TableName: string,
-    Key: Key,
-    updates: Update<T>,
-    conditions?: Condition<T>[],
-    create?: boolean
+    TableName: string
+    Key: Key
+    updates: Update<T>
+    recursive: boolean
+    conditions?: Condition<T>[]
 }
 
-const doneEvent = Symbol('done')
-
-class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
+class UpdateGenerator<T extends DynamORMTable> {
     #attributeNames: AttributeNames = {}
     #attributeValues: AttributeValues = {}
     #expressionsMap: ExpressionsMap = {SET: [], ADD: [], REMOVE: [], DELETE: []}
-    #commands = new AsyncArray<UpdateCommand>()
+    public commands: UpdateCommand[] = []
 
-    constructor({TableName, Key, updates, conditions, create = true}: UpdateGeneratorParams<T>) {
-        super({captureRejections: true})
-
-        this.on('error', e => console.log(e))
-
-        const it = async (update: Update<T>, path: string[] = [], top = true) => {
-            const keys = AsyncArray.to(Object.keys(update))
-            await keys.async.forEach(key => {
-                const value = update[<keyof Update<T>>key]
+    constructor(table: Constructor<T>, {TableName, Key, updates, conditions, recursive}: UpdateGeneratorParams<T>) {
+        const it = (update: Update<T>, path: string[] = [], top = true) => {
+            const entries = Object.entries(update)
+            if (!entries.length) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_PROP,
+                    message: 'No known attribute was found on the update call'
+                })
+            }
+            for (let i = 0, len = entries.length; i < len; i++) {
+                const [key, value] = entries[i]
                 let $path, $key = alphaNumeric(key)
 
                 Object.assign(this.#attributeNames, {[`#${$key}`]: key})
 
-                if (path?.length) {
+                if (path.length) {
                     $path = [...path, $key]
-                    for (const k of path)
+                    for (let i = 0, len = path.length; i < len; i++) {
+                        const k = path[i]
                         Object.assign(this.#attributeNames, {[`#${k}`]: k})
-                } else
+                    }
+                } 
+                else {
                     $path = [$key]
+                }
 
                 if (isObject(value)) {
-                    if (isUpdateObject(value))
+                    if (isUpdateObject(value)) {
                         this.#handleUpdate(value, $path)
+                    }
                     else {
-                        if (create) {
+                        if (recursive) {
                             const setExpr = `#${$path.join('.#')} = if_not_exists(#${$path.join('.#')}, :${$key}_object_map)`
-
                             Object.assign(this.#attributeValues, {[`:${$key}_object_map`]: {}})
                             this.#expressionsMap.SET.push(setExpr)
-
                             const command = new UpdateCommand({
                                 ...this.#generateInput(),
                                 TableName,
                                 Key
                             })
-                
-                            this.#commands.push(command)
+                            this.commands.push(command)
                             this.#reset()
                         }
                         
                         it(<Update<T>>value, $path, false)
                     }
-                } else if (value === REMOVE)
+                } 
+                else if (value === REMOVE) {
                     this.#expressionsMap.REMOVE.push(`#${$path.join('.#')}`)
-            })
+                }
+            }
 
             if (top) {
                 const command = new UpdateCommand({
@@ -88,12 +92,11 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
                     Key
                 })
     
-                this.#commands.push(command)
+                this.commands.push(command)
 
-                if (conditions?.length)
-                    await this.#addCondition(conditions)
-
-                this.emit(doneEvent, this.#commands)
+                if (conditions?.length) {
+                    this.#addCondition(conditions)
+                }
             }
         }
 
@@ -131,9 +134,9 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
             ConditionExpression, 
             ExpressionAttributeNames, 
             ExpressionAttributeValues
-        } = await generateCondition(conditions)
+        } = generateCondition({conditions})
         
-        const first = this.#commands.at(0)
+        const first = this.commands.at(0)
 
         if (first) {
             first.input.ExpressionAttributeNames ??= {}
@@ -195,11 +198,10 @@ class UpdateGenerator<T extends DynamORMTable> extends EventEmitter {
         }
 
         Object.assign(this.#attributeValues, {[attributeValue]: value})
-        }
+    }
 }
 
-export function generateUpdate<T extends DynamORMTable>(args: UpdateGeneratorParams<T>) {
-    return new Promise<AsyncArray<UpdateCommand>>(resolve => {
-        new UpdateGenerator(args).once(doneEvent, data => resolve(data))
-    })
+export function generateUpdate<T extends DynamORMTable>(table: Constructor<T>, params: UpdateGeneratorParams<T>) {
+    const generator = new UpdateGenerator(table, params)
+    return generator.commands
 }
