@@ -1,5 +1,5 @@
-import {SharedInfo} from "./SharedInfo"
+import {Shared} from "./Shared"
 
 export interface DecoratorParams {
-    SharedInfo: SharedInfo
+    shared: Shared
 }

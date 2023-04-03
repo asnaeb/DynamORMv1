@@ -5,13 +5,11 @@ import {
     type TableDescription, 
     UpdateTimeToLiveCommand, 
     type UpdateTimeToLiveCommandOutput,
-    waitUntilTableExists,
-    TimeToLiveSpecification,
+    TimeToLiveSpecification
 } from '@aws-sdk/client-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {CreateTableParams} from "../interfaces/CreateTableParams"
 import type {Constructor} from '../types/Utils'
-import {WaiterState} from '@aws-sdk/util-waiter'
 import {TableCommandSingle} from './TableCommandSingle'
 import {DynamoDBCreateTableException} from '../errors/DynamoDBErrors'
 import {DynamORMError} from '../errors/DynamORMError'

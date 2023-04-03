@@ -1,7 +1,6 @@
 import type {Constructor} from '../types/Utils'
-import {WaiterState, WaiterResult} from '@aws-sdk/util-waiter'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {waitUntilTableExists, waitUntilTableNotExists} from '@aws-sdk/client-dynamodb'
 import {DynamORMError} from '../errors/DynamORMError'
 
@@ -15,7 +14,7 @@ export class TableWaiter<T extends DynamORMTable> {
     readonly #tableName
     readonly #table
     public constructor(table: Constructor<T>) {
-        const wm = weakMap(table)
+        const wm = privacy(table)
         this.#client = wm.client
         this.#tableName = wm.tableName
         this.#table = table

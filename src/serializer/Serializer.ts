@@ -1,42 +1,78 @@
 import type {Constructor} from '../types/Utils'
-import type {Key} from '../types/Key'
+import type {Key, ReadonlyKey} from '../types/Key'
 import type {AttributeValues} from '../types/Native'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {isObject} from '../utils/General'
 import {isValidKeyType, isValidType} from '../validation/type'
 import {DynamoDBType} from '../types/Native'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {DynamORMError} from '../errors/DynamORMError'
+import {RECORD} from '../private/Symbols'
 
 export class Serializer<T extends DynamORMTable> {
-    #table
-    #hashKey
-    #rangeKey
-    #attributes
+    readonly #table
+    readonly #hashKey
+    readonly #rangeKey
+    readonly #attributes
+    readonly #attributes_entries
 
     public constructor(table: Constructor<T>) {
-        const wm = weakMap(table)
+        const wm = privacy(table)
         this.#table = table
-        this.#hashKey = wm.keySchema[0].AttributeName
-        this.#rangeKey = wm.keySchema[1]?.AttributeName
+        this.#hashKey = wm.hashKey
+        this.#rangeKey = wm.rangeKey
         this.#attributes = wm.attributes
+        this.#attributes_entries = Object.entries(wm.attributes)
     }
 
-    public inspect(key: string, value: unknown, normalize = false) {
-        let targetType: DynamoDBType | undefined;
-        const entries = Object.entries(this.#attributes)
+    public propertyKeyFromAttributeName(key: string) {
+        const entries = this.#attributes_entries
+        for (let i = 0, len = entries.length; i < len; i++) {
+            const [name, {AttributeName, AttributeType}] = entries[i]
+            if (key === AttributeName) {
+                return name
+            }
+        }
+    }
+
+    public attributeNameFromPropertyKey(key: string) {
+        const entries = this.#attributes_entries
+        for (let i = 0, len = entries.length; i < len; i++) {
+            const [name, {AttributeName, AttributeType}] = entries[i]
+            if (key === name) {
+                return AttributeName
+            }
+        }
+    }
+
+    public typeFromPropertyKey(key: string) {
+        const entries = this.#attributes_entries
+        for (let i = 0, len = entries.length; i < len; i++) {
+            const [name, {AttributeName, AttributeType}] = entries[i]
+            if (key === name) {
+                return AttributeType
+            }
+        }
+    }
+
+    public typeFromAttributeName(key: string) {
+        const entries = this.#attributes_entries
         for (let i = 0, len = entries.length; i < len; i++) {
             const [, {AttributeName, AttributeType}] = entries[i]
             if (key === AttributeName) {
-                targetType = AttributeType
-                break
+                return AttributeType
             }
         }
+    }
+
+    public inspect(key: string, value: unknown, normalize = false) {
+        const targetType = this.typeFromAttributeName(key)
         if (targetType) {
             const type = value?.constructor.name || typeof value
+            const name = this.propertyKeyFromAttributeName(key)
             const error = new DynamORMError(this.#table, {
                 name: DynamORMError.INVALID_TYPE, 
-                message: `Property "${key}" must be of type ${DynamORMError.ddbToJS(targetType)} (Found: ${type})`
+                message: `Property "${name}" must be of type ${DynamORMError.ddbToJS(targetType)} (Found: ${type})`
             })
             switch (targetType) {
                 case DynamoDBType.S:
@@ -149,7 +185,7 @@ export class Serializer<T extends DynamORMTable> {
             }
             if (v !== undefined && k in this.#attributes) {
                 const name = this.#attributes[k].AttributeName
-                if (name !== undefined && v !== undefined) {
+                if (name !== undefined) {
                     Object.assign(item, {[name]: v})
                 }
                 if (name === this.#hashKey || name === this.#rangeKey) {
@@ -164,20 +200,31 @@ export class Serializer<T extends DynamORMTable> {
     }
 
     public deserialize(element: AttributeValues) {
-        const instance = new (this.#table as new (...args: any) => T)()
+        const properties: PropertyDescriptorMap = {
+            [RECORD]: {
+                get() {
+                    return element
+                },
+                enumerable: false
+            }
+        }
         const elEntries = Object.entries(element)
+        const attrEntries = this.#attributes_entries
         for (let i = 0, len = elEntries.length; i < len; i++) {
             const [elKey, elValue] = elEntries[i]
-            const attrEntries = Object.entries(this.#attributes)
             for (let i = 0, len = attrEntries.length; i < len; i++) {
                 const [attrKey, {AttributeName}] = attrEntries[i]
-                if (elKey === AttributeName || elKey === attrKey) {
-                    Object.assign(instance, {[attrKey]: elValue})
+                if (elKey === AttributeName) {
+                    properties[attrKey] = {
+                        value: elValue,
+                        enumerable: true,
+                        writable: true,
+                        configurable: true
+                    }
                 }
             }
         }
-        Object.defineProperty(instance, 'dbRecord', {get: () => element})
-        return instance
+        return Object.create(this.#table.prototype, properties) as T
     }
 
     public generateKeys(keys: readonly unknown[]) {        
@@ -189,7 +236,7 @@ export class Serializer<T extends DynamORMTable> {
                 generatedKeys.push(serialized.key)
             } 
             else if (isObject(key)) {
-                if (this.#hashKey && this.#rangeKey) {
+                if (this.#rangeKey) {
                     const entries = Object.entries(key)
                     for (let i = 0, len = entries.length; i < len; i++) {
                         const [hashValue, rangeValue] = entries[i]
@@ -230,9 +277,8 @@ export class Serializer<T extends DynamORMTable> {
                     throw `invalid key: ${key}` // TODO throw error
                 }
             }
-
             else if (Array.isArray(key)) {
-                if (this.#hashKey && this.#rangeKey) {
+                if (this.#rangeKey) {
                     const convertedHashValue = this.inspect(this.#hashKey, key[0], true)
                     const convertedRangeValue = this.inspect(this.#rangeKey, key[1], true)
                     if (isValidKeyType(convertedHashValue) && isValidKeyType(convertedRangeValue)) {
@@ -245,9 +291,8 @@ export class Serializer<T extends DynamORMTable> {
                 }
                 else throw `invalid key: ${key}` //TODO throw error
             }
-
             else {
-                if (this.#hashKey && !this.#rangeKey) {
+                if (!this.#rangeKey) {
                     const convertedHashValue = this.inspect(this.#hashKey, key, true)
                     if (isValidKeyType(convertedHashValue)) {
                         generatedKeys.push({

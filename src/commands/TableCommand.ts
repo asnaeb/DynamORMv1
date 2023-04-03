@@ -16,7 +16,7 @@ import {TResponse, Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput' 
 import {AttributeValues} from '../types/Native'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import {Constructor} from '../types/Utils'
 import {DynamoDB} from 'aws-sdk'
@@ -44,7 +44,7 @@ export abstract class TableCommand<T extends DynamORMTable, O extends ServiceOut
 
         this.on('error', e => this.logError(e))
 
-        const info = weakMap(table)
+        const info = privacy(table)
 
         if (
                !info.tableName

@@ -4,25 +4,22 @@ import {
     TransactGetCommandInput, 
 } from '@aws-sdk/lib-dynamodb'
 
-import {AsyncArray} from '@asn.aeb/async-array'
-import {ClientCommandChain} from './ClientCommandChain'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {KeysObject} from '../types/Key'
+import {SelectKey} from '../types/Key'
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {Serializer} from '../serializer/Serializer'
-import {Response} from '../response/Response'
 import {TablesMap} from '../types/TablesMap'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 interface Chain<T extends typeof DynamORMTable> {
-    get(...keys: KeysObject<InstanceType<T>>): {
-        run(): ReturnType<TransactGet['run']>
+    get(...keys: SelectKey<InstanceType<T>>): {
+        run(): ReturnType<TransactGet['execute']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
 }
-type GetRequest = {table: typeof DynamORMTable, keys: any[]}
+type GetRequest = {table: typeof DynamORMTable, keys: readonly any[]}
 
-export class TransactGet extends ClientCommandChain {
+export class TransactGet {
+    #client
     #requests: GetRequest[] = []
     #input: TransactGetCommandInput = {
         TransactItems: [],
@@ -30,95 +27,83 @@ export class TransactGet extends ClientCommandChain {
     }
 
     constructor(client: DynamoDBDocumentClient) {
-        super(client)
+        this.#client = client
     }
 
     async #addRequest({table, keys}: GetRequest) {
-        const TableName = weakMap(table).tableName
-        const serializer = weakMap(table).serializer
-
-        if (!serializer || !TableName) 
-            throw 'Somethig was wrong' // TODO Proper error logging
-
-        const $keys = AsyncArray.to(keys)
-        const generatedKeys = await serializer.generateKeys($keys)
-
-        if (this.#input.TransactItems!.length + generatedKeys.length <= 100) 
-            generatedKeys.forEach(Key => {
+        const wm = privacy(table)
+        const generatedKeys = wm.serializer.generateKeys(keys)
+        if (this.#input.TransactItems!.length + generatedKeys.length <= 100) {
+            for (let i = 0, len = generatedKeys.length; i < len; i++) {
+                const Key = generatedKeys[i]
                 this.#input.TransactItems?.push({
-                    Get: {Key, TableName}
+                    Get: {Key, TableName: wm.tableName}
                 })
-            })
-        else console.warn('Max keys allowed for Transaction is 100') // TODO proper error logging
+            }
+        }
+        else {
+            console.warn('Max keys allowed for Transaction is 100') // TODO proper error logging
+        }
     }
 
     public in<T extends typeof DynamORMTable>(table: T): Chain<T>  {
         return {
-            get: (...keys: KeysObject<InstanceType<T>>) => {
+            get: (...keys: SelectKey<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
                 return {
                     in: this.in.bind(this),
-                    run: this.run.bind(this)
+                    run: this.execute.bind(this)
                 }
             }
         }
     }
 
-    public async run() {
+    public async execute() {
         const items = new TablesMap()
         const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
-        const errors: Error[] = []
-        
-        const promises = this.#requests.map(r => this.#addRequest(r))
-        
-        await Promise.all(promises)
-
+        for (let i = 0, len = this.#requests.length; i < len; i++) {
+            const request = this.#requests[i]
+            this.#addRequest(request)
+        }
         if (this.#input.TransactItems?.length) {
             const command = new TransactGetCommand(this.#input)
-
             try {
-                const {ConsumedCapacity, Responses} = await this.client.send(command)
-                
+                const {ConsumedCapacity, Responses} = await this.#client.send(command)
                 let j = 0
-
-                for (const {table, keys} of this.#requests) {
-                    const tableName = weakMap(table).tableName
-                    const serializer = weakMap(table).serializer
-
-                    if (!serializer) continue
-
-                    if (ConsumedCapacity) for (const consumedCapacity of ConsumedCapacity) {
-                        if (consumedCapacity.TableName === tableName && (!infos.has(table)))
-                            infos.set(table, {ConsumedCapacity: consumedCapacity})
-                    }
-
-                    for (let i = 0; i < keys.length; i++) {
-                        const response = Responses?.[i + j]
-                        
-                        if (response?.Item) {
-                            const $item = serializer.deserialize(response.Item)
-                            
-                            if (!items.has(table)) items.set(table, [])
-                            items.get(table)?.push($item)
+                for (let i = 0, len = this.#requests.length; i < len; i++) {
+                    const {table, keys} = this.#requests[i]
+                    const wm = privacy(table)
+                    if (ConsumedCapacity) {
+                        for (let i = 0, len = ConsumedCapacity.length; i < len; i++) {
+                            const consumedCapacity = ConsumedCapacity[i]
+                            if ((consumedCapacity.TableName === wm.tableName) && (!infos.has(table))) {
+                                infos.set(table, {ConsumedCapacity: consumedCapacity})
+                            }
                         }
                     }
-
+                    for (let i = 0, len = keys.length; i < len; i++) {
+                        const response = Responses?.[i + j]   
+                        if (response?.Item) {
+                            const item = wm.serializer.deserialize(response.Item)
+                            if (!items.has(table)) {
+                                items.set(table, [])
+                            }
+                            items.get(table)!.push(item)
+                        }
+                    }
                     j += keys.length
                 }
             }
-
             catch (error) {
-                errors.push(<Error>error)
+                throw error // TODO ERROR
             }
         }
-
         this.#input.TransactItems = []
-
-        return Response(items, infos.size ? infos : undefined, errors)
+        return {items, consumedCapacity: infos}
     }
 
     public clear() {
-        this.#requests = new AsyncArray()
+        this.#requests = []
         this.#input.TransactItems = []
     }
 }

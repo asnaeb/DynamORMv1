@@ -34,7 +34,7 @@ export abstract class AbstractDynamORM {
     protected _config
     public client
 
-    public constructor(dynamORMClientConfig: DynamORMClientConfig) {
+    protected constructor(dynamORMClientConfig: DynamORMClientConfig) {
         const config = dynamORMClientConfig
         const client = new DynamoDBClient(config)
         const documentClient = DynamoDBDocumentClient.from(client, {

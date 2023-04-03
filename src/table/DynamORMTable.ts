@@ -1,11 +1,10 @@
-import type {Constructor, ValueOf} from '../types/Utils'
-import type {NativeType, Scalars} from '../types/Native'
+import type {Constructor} from '../types/Utils'
+import type {Native, NativeType, Scalars} from '../types/Native'
 import type {QueryObject} from '../types/Query'
-import type {HashType, NonKey, OnlyKey, InferKeyType, KeysObject, RangeType, KeysTuple, SelectKey} from '../types/Key'
+import type {HashType, NonKey, RangeType, SelectKey} from '../types/Key'
 import type {QueryOptions} from '../interfaces/QueryOptions'
 import type {ScanOptions} from '../interfaces/ScanOptions'
 import type {LocalIndexProps} from '../interfaces/LocalIndexProps'
-import type {GlobalIndexProps} from '../interfaces/GlobalIndexProps'
 import type {ImportTableParams} from '../interfaces/ImportTableParams'
 import type {CreateTableParams} from '../interfaces/CreateTableParams'
 import type {QueryParams} from '../commands/Query'
@@ -25,14 +24,18 @@ import {AsyncArray} from '@asn.aeb/async-array'
 import {Save} from '../commands/Save'
 import {CreateBackup} from '../commands/CreateBackup'
 import {LocalIndex} from '../indexes/LocalIndex'
-import {GlobalIndex} from '../indexes/GlobalIndex'
+import {staticGlobalIndex, GlobalIndexProps} from '../indexes/GlobalIndex'
 import {ImportTable} from '../commands/ImportTable'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {TableWaiter} from '../waiter/TableWaiter'
 import {UpdateTable} from '../commands/UpdateTable'
 import {CdkTable, type CdkTableProps} from '../cdk/CdkTable'
+import {RECORD as __record} from '../private/Symbols'
 
+const WM = Symbol('wm')
+export const RECORD = Symbol('record')
 export abstract class DynamORMTable {
+
     public static get wait() {
         return new TableWaiter(this)
     }
@@ -82,26 +85,34 @@ export abstract class DynamORMTable {
 
     public static query<T extends DynamORMTable>(
         this: Constructor<T>,
-        HashValue: HashType<T>,
-        Options?: QueryOptions
-    ): Query<T>['response']
+        hashValue: HashType<T>,
+        options?: QueryOptions
+    ): ReturnType<Query<T>['execute']>
     public static query<T extends DynamORMTable>(
         this: Constructor<T>,
-        HashValue: HashType<T>,
-        RangeQuery: QueryObject<RangeType<T>>,
-        Options?: QueryOptions
-    ): Query<T>['response']
-    public static query<T extends DynamORMTable>(
         hashValue: HashType<T>,
-        Q?: QueryObject<RangeType<T>> | QueryOptions,
-        O?: QueryOptions
+        rangeQuery: QueryObject<RangeType<T>>,
+        options?: QueryOptions
+    ): ReturnType<Query<T>['execute']>
+    public static query<T extends DynamORMTable>(
+        arg1: HashType<T>,
+        arg2?: QueryObject<RangeType<T>> | QueryOptions,
+        arg3?: QueryOptions
     ) {
-        let params: QueryParams<T>
-
-        if (Q && isQueryObject(Q)) params = {hashValue, rangeQuery: Q, ...O}
-        else params = {hashValue, ...Q}
-
-        return new Query(this, params).response
+        const params: QueryParams<T> = {hashValue: arg1}
+        if (arg2) {
+            if (isQueryObject(arg2)) {
+                params.rangeQuery = arg2
+                if (arg3) {
+                    Object.assign(params, arg3)
+                }
+            }
+            else {
+                Object.assign(params, arg2)
+            }
+        }
+        const query = new Query(this, params)
+        return query.execute()
     }
 
     public static put<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
@@ -116,17 +127,19 @@ export abstract class DynamORMTable {
         return new Select<T, K>(this, keys)
     }
 
+    private [WM]: ReturnType<typeof privacy<this>>
+    private [RECORD]?: Record<string, NativeType>
+
     // INSTANCE SECTION
     constructor() {
-        const wm = weakMap(this.constructor as Constructor<this>)
-        const serializer = wm.serializer
-        const attributes = wm.attributes
+        const wm = privacy(this.constructor as Constructor<this>)
+        this[WM] = wm
         return new Proxy(this, {
             set(target, key, value) {
                 if (value !== undefined && typeof key === 'string') {
-                    if (key in attributes) {
-                        const name = attributes[key].AttributeName
-                        value = serializer.inspect(name, value)
+                    if (key in wm.attributes) {
+                        const name = wm.attributes[key].AttributeName
+                        value = wm.serializer.inspect(name, value)
                     }
                 }
                 return Reflect.set(target, key, value)
@@ -134,11 +147,43 @@ export abstract class DynamORMTable {
         })
     }
 
-    public readonly dbRecord?: Record<string, NativeType>
+    public setKey<
+        T extends DynamORMTable,
+        H extends HashType<T>,
+        R extends RangeType<T>,
+        A extends [R] extends [never] ? [H] : [H, R]
+    >(this: T, ...key: A) {
+        const wm = this[WM]
+        if (key[0] !== undefined) {
+            const hashKey = wm.serializer.propertyKeyFromAttributeName(wm.hashKey)
+            if (hashKey && hashKey in this) {
+                Object.assign(this, {[hashKey]: key[0]})
+            }
+        }
+        if (key[1] !== undefined && wm.rangeKey) {
+            const rangeKey = wm.serializer.propertyKeyFromAttributeName(wm.rangeKey)
+            if (rangeKey && rangeKey in this) {
+                Object.assign(this, {[rangeKey]: key[1]})
+            }
+        }
+    }
 
-    public setKey<T extends DynamORMTable>(this: T, key: Required<InferKeyType<OnlyKey<T>>>) {
-        // TODO key validation
-        Object.assign(this, key)
+    public setHashKey<T extends DynamORMTable>(this: T, value: HashType<T>) {
+        const wm = this[WM]
+        const hashKey = wm.serializer.propertyKeyFromAttributeName(wm.hashKey)
+        if (hashKey && hashKey in this) {
+            Object.assign(this, {[hashKey]: value})
+        }
+    }
+
+    public setRangeKey<T extends DynamORMTable>(this: T, value: RangeType<T>) {
+        const wm = this[WM]
+        if (wm.rangeKey) {
+            const rangeKey = wm.serializer.propertyKeyFromAttributeName(wm.rangeKey)
+            if (rangeKey && rangeKey in this) {
+                Object.assign(this, {[rangeKey]: value})
+            }
+        }
     }
 
     public save<T extends DynamORMTable>(this: T, options?: {overwrite: true}): ReturnType<Save<T>['execute']>
@@ -154,15 +199,8 @@ export abstract class DynamORMTable {
 
     public async delete<T extends DynamORMTable>(this: T) {
         const table = this.constructor as Constructor<T>
-        const wm = weakMap(table)
-        if (!wm.serializer) {
-            throw 'Something went wrong' // TODO proper error logging
-        }
-        const {key: Key} = wm.serializer.serialize(this)
-        if (!Key) {
-            throw 'Key is missing' // TODO proper error logging
-        }
-        const del = new Delete(table, {keys: [Key]})
+        const {key} = this[WM].serializer.serialize(this)
+        const del = new Delete(table, {keys: [key]})
         const {items, consumedCapacity} = await del.execute()
         return {
             item: items[0] as T | Error,
@@ -170,68 +208,72 @@ export abstract class DynamORMTable {
         }
     }
 
-    public record<T extends DynamORMTable>(this: T) {
-        return {...this} as {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
+    public record<
+        T extends DynamORMTable,
+        B extends boolean
+    >(this: T, options?: {transform?: B}) {
+        let item
+        if (options?.transform) {
+            const serializer = this[WM].serializer
+            item = this[RECORD] || serializer.serialize(this).item
+        }
+        else {
+            item = {...this}
+        }
+        return item as [B] extends [true] ? Record<string, NativeType> : {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
     }
 
-    public toJSON<T extends DynamORMTable>(this: T) {
-        const table = this.constructor as Constructor<T>
-        const wm = weakMap(table)
-        if (!wm.serializer) {
-            throw 'Something went wrong' // TODO proper error logging
+    public db() {
+        return this[RECORD]
+    }
+
+    public toJSON<T extends DynamORMTable>(this: T, options?: {
+        transform?: boolean; 
+        indent?: boolean | number; 
+        bufferEncoding?: BufferEncoding;
+    }) {
+        let item 
+        let indent
+        if (options?.transform) {
+            const serializer = this[WM].serializer
+            item = this[RECORD] || serializer.serialize(this).item
         }
-        const {item} = wm.serializer.serialize(this)
-        const entries = Object.entries(item)
-        for (let i = 0, len = entries.length; i < len; i++) {
-            const [k, v] = entries[i]
-            if (v instanceof Uint8Array) {
-                const buffer = Buffer.from(v)
-                item[k] = buffer.toString('base64')
-            }
+        else {
+            item = {...this}
+        }
+        if (typeof options?.indent === 'number') {
+            indent = options.indent
+        }
+        if (options?.indent === true) {
+            indent = 2
         }
         return JSON.stringify(item, (key, value) => {
             if (value instanceof Set) {
                 return [...value]
             }
+            if (value instanceof Uint8Array) {
+                const buffer = Buffer.from(value)
+                return buffer.toString(options?.bufferEncoding || 'base64')
+            }
             return value
-        }, 4)
+        }, indent)
     }
 }
 
 export abstract class DynamORMTableES extends DynamORMTable {
-    protected static _localSecondaryIndex<
+    protected static localSecondaryIndex<
         T extends DynamORMTable, 
         K extends keyof Scalars<NonKey<T>>
     >(this: Constructor<T>, props: LocalIndexProps<T, K> & {RangeKey: K}) {
         return LocalIndex(this, props.RangeKey, props)
     }
-    protected static localSecondaryIndex<
-        T extends DynamORMTable, 
-        K extends keyof Scalars<NonKey<T>>
-    >(this: Constructor<T>, RangeKey: K, props?: LocalIndexProps<T, K>) {
-        return LocalIndex(this, RangeKey, props)
-    }
 
-    protected static _globalSecondaryIndex<
-        T extends DynamORMTable,
-        H extends keyof Scalars<NonKey<T>>,
-        R extends Exclude<keyof Scalars<NonKey<T>>, H>,
-    >(this: Constructor<T>, props: GlobalIndexProps<T, H, R> & {HashKey: H, RangeKey?: R}) {
-        return GlobalIndex(this, props.HashKey, props.RangeKey, props)
-    }
-    
     protected static globalSecondaryIndex<
         T extends DynamORMTable,
-        H extends keyof Scalars<NonKey<T>>,
-        R extends Exclude<keyof Scalars<NonKey<T>>, H>
-    >(this: Constructor<T>, HashKey: H, RangeKey: R, props?: GlobalIndexProps<T, H, R>): ReturnType<typeof GlobalIndex<T, H, R>>
-    protected static globalSecondaryIndex<
-        T extends DynamORMTable,
-        H extends keyof Scalars<NonKey<T>>
-    >(this: Constructor<T>, HashKey: H, props?: GlobalIndexProps<T, H, never>): ReturnType<typeof GlobalIndex<T, H, never>>
-    protected static globalSecondaryIndex(H: unknown, R?: unknown, P?: any) {
-        const range = typeof R === 'string' ? R : undefined
-        const props = typeof R === 'object' ? R : P
-        return GlobalIndex(this, <never>H, <never>range, props)
+        H extends keyof Scalars<T>,
+        R extends Exclude<keyof Scalars<T>, H>,
+        A extends (Exclude<keyof Native<NonKey<T>>, H | R>)[]
+    >(this: Constructor<T>, props: GlobalIndexProps<H, R, A>) {
+        return staticGlobalIndex(this, props)
     }
 }

@@ -10,7 +10,7 @@ import {TableBatchGet} from '../commands/TableBatchGet'
 import {Delete} from '../commands/Delete'
 import {TableBatchWrite} from '../commands/TableBatchWrite'
 import {AsyncArray} from '@asn.aeb/async-array'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 interface Or<T extends DynamORMTable, K extends SelectKey<T>> {
     or(condition: Condition<T>): Or<T, K>
@@ -31,7 +31,7 @@ export class Select<T extends DynamORMTable, K extends SelectKey<T>> {
     #generatedKeys
 
     public constructor(table: Constructor<T>, keys: readonly unknown[]) {
-        const serializer = weakMap(table).serializer
+        const serializer = privacy(table).serializer
 
         if (!serializer)
             throw new Error('Serializer not found!') // TODO Proper error description

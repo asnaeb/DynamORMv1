@@ -17,10 +17,12 @@ export function isObject<T extends Record<PropertyKey, any>>(obj: any): obj is T
 export function removeUndefined<T extends Record<PropertyKey, any>>(target: T) {
     if (isObject(target)) {
         for (const key of Reflect.ownKeys(target)) {
-            if (target[key] === undefined)
+            if (target[key] === undefined) {
                 delete target[key]
-            else if (isObject(target[key]))
+            }
+            else if (isObject(target[key])) {
                 removeUndefined(target[key])
+            }
         }
     }
     return target
@@ -37,7 +39,7 @@ export function splitToChunks<T>(array: T[], maxLength: number): T[][] {
     return [array]
 }
 
-export function alphaNumericDotDash(name: string) {
+export function sanitizeTableName(name: string) {
     return name.replace(/[^a-zA-Z0-9\-._]/g, '')
 }
 

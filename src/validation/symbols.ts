@@ -7,8 +7,12 @@ export function isQuerySymbol(key: PropertyKey): key is QuerySymbols {
     return typeof key === 'symbol' && Object.entries(QUERY).some(([, s]) => s === key)
 }
 
-export function isQueryObject(object: any): object is QueryObject<any> {
-    return Reflect.ownKeys(object).every(k => isQuerySymbol(k))
+export function isQueryObject(object: unknown): object is QueryObject<any> {
+    return ( 
+        typeof object === 'object' && 
+        object !== null && 
+        Reflect.ownKeys(object).every(k => isQuerySymbol(k))
+    )
 }
 
 export function isConditionSymbol(key: PropertyKey): key is ConditionSymbols {

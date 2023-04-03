@@ -1,6 +1,7 @@
 import {QueryCommandInput} from '@aws-sdk/lib-dynamodb'
+import {QueryParams} from '../commands/Query'
 
 export type QueryOptions =
-| Required<Pick<QueryCommandInput, 'ScanIndexForward'>>
-| Required<Pick<QueryCommandInput, 'ConsistentRead'>>
-| Required<Pick<QueryCommandInput, 'Limit'>>
+| Required<Pick<QueryParams<any>, 'scanIndexForward'>>
+| Required<Pick<QueryParams<any>, 'consistentRead'>>
+| Required<Pick<QueryParams<any>, 'limit'>>

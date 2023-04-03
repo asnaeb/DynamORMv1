@@ -4,6 +4,8 @@ import {DynamORMTable} from '../table/DynamORMTable'
 import {alphaNumeric} from '../utils/General'
 import {TableCommandSingle} from './TableCommandSingle'
 import {Constructor} from '../types/Utils'
+import {DynamoDBUpdateException} from '../errors/DynamoDBErrors'
+import {DynamORMError} from '../errors/DynamORMError'
 
 export class Save<T extends DynamORMTable> extends TableCommandSingle<T, UpdateCommandOutput> {
     #command
@@ -46,7 +48,10 @@ export class Save<T extends DynamORMTable> extends TableCommandSingle<T, UpdateC
             }
         }
         catch (error) {
-            console.log(error)
+            if (error instanceof DynamoDBUpdateException) {
+                return Promise.reject(new DynamORMError(this.table, error))
+            }
+            return Promise.reject(error)
         }
         return {item, consumedCapacity}
     }

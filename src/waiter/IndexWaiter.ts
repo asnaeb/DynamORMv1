@@ -1,5 +1,5 @@
 import {DescribeTableCommand, IndexStatus} from '@aws-sdk/client-dynamodb'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 
@@ -7,7 +7,7 @@ export class IndexWaiter<T extends DynamORMTable> {
     #describe
     #indexName
     public constructor(table: Constructor<T>, indexName: string) {
-        const wm = weakMap(table)
+        const wm = privacy(table)
         const command = new DescribeTableCommand({TableName: wm.tableName})
         
         this.#describe = () => wm.client.send(command)

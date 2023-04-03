@@ -9,7 +9,7 @@ import {
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Response} from '../response/Response'
 import {Constructor} from '../types/Utils'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 export async function UpdateGlobalIndex(
     table: Constructor<DynamORMTable>, 
@@ -18,7 +18,7 @@ export async function UpdateGlobalIndex(
     {attributeDefinitions, provisionedThroughput}: 
     {attributeDefinitions?: AttributeDefinition[], provisionedThroughput?: ProvisionedThroughput} = {}
 ) {
-    const wm = weakMap(table)
+    const wm = privacy(table)
 
     if (!wm.tableName || !wm.client) throw 'Something went wrong' // TODO proper error logging
     

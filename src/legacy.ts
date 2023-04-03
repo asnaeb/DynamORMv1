@@ -15,9 +15,9 @@ export class DynamORM extends AbstractDynamORM {
 
         this.decorators = {
             Connect: LegacyConnectFactory({
-                Client: this._client,
-                DocumentClient: this._documentClient,
-                ClientConfig: this._config,
+                client: this._client,
+                documentClient: this._documentClient,
+                config: this._config,
             }),
             HashKey: LegacyHashKey,
             RangeKey: LegacyRangeKey,

@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="249a60f8-921a-4510-83f8-2eacc58818f4" name="Changes" comment="API.md changes">
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/DynamORM.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/cdk/CdkTable.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/cdk/CdkTable.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/commands/CreateTable.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/commands/CreateTable.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/commands/Save.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/commands/Save.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/commands/TableBatchGet.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/commands/TableBatchGet.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/dynamorm/DynamORM.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/dynamorm/DynamORM.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/indexes/GlobalIndex.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/indexes/GlobalIndex.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/private/Symbols.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/private/Symbols.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/private/WeakMap.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/private/WeakMap.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/serializer/Serializer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/serializer/Serializer.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/table/DynamORMTable.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/table/DynamORMTable.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/Key.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/Key.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/General.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/General.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/env.ts" beforeDir="false" afterPath="$PROJECT_DIR$/test/env.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/i.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/test/i.test.ts" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="JavaScript File" />
+        <option value="TypeScript File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">
+    <option name="selectedUrlAndAccountId">
+      <UrlAndAccount>
+        <option name="accountId" value="1873f3d9-019c-4f9e-bc28-be01f2ae2991" />
+        <option name="url" value="https://github.com/asnaeb/DynamORM.git" />
+      </UrlAndAccount>
+    </option>
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="proportion" value="0.4754434" />
+    <option name="showPreview" value="true" />
+  </component>
+  <component name="ProjectId" id="2IHNnzxrEQciIBkvhiEMZVzstOT" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "TODO_SCOPE": "All Places",
+    "WebServerToolWindowFactoryState": "false",
+    "full.screen.before.presentation.mode": "true",
+    "git-widget-placeholder": "sync",
+    "last_opened_file_path": "/Users/soffyo/Dev/Nodejs/DynamORM",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "SDKs",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "editor.preferences.fonts.default",
+    "ts.external.directory.path": "/Users/soffyo/Dev/Nodejs/DynamORM/node_modules/typescript/lib",
+    "ts.rename.search.for.dynamic.occurrences": "true",
+    "ts.rename.search.for.js.occurrences": "false",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="es6.move.members.recent.items">
+      <recent name="$PROJECT_DIR$/src/interfaces/GenerateUpdateParams.ts" />
+      <recent name="$PROJECT_DIR$/src/types/interfaces/ResponseInfo.ts" />
+      <recent name="$PROJECT_DIR$/src/types/interfaces/interfaces/ScanOptions.ts" />
+      <recent name="$PROJECT_DIR$/src/types/interfaces/ScanOptions.ts" />
+      <recent name="$PROJECT_DIR$/src/types/interfaces/ScanParams.ts" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/serializer" />
+      <recent name="$PROJECT_DIR$/src" />
+      <recent name="$PROJECT_DIR$/src/types/interfaces" />
+    </key>
+  </component>
+  <component name="RunManager" selected="npm.build">
+    <configuration name="batchget.test.js" type="NodeJSConfigurationType" path-to-js-file="tests/batchget.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="bigupdate.test.js" type="NodeJSConfigurationType" path-to-js-file="tests/bigupdate.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="binary.test.js" type="NodeJSConfigurationType" path-to-js-file="tests/binary.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="crud.test.js" type="NodeJSConfigurationType" nameIsGenerated="true" path-to-js-file="tests/crud.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="legacy.test.js" type="NodeJSConfigurationType" path-to-js-file="tests/legacy/legacy.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-legacy-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="mapped.test.js" type="NodeJSConfigurationType" path-to-js-file="tests/mapped.test.js" working-dir="$PROJECT_DIR$">
+      <method v="2">
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+        <option name="NpmBeforeRunTask" enabled="true">
+          <package-json value="$PROJECT_DIR$/package.json" />
+          <command value="run" />
+          <scripts>
+            <script value="build-tests" />
+          </scripts>
+          <node-interpreter value="project" />
+          <envs />
+        </option>
+      </method>
+    </configuration>
+    <configuration name="build-legacy-tests" type="js.build_tools.npm" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build-legacy-tests" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <configuration name="build-test-env" type="js.build_tools.npm" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build-test-env" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <configuration name="build-tests" type="js.build_tools.npm" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build-tests" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <configuration name="build" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <configuration name="watch" type="js.build_tools.npm" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="watch" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Node.js.crud.test.js" />
+      <item itemvalue="Node.js.bigupdate.test.js" />
+      <item itemvalue="Node.js.batchget.test.js" />
+      <item itemvalue="Node.js.binary.test.js" />
+      <item itemvalue="Node.js.mapped.test.js" />
+      <item itemvalue="Node.js.legacy.test.js" />
+      <item itemvalue="npm.build-test-env" />
+      <item itemvalue="npm.build-tests" />
+      <item itemvalue="npm.build-legacy-tests" />
+      <item itemvalue="npm.watch" />
+      <item itemvalue="npm.build" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="npm.build" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="249a60f8-921a-4510-83f8-2eacc58818f4" name="Changes" comment="" />
+      <created>1669834720726</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1669834720726</updated>
+      <workItem from="1669834721634" duration="277000" />
+      <workItem from="1669837695401" duration="103000" />
+      <workItem from="1669837826586" duration="118000" />
+      <workItem from="1669837950764" duration="34000" />
+      <workItem from="1669837991158" duration="34000" />
+      <workItem from="1669838052374" duration="275000" />
+      <workItem from="1669838348405" duration="193000" />
+      <workItem from="1669850680218" duration="134000" />
+      <workItem from="1669850817742" duration="1495000" />
+      <workItem from="1669853259275" duration="15508000" />
+      <workItem from="1669902193436" duration="175000" />
+      <workItem from="1669902383710" duration="12192000" />
+      <workItem from="1669932193993" duration="23251000" />
+      <workItem from="1669986766926" duration="33000" />
+      <workItem from="1669986828257" duration="31112000" />
+      <workItem from="1670078479044" duration="10305000" />
+      <workItem from="1670130279739" duration="39000" />
+      <workItem from="1670130325467" duration="203000" />
+      <workItem from="1670130538814" duration="44000" />
+      <workItem from="1670160202288" duration="2466000" />
+      <workItem from="1670169757177" duration="10579000" />
+      <workItem from="1670249031814" duration="92000" />
+      <workItem from="1670250274176" duration="1081000" />
+      <workItem from="1670290502583" duration="3245000" />
+      <workItem from="1670336491909" duration="26387000" />
+      <workItem from="1670418140214" duration="22649000" />
+      <workItem from="1670497093403" duration="15944000" />
+      <workItem from="1670540855348" duration="493000" />
+      <workItem from="1670541359450" duration="14387000" />
+      <workItem from="1670592304511" duration="9544000" />
+      <workItem from="1670619731630" duration="53000" />
+      <workItem from="1670619791232" duration="286000" />
+      <workItem from="1670620087955" duration="30000" />
+      <workItem from="1670620123870" duration="17073000" />
+      <workItem from="1670646408834" duration="2477000" />
+      <workItem from="1670671703564" duration="14096000" />
+      <workItem from="1670723117093" duration="6040000" />
+      <workItem from="1670761104414" duration="15336000" />
+      <workItem from="1670808601420" duration="6354000" />
+      <workItem from="1670844603637" duration="14054000" />
+      <workItem from="1670875531812" duration="92000" />
+      <workItem from="1670884723222" duration="9290000" />
+      <workItem from="1670894671534" duration="218000" />
+      <workItem from="1670895709342" duration="8906000" />
+      <workItem from="1670934149913" duration="27985000" />
+      <workItem from="1670980988662" duration="9710000" />
+      <workItem from="1671020949122" duration="4964000" />
+      <workItem from="1671026472091" duration="7290000" />
+      <workItem from="1671034801039" duration="15860000" />
+      <workItem from="1671068661110" duration="11000" />
+      <workItem from="1671073011059" duration="171000" />
+      <workItem from="1671074117457" duration="96000" />
+      <workItem from="1671074984062" duration="145000" />
+      <workItem from="1671076453643" duration="40000" />
+      <workItem from="1671114534623" duration="90000" />
+      <workItem from="1671114781266" duration="92000" />
+      <workItem from="1671114879381" duration="37000" />
+      <workItem from="1671114922956" duration="269000" />
+      <workItem from="1671116551627" duration="178000" />
+      <workItem from="1671116841855" duration="63000" />
+      <workItem from="1671117077417" duration="48000" />
+      <workItem from="1671117128967" duration="52000" />
+      <workItem from="1671134246628" duration="1250000" />
+      <workItem from="1671137826232" duration="1723000" />
+      <workItem from="1671141361995" duration="97000" />
+      <workItem from="1671141465323" duration="148000" />
+      <workItem from="1671207049656" duration="157000" />
+      <workItem from="1671247341896" duration="55000" />
+      <workItem from="1671721669233" duration="230000" />
+      <workItem from="1671753343185" duration="127000" />
+      <workItem from="1672166206114" duration="256000" />
+      <workItem from="1672166473607" duration="92000" />
+      <workItem from="1672189193534" duration="94000" />
+      <workItem from="1672200721705" duration="119000" />
+      <workItem from="1672489576004" duration="42000" />
+      <workItem from="1673174124545" duration="24000" />
+      <workItem from="1673174159850" duration="53000" />
+      <workItem from="1673305418879" duration="71000" />
+      <workItem from="1673305501294" duration="115000" />
+      <workItem from="1673785082014" duration="1223000" />
+      <workItem from="1673914561983" duration="93000" />
+      <workItem from="1673999871887" duration="133000" />
+      <workItem from="1674052232481" duration="437000" />
+      <workItem from="1674431740541" duration="502000" />
+      <workItem from="1674449770007" duration="144000" />
+      <workItem from="1674694541705" duration="29000" />
+      <workItem from="1675013911878" duration="39000" />
+      <workItem from="1675038175439" duration="470000" />
+      <workItem from="1675038656435" duration="39000" />
+      <workItem from="1675476719646" duration="277000" />
+      <workItem from="1675624739894" duration="32000" />
+      <workItem from="1675792233480" duration="3367000" />
+      <workItem from="1675796908773" duration="346000" />
+      <workItem from="1675810883179" duration="233000" />
+      <workItem from="1675811161111" duration="183000" />
+      <workItem from="1675811537476" duration="907000" />
+      <workItem from="1675814176531" duration="11242000" />
+      <workItem from="1675985262626" duration="1095000" />
+      <workItem from="1676217458874" duration="4363000" />
+      <workItem from="1676222553122" duration="1001000" />
+      <workItem from="1676224998300" duration="639000" />
+      <workItem from="1676249420702" duration="1077000" />
+      <workItem from="1677154738743" duration="2683000" />
+      <workItem from="1677175279336" duration="26000" />
+      <workItem from="1677353900721" duration="111000" />
+      <workItem from="1677521719278" duration="64000" />
+      <workItem from="1677604228696" duration="57000" />
+      <workItem from="1679636556809" duration="169000" />
+      <workItem from="1680066076233" duration="1134000" />
+    </task>
+    <task id="LOCAL-00001" summary="Initial commit">
+      <created>1669838517788</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1669838517788</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Initial commit">
+      <created>1669838540518</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1669838540518</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Initial commit">
+      <created>1669850806215</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1669850806215</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Initial commit">
+      <created>1669851660127</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1669851660127</updated>
+    </task>
+    <task id="LOCAL-00005" summary="refactor interfaces to own dir">
+      <created>1669859800770</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1669859800770</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Initial readme and updated binary.test.ts accordingly">
+      <created>1669868341454</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1669868341454</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Changed decorators to decorators factory. Updated README.md accordingly">
+      <created>1670292767826</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1670292767826</updated>
+    </task>
+    <task id="LOCAL-00008" summary="retrieved instances are now deserialized to actual class">
+      <created>1670347574934</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1670347574935</updated>
+    </task>
+    <task id="LOCAL-00009" summary="API.md corrections">
+      <created>1675810973045</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1675810973045</updated>
+    </task>
+    <task id="LOCAL-00010" summary="API.md creation">
+      <created>1675812243913</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1675812243913</updated>
+    </task>
+    <task id="LOCAL-00011" summary="API.md creation">
+      <created>1675826156569</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1675826156569</updated>
+    </task>
+    <task id="LOCAL-00012" summary="API.md creation">
+      <created>1675826400349</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1675826400349</updated>
+    </task>
+    <task id="LOCAL-00013" summary="API.md changes">
+      <created>1676222637613</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1676222637613</updated>
+    </task>
+    <task id="LOCAL-00014" summary="API.md changes">
+      <created>1676222800150</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1676222800150</updated>
+    </task>
+    <task id="LOCAL-00015" summary="API.md changes">
+      <created>1676222833027</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1676222833027</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+    <option name="exactExcludedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/tests/legacy/legacy.test.js" />
+        <option value="$PROJECT_DIR$/tests/env/DynamoDBLocal.js" />
+        <option value="$PROJECT_DIR$/tests/crud.test.js" />
+        <option value="$PROJECT_DIR$/tests/env/DynamoDBLocal.d.ts" />
+        <option value="$PROJECT_DIR$/tests/env/AwsCredentials.js.map" />
+        <option value="$PROJECT_DIR$/tests/env/AwsCredentials.js" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="initial" />
+    <MESSAGE value="Initial commit" />
+    <MESSAGE value="refactor interfaces to own dir" />
+    <MESSAGE value="Initial readme and updated binary.test.ts accordingly" />
+    <MESSAGE value="Changed decorators to decorators factory. Updated README.md accordingly" />
+    <MESSAGE value="retrieved instances are now deserialized to actual class" />
+    <MESSAGE value="API.md corrections" />
+    <MESSAGE value="API.md creation" />
+    <MESSAGE value="API.md changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="API.md changes" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

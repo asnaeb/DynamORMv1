@@ -1,83 +1,53 @@
 import {DynamORMTable} from '../table/DynamORMTable'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import type {Construct} from 'constructs'
 import {AttributeType, ProjectionType, Table, TableProps} from 'aws-cdk-lib/aws-dynamodb'
-
-// TODO log the correct error message
 
 export interface CdkTableProps extends Omit<TableProps, 'tableName' | 'partitionKey' | 'sortKey' | 'timeToLiveAttribute'> {}
 
 export const CdkTable = class extends Table {
     constructor(scope: Construct, id: string, {table, ...props}: CdkTableProps & {table: typeof DynamORMTable}) {
-        const wm = weakMap(table)
-        const hashName = wm.keySchema?.[0]?.AttributeName
-        const rangeName = wm.keySchema?.[1]?.AttributeName
+        const wm = privacy(table)
+        const hashKey = wm.hashKey
+        const rangeKey = wm.rangeKey
+        const hashType = wm.serializer.typeFromAttributeName(hashKey)
 
-        if (!hashName) throw ''
-
-        const hashType = wm.attributes?.[hashName].AttributeType
-
-        if (!hashType) throw ''
-
-        const partitionKey = {
-            name: hashName,
-            type: hashType as unknown as AttributeType
-        }
-
-        let sortKey: {name: string; type: AttributeType} | undefined
-
-        if (rangeName) {
-            const rangeType = wm.attributes?.[rangeName].AttributeType
-
-            if (!rangeType) throw ''
-
+        let sortKey
+        if (rangeKey) {
+            const rangeType = wm.serializer.typeFromAttributeName(rangeKey)
             sortKey = {
-                name: rangeName, 
+                name: rangeKey, 
                 type: rangeType as unknown as AttributeType
             }
         }
-        
+
         super(scope, id, {
             ...props,
             tableName: wm.tableName,
             timeToLiveAttribute: wm.timeToLive,
-            partitionKey,
+            partitionKey: {
+                name: hashKey,
+                type: hashType as unknown as AttributeType
+            },
             sortKey
         })
-
         if (wm.globalIndexes?.length) {
             for (const index of wm.globalIndexes) {
                 const indexName = index.IndexName
-                const hashName = index.KeySchema?.[0].AttributeName
-                const rangeName = index.KeySchema?.[1].AttributeName
-
-                if (!indexName || !hashName) throw ''
-                
-                let hashType
-
-                for (const k in wm.attributes) {
-                    if (wm.attributes[k].AttributeName === hashName) {
-                        hashType = wm.attributes[k].AttributeType
-                    }
-                }
+                const hashKey = index.KeySchema[0].AttributeName
+                const rangeKey = index.KeySchema[1]?.AttributeName
+                const hashType = wm.serializer.typeFromAttributeName(hashKey)
 
                 if (!hashType) throw ''
 
                 let sortKey: {name: string; type: AttributeType} | undefined
 
-                if (rangeName) {
-                    let rangeType
-
-                    for (const k in wm.attributes) {
-                        if (wm.attributes[k].AttributeName === rangeName) {
-                            rangeType = wm.attributes[k].AttributeType
-                        }
-                    }
-
+                if (rangeKey) {
+                    const rangeType = wm.serializer.typeFromAttributeName(rangeKey)
                     if (!rangeType) throw ''
 
                     sortKey = {
-                        name: rangeName,
+                        name: rangeKey,
                         type: rangeType as unknown as AttributeType
                     }
                 }
@@ -85,7 +55,7 @@ export const CdkTable = class extends Table {
                 this.addGlobalSecondaryIndex({
                     indexName,
                     partitionKey: {
-                        name: hashName,
+                        name: hashKey,
                         type: hashType as unknown as AttributeType
                     },
                     sortKey,
@@ -98,29 +68,20 @@ export const CdkTable = class extends Table {
         }
 
         //@ts-ignore
-        this.addGlobalSecondaryIndex = undefined
+        delete this.addGlobalSecondaryIndex 
 
         if (wm.localIndexes?.length) {
             for (const index of wm.localIndexes) {
                 const indexName = index.IndexName
-                const rangeName = index.KeySchema?.[1].AttributeName
-
-                if (!indexName || !rangeName) throw ''
-
-                let rangeType
-
-                for (const k in wm.attributes) {
-                    if (wm.attributes[k].AttributeName === rangeName) {
-                        rangeType = wm.attributes[k].AttributeType
-                    }
-                }
-
+                const rangeKey = index.KeySchema?.[1]?.AttributeName
+                if (!indexName || !rangeKey) throw ''
+                const rangeType = wm.serializer.typeFromAttributeName(rangeKey)
                 if (!rangeType) throw ''
 
                 this.addLocalSecondaryIndex({
                     indexName,
                     sortKey: {
-                        name: rangeName,
+                        name: rangeKey,
                         type: rangeType as unknown as AttributeType
                     },
                     nonKeyAttributes: index.Projection?.NonKeyAttributes,
@@ -130,7 +91,7 @@ export const CdkTable = class extends Table {
         }
 
         //@ts-ignore
-        this.addLocalSecondaryIndex = undefined
+        delete this.addLocalSecondaryIndex 
     }
 } as (new (scope: Construct, id: string, props: CdkTableProps & {table: typeof DynamORMTable}) => 
     Omit<Table, 'addGlobalSecondaryIndex' | 'addLocalSecondaryIndex'>)

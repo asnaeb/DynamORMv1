@@ -6,11 +6,11 @@ import {AttributeExists, Contains, Equal, Greater, Increment, LesserEqual, Overw
 
 @Connect()
 class SecondaryIndexes extends Table {
-    @HashKey.S({AttributeName: 'Hash_'})
-    readonly hash!: Key.Hash<string>
+    @HashKey.S()
+    hash!: Key.Hash<string>
 
-    @RangeKey.N({AttributeName: 'Range_'})
-    readonly range!: Key.Range<number>
+    @RangeKey.N()
+    range!: Key.Range<number>
 
     @Attribute.S()
     attr!: string
@@ -26,7 +26,8 @@ class SecondaryIndexes extends Table {
 
     @Attribute.BOOL()
     boo?: boolean
-    prop?: string
+    @Attribute.B()
+    bin?: Uint8Array
     
     @Attribute.M()
     map?: {
@@ -38,16 +39,16 @@ class SecondaryIndexes extends Table {
 }
 
 const item = new SecondaryIndexes()
-item.setKey({hash: 'a', range: 0})
+item.setKey('a', 0)
 item.attr = 'as'
 item.num = 44
 item.boo = true
 item.ss = new Set(['ex', 'xe'])
 item.str = '350'
-item.prop = 'mtypro'
+item.bin = new Uint8Array([0x61, 0x73, 0x6e, 0x61, 0x65, 0x62])
 
 const item2 = new SecondaryIndexes()
-item2.setKey({hash: '9', range: 1})
+item2.setKey('b', 1)
 item2.attr = 'asnaeb_2'
 item2.num = 4444
 item2.boo = true
@@ -55,29 +56,30 @@ item2.ss = new Set(['ex_2', 'xe_2'])
 item2.str = '350_2'
 
 async function x() {
-        //await DynamoDBLocal.start({inMemory: true})
-        const {waitActivation} = await SecondaryIndexes.createTable()
-        await SecondaryIndexes.wait.activation({timeout: 60})
-        await waitActivation({timeout: 60})
-        await item.save()
-        await item2.save()
-        console.time('update')
-        const upd = await SecondaryIndexes.select(['a', 0])
-            .update({
-                attr: Overwrite('something else'), // TODO Update type
-                num: Increment(3),
-                map: {
-                    a: Overwrite('d'),
-                    b: {
-                        c: Overwrite(3)
-                    }
+    await DynamoDBLocal.start({inMemory: true})
+    const {waitActivation} = await SecondaryIndexes.createTable()
+    // await waitActivation({timeout: 60})
+    const save = await item.save()
+    const {items} = await SecondaryIndexes.select(['a', 0]).get()
+    const j = items[0]
+    console.log(j?.toJSON({bufferEncoding: 'utf8', indent: true}))
+    // await item2.save()
+    // console.time('update')
+    const upd = await SecondaryIndexes.select(['a', 0])
+        .update({
+            attr: Overwrite('something else'), // TODO Update type
+            num: Increment(3),
+            map: {
+                a: Overwrite('d'),
+                b: {
+                    c: Overwrite(3)
                 }
-            })
-        console.dir(upd, {depth: null})
-        const {waitDeletion} = await SecondaryIndexes.deleteTable()
-        await waitDeletion({timeout: 60})
-        //await DynamoDBLocal.stop()
-    
+            }
+        })
+    // //console.dir(upd, {depth: null})
+    // const {waitDeletion} = await SecondaryIndexes.deleteTable()
+    // await waitDeletion({timeout: 60})
+    await DynamoDBLocal.stop()
 }
 
 x()

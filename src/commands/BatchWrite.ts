@@ -8,28 +8,26 @@ import {
 import {
     type ConsumedCapacity, 
     ReturnConsumedCapacity,
-    AttributeValue
 } from '@aws-sdk/client-dynamodb'
 
 import type {Key, KeysObject} from '../types/Key'
-import type {Serializer} from '../serializer/Serializer'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {ClientCommandChain} from './ClientCommandChain'
 import {AsyncArray} from '@asn.aeb/async-array'
 import {mergeNumericProps} from '../utils/General'
 import {Response} from '../response/Response'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 type RequestItem = {PutRequest: {Item: Record<string, any>}} | {DeleteRequest: {Key: Key}}
 interface PutRequest {table: typeof DynamORMTable; items: DynamORMTable[]}
 interface DeleteRequest {table: typeof DynamORMTable; keys: any[]}
 interface Chain<T extends typeof DynamORMTable> {
     put(...items: InstanceType<T>[]): Chain<T> & {
-        run(): ReturnType<BatchWrite['run']>
+        run(): ReturnType<BatchWrite['execute']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
     delete(...keys: KeysObject<InstanceType<T>>): Chain<T> & {
-        run(): ReturnType<BatchWrite['run']>
+        run(): ReturnType<BatchWrite['execute']>
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
     }
 }
@@ -43,8 +41,8 @@ export class BatchWrite extends ClientCommandChain {
     }
 
     async #addRequest(request: PutRequest | DeleteRequest) {
-        const tableName = weakMap(request.table).tableName
-        const serializer = weakMap(request.table).serializer
+        const tableName = privacy(request.table).tableName
+        const serializer = privacy(request.table).serializer
 
         if (!serializer || !tableName) 
             throw 'Somethig was wrong' // TODO Proper error logging
@@ -118,7 +116,7 @@ export class BatchWrite extends ClientCommandChain {
                 this.#requests.push({table, items})
                 return {
                     ...this.in(table), 
-                    run: this.run.bind(this),
+                    run: this.execute.bind(this),
                     in: this.in.bind(this)
                 }
             },
@@ -126,14 +124,14 @@ export class BatchWrite extends ClientCommandChain {
                 this.#requests.push({table, keys})
                 return {
                     ...this.in(table), 
-                    run: this.run.bind(this),
+                    run: this.execute.bind(this),
                     in: this.in.bind(this)
                 }
             }
         }
     }
 
-    public async run() {
+    public async execute() {
         const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
         const errors: Error[] = []
 
@@ -152,7 +150,7 @@ export class BatchWrite extends ClientCommandChain {
         await AsyncArray.to(settled).async.forEach(async data => {
             if (data.status === 'fulfilled') {
                 for (const {table} of this.#requests) {
-                    const tableName = weakMap(table).tableName
+                    const tableName = privacy(table).tableName
                     const consumedCapacities = data.value.ConsumedCapacity
 
                     if (consumedCapacities) 

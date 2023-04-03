@@ -1,6 +1,6 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
-import type {Key, SelectKey, TupleFromKey} from "../types/Key"
+import type {Key, ReadonlyKey, SelectKey, TupleFromKey} from "../types/Key"
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {BatchGetCommand, type BatchGetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
@@ -70,7 +70,7 @@ export class TableBatchGet<
                 const responses = result.value.Responses?.[this.tableName]
                 const consumedCapacity = result.value.ConsumedCapacity
                 const unprocessedKeys = result.value.UnprocessedKeys
-                if (unprocessedKeys) {
+                if (unprocessedKeys && Object.keys(unprocessedKeys).length) {
                     const command = new BatchGetCommand({
                         RequestItems: unprocessedKeys,
                         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES

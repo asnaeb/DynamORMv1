@@ -1,10 +1,10 @@
 import type {AttributeDefinition, GlobalSecondaryIndex, ProvisionedThroughput} from '@aws-sdk/client-dynamodb'
 import {KeyType, ProjectionType} from '@aws-sdk/client-dynamodb'
 import {isDeepStrictEqual} from 'node:util'
-import {alphaNumericDotDash} from '../utils/General'
+import {sanitizeTableName} from '../utils/General'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {B, DynamoDBScalarType, DynamoDBType, N, Native, S, Scalars} from '../types/Native'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {NonKey} from '../types/Key'
 import {QueryObject} from '../types/Query'
 import {QueryOptions} from '../interfaces/QueryOptions'
@@ -67,7 +67,7 @@ function decoratorFactory<
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never
     ) {
-        const wm = weakMap(prototype.constructor as any)
+        const wm = privacy(prototype.constructor as any)
         const AttributeDefinitions = {
             [params.KeyType]: {
                 AttributeName: MappedAttributeName ?? <string>AttributeName, 
@@ -168,7 +168,7 @@ export function LegacyGlobalIndex<
 
             const query = new Query(factoryParams.SharedInfo.table, {
                 ...params, 
-                IndexName: factoryParams.SharedInfo.secondaryIndex?.IndexName
+                indexName: factoryParams.SharedInfo.secondaryIndex?.IndexName
             })
             
             return query.response
@@ -195,7 +195,7 @@ export function LegacyGlobalIndex<
             if (!table || !hashName) 
                 throw 'To create the secondary index, decorators must be applied first.'
 
-            const wm = weakMap(table)    
+            const wm = privacy(table)    
             const hashAttributeDefinition = wm.attributes?.[hashName]
 
             if (!hashAttributeDefinition) throw ''
@@ -245,7 +245,7 @@ export function AddIndexInfo(
         SharedInfo,
         UID
     }: CreateSecondaryIndexParams) {
-    const infos = weakMap(target)
+    const infos = privacy(target)
     const secondaryIndex: GlobalSecondaryIndex = {
         KeySchema: undefined,
         IndexName: undefined,
@@ -256,7 +256,7 @@ export function AddIndexInfo(
     SharedInfo.table = target
 
     if (IndexName)
-        secondaryIndex.IndexName = alphaNumericDotDash(IndexName)
+        secondaryIndex.IndexName = sanitizeTableName(IndexName)
     else {
         secondaryIndex.IndexName = `Dynam0RM.${Kind}Index`
 

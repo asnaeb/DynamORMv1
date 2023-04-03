@@ -3,14 +3,14 @@ import type {Key} from '../types/Key'
 import type {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 import {DynamORMError} from '../errors/DynamORMError'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 export function isValidKey<T extends DynamORMTable>(
     table: Constructor<T>, 
     key: Record<string, unknown>, 
     indexName?: string
 ): key is Key {
-    const wm = weakMap(table)
+    const wm = privacy(table)
     const attributeDefinitions = wm.attributeDefinitions
     let keySchema = wm.keySchema
 

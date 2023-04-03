@@ -1,4 +1,4 @@
-import {InferKeyType} from './Key'
+import {HashKey, InferKeyTypes, RangeKey} from './Key'
 
 export type S = string
 export type N = number 
@@ -42,4 +42,4 @@ export enum DynamoDBType {
 
 export type DynamoDBScalarType = DynamoDBType.S | DynamoDBType.N | DynamoDBType.B
 export type Scalars<T> = {[K in keyof T as T[K] extends S | N | B | undefined ? K : never]: T[K]}
-export type Native<T> = InferKeyType<{[K in keyof T as T[K] extends NativeType | undefined ? K : never]: T[K]}>
+export type Native<T> = InferKeyTypes<{[K in keyof T as T[K] extends NativeType | undefined ? K : never]: T[K]}>

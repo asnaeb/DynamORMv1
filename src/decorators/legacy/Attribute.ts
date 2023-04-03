@@ -1,13 +1,13 @@
 import {DynamORMTable} from '../../table/DynamORMTable'
 import {S, N, B, BOOL, SS, NS, BS, L, M, NULL, DynamoDBType} from '../../types/Native'
-import {weakMap} from '../../private/WeakMap'
+import {privacy} from '../../private/Privacy'
 
 function legacyDecoratorFactory<Z>(AttributeType: DynamoDBType, MappedAttributeName?: string) {
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never
     ) {
-        const wm = weakMap(prototype.constructor as any)
+        const wm = privacy(prototype.constructor as any)
         
         wm.attributes ??= {}
         wm.attributes[<string>AttributeName] = {

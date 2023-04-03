@@ -1,14 +1,14 @@
 import {DynamORMTable} from '../../table/DynamORMTable'
-import {alphaNumericDotDash} from '../../utils/General'
+import {sanitizeTableName} from '../../utils/General'
 import {ConnectionParams} from '../../interfaces/ConnectionParams'
 import {Serializer} from '../../serializer/Serializer'
-import {weakMap} from '../../private/WeakMap'
+import {privacy} from '../../private/Privacy'
 import AmazonDaxClient from 'amazon-dax-client'
 import {DynamoDB} from 'aws-sdk'
 
-function legacyDecoratorFactory({TableName, DAX, Client, DocumentClient, ClientConfig}: Omit<ConnectionParams, 'SharedInfo'>) {
+function legacyDecoratorFactory({tableName: TableName, dax: DAX, client: Client, documentClient: DocumentClient, config: ClientConfig}: Omit<ConnectionParams, 'SharedInfo'>) {
     return function<T extends new (...args: any) => DynamORMTable>(target: T) {
-        const wm = weakMap(target)
+        const wm = privacy(target)
 
         if (DAX) {
             const dax = new AmazonDaxClient({
@@ -23,7 +23,7 @@ function legacyDecoratorFactory({TableName, DAX, Client, DocumentClient, ClientC
             wm.daxClient = new DynamoDB.DocumentClient({service: <any>dax})
         }
 
-        wm.tableName = alphaNumericDotDash(TableName ?? target.name)
+        wm.tableName = sanitizeTableName(TableName ?? target.name)
         wm.client = Client
         wm.documentClient = DocumentClient
         wm.serializer = new Serializer(target)
@@ -32,6 +32,6 @@ function legacyDecoratorFactory({TableName, DAX, Client, DocumentClient, ClientC
 
 export function LegacyConnectFactory(params: Omit<ConnectionParams, 'SharedInfo'>) {
     return function({TableName, DAX}: {TableName?: string, DAX?: string[]} = {}) {
-        return legacyDecoratorFactory({...params, TableName, DAX})
+        return legacyDecoratorFactory({...params, tableName: TableName, dax: DAX})
     }
 }

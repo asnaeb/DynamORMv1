@@ -13,13 +13,13 @@ import {KeysObject} from '../types/Key'
 import {Response} from '../response/Response'
 import {mergeNumericProps} from '../utils/General'
 import {TablesMap} from '../types/TablesMap'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 
 interface GetRequest {table: typeof DynamORMTable, keys: any[]}
 interface Chain<T extends typeof DynamORMTable> {
     get(...keys: KeysObject<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
         in<T extends typeof DynamORMTable>(table: T): Chain<T>
-        run(): ReturnType<BatchGet['run']>
+        run(): ReturnType<BatchGet['execute']>
     }
 }
 
@@ -32,8 +32,8 @@ export class BatchGet extends ClientCommandChain {
     }
 
     async #addRequest({table, keys}: GetRequest) {
-        const serializer = weakMap(table).serializer
-        const tableName = weakMap(table).tableName
+        const serializer = privacy(table).serializer
+        const tableName = privacy(table).tableName
         
         if (!serializer || !tableName) 
             throw 'Somethig was wrong' // TODO Proper error logging
@@ -91,12 +91,12 @@ export class BatchGet extends ClientCommandChain {
         return {
             get: (...keys: KeysObject<InstanceType<T>>) => {
                 this.#requests.push({table, keys})
-                return {in: this.in.bind(this), run: this.run.bind(this)}
+                return {in: this.in.bind(this), run: this.execute.bind(this)}
             }
         }
     }
 
-    public async run() {
+    public async execute() {
         const items = new TablesMap()
         const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
         const errors: Error[] = []
@@ -118,7 +118,7 @@ export class BatchGet extends ClientCommandChain {
         await AsyncArray.to(settled).async.forEach(async data => {
             if (data.status === 'fulfilled') {
                 for (const {table} of this.#requests) {
-                    const tableName = weakMap(table).tableName!
+                    const tableName = privacy(table).tableName!
                     const consumedCapacities = data.value.ConsumedCapacity
                     const responses = data.value.Responses?.[tableName]
 
@@ -132,7 +132,7 @@ export class BatchGet extends ClientCommandChain {
                             }
 
                     if (responses?.length) {
-                        const serializer = weakMap(table).serializer!
+                        const serializer = privacy(table).serializer!
                         const serialized = responses.map(e => serializer.deserialize(e))
 
                         if (!items.has(table)) items.set(table, [])

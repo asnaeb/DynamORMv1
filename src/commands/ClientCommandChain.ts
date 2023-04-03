@@ -7,5 +7,5 @@ export abstract class ClientCommandChain {
 
     abstract in(table: typeof DynamORMTable): Record<string, any>
     abstract clear(): void
-    abstract run(): Promise<TResponse<any, any, any>>
+    abstract execute(): Promise<TResponse<any, any, any>>
 }

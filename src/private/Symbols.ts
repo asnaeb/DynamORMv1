@@ -41,3 +41,6 @@ export const IN = Symbol('In')
 export const NOT_EQUAL = Symbol('<>')
 export const SIZE = Symbol('Size')
 export const CONDITION = {...QUERY, ATTRIBUTE_EXISTS, ATTRIBUTE_TYPE, CONTAINS, IN, NOT_EQUAL, SIZE}
+
+// OTHER
+export const RECORD = Symbol('Record')

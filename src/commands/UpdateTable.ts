@@ -13,17 +13,15 @@ import {
 
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
-import {weakMap} from '../private/WeakMap'
+import {privacy} from '../private/Privacy'
 import {TableCommandSingle} from './TableCommandSingle'
 
 abstract class Update<T extends DynamORMTable> extends TableCommandSingle<T, UpdateTableCommandOutput> {
     constructor(table: Constructor<T>, params: Omit<UpdateTableCommandInput, 'TableName'>) {
         super(table)
-        const wm = weakMap(table)
-
         const command = new UpdateTableCommand({
             ...params,
-            TableName: wm.tableName
+            TableName: this.tableName
         })
 
         this.emit(Update.commandEvent, command)
@@ -68,7 +66,7 @@ class UpdateTimeToLive<T extends DynamORMTable> extends TableCommandSingle<T, Up
     constructor(table: Constructor<T>) {
         super(table)
 
-        const wm = weakMap(table)
+        const wm = privacy(table)
         const command = new UpdateTimeToLiveCommand({
             TableName: wm.tableName,
             TimeToLiveSpecification: {

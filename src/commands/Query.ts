@@ -1,5 +1,6 @@
-import {GlobalSecondaryIndex, LocalSecondaryIndex, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {QueryCommand, QueryCommandOutput} from '@aws-sdk/lib-dynamodb'
+import {ConsumedCapacity, DynamoDBServiceException, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {QueryCommand, QueryCommandOutput, paginateQuery} from '@aws-sdk/lib-dynamodb'
+import {GlobalSecondaryIndex, LocalSecondaryIndex} from '../types/Overrides'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {EQUAL} from '../private/Symbols'
 import {DynamORMTable} from '../table/DynamORMTable'
@@ -8,93 +9,114 @@ import {QueryObject} from '../types/Query'
 import {Constructor} from '../types/Utils'
 import {TablePaginateCommand} from './TablePaginateCommand'
 import {B, N, S} from '../types/Native'
+import {mergeNumericProps} from '../utils/General'
+import {DynamORMError} from '../errors/DynamORMError'
 
 export interface QueryParams<T extends DynamORMTable> {
     hashValue: S | N | B,
     rangeQuery?: QueryObject<any>
     filter?: Condition<T>[]
-    IndexName?: string
-    Limit?: number
-    ScanIndexForward?: boolean
-    ConsistentRead?: boolean
+    indexName?: string
+    limit?: number
+    scanIndexForward?: boolean
+    consistentRead?: boolean
 }
 
 export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, QueryCommandOutput> {
-    constructor(table: Constructor<T>, {
-        hashValue, 
-        rangeQuery, 
-        filter, 
-        IndexName, 
-        Limit,
-        ScanIndexForward,
-        ConsistentRead
-    }: QueryParams<T>) {
+    #paginator
+    constructor(table: Constructor<T>, params: QueryParams<T>) {
         super(table)
-
         let hashKey: string | undefined
         let rangeKey: string | undefined
-
         const command = new QueryCommand({
             ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
             TableName: this.tableName,
-            IndexName,
-            Limit,
-            ScanIndexForward,
-            ConsistentRead
+            IndexName: params.indexName,
+            Limit: params.limit,
+            ScanIndexForward: params.scanIndexForward,
+            ConsistentRead: params.consistentRead
         })
-
-        if (IndexName) {
-            const joinedIndexes: GlobalSecondaryIndex[] | LocalSecondaryIndex[] = []
-
-            if (this.localSecondaryIndexes) 
+        if (params.indexName) {
+            const joinedIndexes: (GlobalSecondaryIndex | LocalSecondaryIndex)[] = []
+            if (this.localSecondaryIndexes) {
                 joinedIndexes.push(...this.localSecondaryIndexes)
-            
-            if (this.globalSecondaryIndexes)
+            }
+            if (this.globalSecondaryIndexes) {
                 joinedIndexes.push(...this.globalSecondaryIndexes)
-
-            for (const index of joinedIndexes) {
-                if (index.IndexName === IndexName) {
-                    hashKey = index.KeySchema?.[0]?.AttributeName
-                    rangeKey = index.KeySchema?.[1]?.AttributeName
+            }
+            for (let i = 0, len = joinedIndexes.length; i < len; i++) {
+                const index = joinedIndexes[i]
+                if (index.IndexName === params.indexName) {
+                    hashKey = index.KeySchema[0].AttributeName
+                    rangeKey = index.KeySchema[1]?.AttributeName
                 }
             }
         } else {
-            hashKey = this.keySchema[0]?.AttributeName
+            hashKey = this.keySchema[0].AttributeName
             rangeKey = this.keySchema[1]?.AttributeName
         }
+        if (hashKey && params.hashValue) {
+            const condition = {[hashKey]: {[EQUAL]: params.hashValue}}
+            if (params.rangeQuery && rangeKey) {
+                Object.assign(condition, {[rangeKey]: params.rangeQuery})
+            }
+            const {
+                ExpressionAttributeNames,
+                ExpressionAttributeValues,
+                ConditionExpression
+            } = generateCondition({conditions: [condition]})
+            command.input.ExpressionAttributeNames = ExpressionAttributeNames
+            command.input.ExpressionAttributeValues = ExpressionAttributeValues
+            command.input.KeyConditionExpression = ConditionExpression
+            if (params.filter) {
+                const {ConditionExpression} = generateCondition({
+                    conditions: params.filter, 
+                    attributeNames: command.input.ExpressionAttributeNames,
+                    attributeValues: command.input.ExpressionAttributeValues
+                })
+                command.input.FilterExpression = ConditionExpression
+            }
+        } 
+        this.#paginator = paginateQuery({client: this.client}, command.input)
+    }
 
-        const emit = async () => {
-            if (hashKey && hashValue) {
-                const condition = {[hashKey]: {[EQUAL]: hashValue}}
-    
-                if (rangeQuery && rangeKey) 
-                    Object.assign(condition, {[rangeKey]: rangeQuery})
-    
-                const {
-                    ExpressionAttributeNames, 
-                    ExpressionAttributeValues, 
-                    ConditionExpression
-                } = await generateCondition([condition])
-    
-                command.input.ExpressionAttributeNames = ExpressionAttributeNames
-                command.input.ExpressionAttributeValues = ExpressionAttributeValues
-                command.input.KeyConditionExpression = ConditionExpression
-
-                if (filter) {
-                    const {ConditionExpression} = await generateCondition(
-                        filter, 
-                        command.input.ExpressionAttributeNames,
-                        command.input.ExpressionAttributeValues
-                    )
-                    
-                    command.input.FilterExpression = ConditionExpression
+    public async execute() {
+        const items: T[] = []
+        const consumedCapacities: ConsumedCapacity[] = []
+        let count = 0
+        let scannedCount = 0
+        try {
+            for await (const page of this.#paginator) {
+                if (page.Items) {
+                    for (let i = 0, len = page.Items.length; i < len; i++) {
+                        const item = page.Items[i]
+                        const deserialized = this.serializer.deserialize(item)
+                        items.push(deserialized)
+                    }
                 }
-            } 
-
-            this.emit(Query.commandEvent, command)
+                if (page.ConsumedCapacity) {
+                    consumedCapacities.push(page.ConsumedCapacity)
+                }
+                if (page.Count) {
+                    count += page.Count
+                }
+                if (page.ScannedCount) {
+                    scannedCount += page.ScannedCount
+                }
+            }
         }
-        
-        emit()
+        catch (error) {
+            if (error instanceof DynamoDBServiceException) {
+                return Promise.reject(new DynamORMError(this.table, error))
+            }
+            return Promise.reject(error)
+        }
+        return {
+            items,
+            consumedCapacity: mergeNumericProps(consumedCapacities),
+            count,
+            scannedCount
+        }
     }
 
     public get response() {

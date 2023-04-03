@@ -1,10 +1,15 @@
 //@ts-check
+import {Table, Connect, HashKey, Attribute, RangeKey, createGSI} from '../../lib'
 
-import {Table, Connect, HashKey, Attribute, RangeKey} from '../../lib/index.js'
+/** @typedef {import("../../lib/types").Key.Hash<string>} HashKey.S */
+/** @typedef {import("../../lib/types").Key.Range<string>} RangeKey.S */
+
+/** @type {ReturnType<typeof createGSI<BabelTest, 'SecondAttribute'>>} */
+const GSI = createGSI()
 
 @Connect()
 class BabelTest extends Table {
-    /** @type {import("../../lib/types").Key.Hash<string>} */
+    /** @type {HashKey.S} */
     @HashKey.S()
     PartitionKey;
 
@@ -13,12 +18,9 @@ class BabelTest extends Table {
     SortKey;
 
     /** @type {string} */
-    @Attribute.S()
+    @GSI.HashKey.S()
     SecondAttribute;
-
-    static globald = this.globalSecondaryIndex('SecondAttribute')
 }
 
 console.log(BabelTest)
 
-process.exit();

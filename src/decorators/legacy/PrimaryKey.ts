@@ -3,7 +3,7 @@ import {KeyType} from '@aws-sdk/client-dynamodb'
 import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
 import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../../types/Native'
 import {HashKey, RangeKey} from '../../types/Key'
-import {weakMap} from '../../private/WeakMap'
+import {privacy} from '../../private/Privacy'
 
 const toHashKey = <T extends S | N | B>(value: T) => value as HashKey<T>
 const toRangeKey = <T extends S | N | B>(value: T) => value as RangeKey<T>
@@ -29,7 +29,7 @@ function legacyDecoratorFactory<Z>(
         AttributeName: T[K] extends Z | undefined ? K : never) {
 
         if (!!AttributeType && ['S', 'N', 'B'].includes(AttributeType)) {
-            const infos = weakMap(prototype.constructor as any)
+            const infos = privacy(prototype.constructor as any)
          
             infos.attributes ??= {}
             infos.attributes[<string>AttributeName] = {
@@ -54,7 +54,7 @@ function legacyDecorator<T>(KeyType: KeyType, AttributeType: DynamoDBScalarType)
 
 function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<CreatePrimaryKeyParams, 'SharedInfo'>) {
     let i
-    const infos = weakMap(target)
+    const infos = privacy(target)
 
     if (KeyType === 'RANGE')
         i = 1

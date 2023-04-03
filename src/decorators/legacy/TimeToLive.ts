@@ -1,13 +1,13 @@
 import type {DynamORMTable} from '../../table/DynamORMTable'
 import {DynamoDBType, N} from '../../types/Native'
-import {weakMap} from '../../private/WeakMap'
+import {privacy} from '../../private/Privacy'
 
 function legacyDecoratorFactory(MappedAttributeName?: string) {
     return function LegacyTimeToLive<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends N | undefined ? K : never
     ) {
-        const wm = weakMap(prototype.constructor as any)
+        const wm = privacy(prototype.constructor as any)
 
         wm.attributes ??= {}
         wm.attributes[<string>AttributeName] = {

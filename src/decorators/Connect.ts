@@ -1,47 +1,68 @@
 import {DynamORMTable} from '../table/DynamORMTable'
-import {ConnectionParams} from '../interfaces/ConnectionParams'
 import {Serializer} from '../serializer/Serializer'
 import {DynamoDB} from 'aws-sdk'
-import {weakMap} from '../private/WeakMap'
-import {alphaNumericDotDash} from '../utils/General'
+import {privacy} from '../private/Privacy'
+import {sanitizeTableName} from '../utils/General'
 import AmazonDaxClient from 'amazon-dax-client'
+import {DynamORMClientConfig} from '../types'
+import {DynamoDBClient} from '@aws-sdk/client-dynamodb'
+import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
+import {Shared} from '../interfaces/Shared'
+import {DynamORMError} from '../errors/DynamORMError'
+import {__register} from '../indexes/GlobalIndex'
 
-function decoratorFactory({TableName, DAX, ClientConfig, Client, DocumentClient, SharedInfo}: ConnectionParams) {
-    return function<T extends typeof DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
-        if (!SharedInfo.KeySchema?.[0] || !SharedInfo.AttributeDefinitions || !SharedInfo.Attributes) {
-            throw `@HashKey decorator was not set on class ${target.name}` // TODO error
-        }
-        const wm = weakMap(target)
-        if (DAX) {
-            const dax = new AmazonDaxClient({
-                region: ClientConfig.region, 
-                accessKeyId: ClientConfig.credentials.accessKeyId,
-                secretAccessKey: ClientConfig.credentials.secretAccessKey,
-                sessionToken: ClientConfig.credentials.sessionToken,
-                endpoint: ClientConfig.endpoint,
-                endpoints: DAX
-            }) 
-            const documentClientV2 = new DynamoDB.DocumentClient({service: <any>dax})
-            wm.daxClient = documentClientV2
-        }
-        wm.tableName = alphaNumericDotDash(TableName ?? target.name)
-        wm.client = Client
-        wm.documentClient = DocumentClient
-        wm.keySchema = SharedInfo.KeySchema
-        wm.attributeDefinitions = SharedInfo.AttributeDefinitions
-        wm.localIndexes = SharedInfo.LocalSecondaryIndexes
-        wm.globalIndexes = SharedInfo.GlobalSecondaryIndexes
-        wm.timeToLive = SharedInfo.TimeToLiveAttribute
-        wm.attributes = SharedInfo.Attributes
-        wm.serializer = new Serializer(target)
-
-        // IMPORTANT! Reset SharedInfo object
-        for (const k of Reflect.ownKeys(SharedInfo)) delete SharedInfo[<keyof typeof SharedInfo>k]
-    }
+interface ConnectParams {
+    config: DynamORMClientConfig
+    client: DynamoDBClient
+    documentClient: DynamoDBDocumentClient
+    shared: Shared
 }
 
-export function ConnectFactory(params: ConnectionParams) {
-    return function({TableName, DAX}: {TableName?: string, DAX?: string[]} = {}) {
-        return decoratorFactory({...params, DAX, TableName})
+export function ConnectFactory({config, client, documentClient, shared}: ConnectParams) {
+    return function(params?: {tableName?: string, dax?: string[]}) {
+        return function<T extends new (...args: any[]) => DynamORMTable>(target: T, ctx: ClassDecoratorContext<T>) {
+            if (!shared.keySchema?.[0] || !shared.attributeDefinitions || !shared.attributes) {
+                throw new DynamORMError(target, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: '@HashKey decorator must be set' 
+                })
+            }
+            const wm = privacy(target)
+            if (params?.dax) {
+                const daxClient = new AmazonDaxClient({
+                    region: config.region, 
+                    accessKeyId: config.credentials.accessKeyId,
+                    secretAccessKey: config.credentials.secretAccessKey,
+                    sessionToken: config.credentials.sessionToken,
+                    endpoint: config.endpoint,
+                    endpoints: params.dax
+                }) 
+                const documentClientWithDAX = new DynamoDB.DocumentClient({service: <any>daxClient})
+                wm.daxClient = documentClientWithDAX
+            }
+            wm.tableName = sanitizeTableName(params?.tableName ?? target.name)
+            wm.client = client
+            wm.documentClient = documentClient
+            wm.keySchema = shared.keySchema
+            wm.attributeDefinitions = shared.attributeDefinitions
+            wm.localIndexes = shared.localSecondaryIndexes
+            wm.globalIndexes = shared.globalSecondaryIndexes
+            wm.timeToLive = shared.timeToLiveAttribute
+            wm.attributes = shared.attributes
+            wm.serializer = new Serializer(target)
+            if (shared.unregisteredIndexes?.length) {
+                for (let i = 0, len = shared.unregisteredIndexes.length; i < len; i++) {
+                    const unregistered = shared.unregisteredIndexes[i]
+                    unregistered[__register](target)
+                }
+            }
+
+            // IMPORTANT! Reset shared object
+            const keys = Reflect.ownKeys(shared)
+            for (let i = 0, len = keys.length; i < len; i++) {
+                const key = keys[i] as keyof Shared
+                delete shared[key]
+            }
+        }
     }
 }

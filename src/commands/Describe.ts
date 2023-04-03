@@ -15,7 +15,6 @@ import {
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
 import {TableCommandSingle} from './TableCommandSingle'
-import {DescribeTableParams} from '../interfaces/DescribeTableParams'
 import {ResolvedOutput} from '../interfaces/ResolvedOutput'
 import {ServiceOutputTypes} from '@aws-sdk/lib-dynamodb'
 import {AsyncArray} from '@asn.aeb/async-array'

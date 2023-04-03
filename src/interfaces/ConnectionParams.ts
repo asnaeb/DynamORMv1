@@ -4,9 +4,9 @@ import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import {DynamORMClientConfig} from '../dynamorm/DynamORM'
 
 export interface ConnectionParams extends DecoratorParams {
-    ClientConfig: DynamORMClientConfig
-    Client: DynamoDBClient
-    DocumentClient: DynamoDBDocumentClient
-    TableName?: string
-    DAX?: string[]
+    config: DynamORMClientConfig
+    client: DynamoDBClient
+    documentClient: DynamoDBDocumentClient
+    tableName?: string
+    dax?: string[]
 }

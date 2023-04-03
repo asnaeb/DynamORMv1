@@ -1,9 +1,6 @@
 import {
     AttributeDefinition, 
-    DynamoDBClient, 
-    GlobalSecondaryIndex, 
-    KeySchemaElement, 
-    LocalSecondaryIndex
+    DynamoDBClient
 } from '@aws-sdk/client-dynamodb'
 
 import {
@@ -23,14 +20,15 @@ import {
 import {DynamORMTable} from '../table/DynamORMTable'
 import {DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import {DynamoDB} from 'aws-sdk'
-import {SharedInfo} from '../interfaces/SharedInfo'
+import {Shared} from '../interfaces/Shared'
 import {Serializer} from '../serializer/Serializer'
 import {Constructor} from '../types/Utils'
 import {DynamORMError} from '../errors/DynamORMError'
+import {KeySchema, GlobalSecondaryIndex, LocalSecondaryIndex} from '../types/Overrides'
 
 const __wm = createWeakMap()
 
-export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
+export function privacy<T extends DynamORMTable>(table: Constructor<T>) {
     if (!(table.prototype instanceof DynamORMTable)) {
         throw new DynamORMError(table, {
             name: DynamORMError.INVALID_TABLE,
@@ -51,7 +49,7 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
             }
             return tableName
         }
-        public set tableName(value: string | undefined) {
+        public set tableName(value) {
             wm.set(TABLE_NAME, value)
         }
 
@@ -91,7 +89,7 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
 
         public get keySchema() {
-            const keySchema = wm.get<KeySchemaElement[]>(KEY_SCHEMA)
+            const keySchema = wm.get<KeySchema>(KEY_SCHEMA)
             if (!keySchema) {
                 throw new DynamORMError(table, {
                     name: DynamORMError.INVALID_TABLE,
@@ -141,7 +139,7 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
 
         public get attributes() {
-            const attributes = wm.get<SharedInfo['Attributes']>(ATTRIBUTES)
+            const attributes = wm.get<Shared['attributes']>(ATTRIBUTES)
             if (!attributes) {
                 throw new DynamORMError(table, {
                     name: DynamORMError.INVALID_TABLE,
@@ -166,6 +164,19 @@ export function weakMap<T extends DynamORMTable>(table: Constructor<T>) {
         }
         public set serializer(value) {
             wm.set(SERIALIZER, value)
+        }
+        public get hashKey() {
+            const hashKey = this.keySchema[0].AttributeName
+            if (!hashKey) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_hash_msg
+                })
+            }
+            return hashKey
+        }
+        public get rangeKey() {
+            return this.keySchema[1]?.AttributeName
         }
     }
 }

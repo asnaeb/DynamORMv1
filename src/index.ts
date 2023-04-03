@@ -4,27 +4,32 @@ import {HashKeyFactory} from './decorators/PrimaryKey'
 import {RangeKeyFactory} from './decorators/PrimaryKey'
 import {AttributeFactory} from './decorators/Attribute'
 import {TimeToLiveFactory} from './decorators/TimeToLive'
-import {SharedInfo} from './interfaces/SharedInfo'
+import {Shared} from './interfaces/Shared'
 import {DynamORMTableES} from './table/DynamORMTable'
+import {VariantFactory} from './decorators/Variant'
+import {decoratorsGlobalIndex} from './indexes/GlobalIndex'
 
 export class DynamORM extends AbstractDynamORM {
-    readonly #sharedInfo: SharedInfo = {}
+    readonly #shared: Shared = {}
     public decorators
+    public createGlobalSecondaryIndex 
+
     constructor(config: DynamORMClientConfig) {
         super(config)
-
         this.decorators = {
             Connect: ConnectFactory({
-                Client: this._client,
-                DocumentClient: this._documentClient,
-                ClientConfig: this._config,
-                SharedInfo: this.#sharedInfo
+                client: this._client,
+                documentClient: this._documentClient,
+                config: this._config,
+                shared: this.#shared
             }),
-            HashKey: HashKeyFactory(this.#sharedInfo),
-            RangeKey: RangeKeyFactory(this.#sharedInfo),
-            Attribute: AttributeFactory(this.#sharedInfo),
-            TimeToLive: TimeToLiveFactory(this.#sharedInfo)
+            Variant: VariantFactory(this.#shared),
+            HashKey: HashKeyFactory(this.#shared),
+            RangeKey: RangeKeyFactory(this.#shared),
+            Attribute: AttributeFactory(this.#shared),
+            TimeToLive: TimeToLiveFactory(this.#shared)
         }
+        this.createGlobalSecondaryIndex = decoratorsGlobalIndex(this.#shared)
     }
 }
 
@@ -41,6 +46,7 @@ const dynamorm = new DynamORM({
 export const {
     Attribute,
     Connect,
+    Variant,
     HashKey,
     RangeKey,
     TimeToLive
@@ -55,6 +61,8 @@ export const {
     fromBackupARN,
     listTables
 } = dynamorm.client
+
+export const createGSI = dynamorm.createGlobalSecondaryIndex
 
 export class Table extends DynamORMTableES {}
 export * from './types'
