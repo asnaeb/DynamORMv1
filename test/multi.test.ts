@@ -6,7 +6,7 @@ import {DynamoDBLocal} from '@asn.aeb/dynamodb-local'
 import {BeginsWith, Between, Equal} from '../src/operators'
 
 const GSI = createGSI<Song, 'title', 'artist'>()
-const GSI2 = createGSI<Song, 'type'>({})
+const GSI2 = createGSI<Song, 'type'>()
 
 @Connect({tableName: 'Songs'})
 class Song extends Table {
@@ -26,7 +26,7 @@ class Song extends Table {
     @Attribute.N()
     downloads?: number
 
-    @Attribute.N()
+    @Attribute.N({attributeName: 'TIMEZ'})
     time?: number
 
     @Attribute.N()
@@ -42,12 +42,14 @@ v2.setRangeKey(`download-${randomUUID()}`)
 v2.time = Date.now()
 async function x() {
     await DynamoDBLocal.start({inMemory: true})
-    const create = await Song.createTable()
-    console.dir(create.tableDescription.GlobalSecondaryIndexes, {depth: null})
-    // await v1.save()
-    // await v2.save()
-    // const response = await Song.query(v1.uuid)
-    // console.log(response.items)
+    await Song.createTable()
+    await Song.put(v1, v2)
+    const {items} = await Song.scan({projection: ['time', 'title', 'artist']})
+    console.log(items)
+    //await v2.save()
+    //const response = await Song.query(v1.uuid)
+    //const v = await v1.save({overwrite: false})
+    //console.dir(v, {depth: null})
     await DynamoDBLocal.stop()
 }
 

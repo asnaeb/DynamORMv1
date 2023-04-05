@@ -1,12 +1,12 @@
-import {DeleteTableCommand, DeleteTableCommandOutput} from '@aws-sdk/client-dynamodb'
+import {DeleteTableCommand} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Constructor} from '../types/Utils'
-import {TableCommandSingle} from './TableCommandSingle'
+import {TableCommand} from './TableCommand'
 import {TableWaiter} from '../waiter/TableWaiter'
 import {DynamoDBGenericException} from '../errors/DynamoDBErrors'
 import {DynamORMError} from '../errors/DynamORMError'
 
-export class DeleteTable<T extends DynamORMTable> extends TableCommandSingle<T, DeleteTableCommandOutput> {
+export class DeleteTable<T extends DynamORMTable> extends TableCommand<T> {
     #command
     #waiter
     public constructor(table: Constructor<T>) {
@@ -34,9 +34,5 @@ export class DeleteTable<T extends DynamORMTable> extends TableCommandSingle<T, 
             }
             return Promise.reject(error)
         }
-    }
-
-    public get response() {
-        return this.make_response(['TableDescription'])
     }
 }

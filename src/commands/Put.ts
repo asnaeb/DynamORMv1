@@ -1,45 +1,79 @@
 import {PutCommand, type PutCommandOutput} from '@aws-sdk/lib-dynamodb'
-import {ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {AsyncArray} from '@asn.aeb/async-array'
+import {ConsumedCapacity, DynamoDBServiceException, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
-import {TableCommandPool} from './TableCommandPool'
+import {TableCommand} from './TableCommand'
 import {AttributeNames} from '../types/Native'
 import {Constructor} from '../types/Utils'
-import {alphaNumeric} from '../utils/General'
+import {alphaNumeric, mergeNumericProps} from '../utils/General'
+import {DynamORMError} from '../errors/DynamORMError'
+import {TupleFromKey} from '../types/Key'
+import {DynamoDBPutException} from '../errors/DynamoDBErrors'
 
-export class Put<T extends DynamORMTable> extends TableCommandPool<T, PutCommandOutput> {
-    constructor(table: Constructor<T>, items: T[]) {
+export class Put<
+    T extends DynamORMTable, 
+    K extends readonly T[],
+    R = TupleFromKey<T, K, true, false>,
+    E = TupleFromKey<T, K, string>
+> extends TableCommand<T> {
+    #promises: Promise<PutCommandOutput>[] = []
+    constructor(table: Constructor<T>, items: K) {
         super(table)
-
-        const hashKey = this.keySchema[0]?.AttributeName
-        const rangeKey = this.keySchema[1]?.AttributeName
-
         let ExpressionAttributeNames: AttributeNames | undefined
         let ConditionExpression: string | undefined
-
-        if (hashKey) {
-            const key = rangeKey ?? hashKey
-            const $key = alphaNumeric(key)
-            
-            ExpressionAttributeNames = {[`#${$key}`]: key}
-            ConditionExpression = `attribute_not_exists(#${$key})`
-        }
-
-        AsyncArray.to(items).async.map(item => {
-            const {item: Item} = this.serializer.serialize(item)
-            return new PutCommand({
+        const key = this.rangeKey ?? this.hashKey
+        const $key = alphaNumeric(key)    
+        ExpressionAttributeNames = {[`#${$key}`]: key}
+        ConditionExpression = `attribute_not_exists(#${$key})`
+        for (let i = 0, len = items.length; i < len; i++) {
+            const {item: Item} = this.serializer.serialize(items[i])
+            const command = new PutCommand({
                 TableName: this.tableName,
-                ExpressionAttributeNames,
-                ConditionExpression,
                 Item,
+                ConditionExpression,
+                ExpressionAttributeNames,
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
             })
-        })
-
-        .then(commands => this.emit(Put.commandsEvent, commands))
+            const promise = this.client.send(command)
+            this.#promises.push(promise)
+        }
     }
 
-    public get response() {
-        return this.make_response(['ConsumedCapacity'], 'SuccessfulPuts', 'FailedPuts')
+    public async execute() {
+        const consumedCapacities: ConsumedCapacity[] = []
+        const successful: boolean[] = []
+        const errors: (string | null)[] = []
+        try {
+            const responses = await Promise.allSettled(this.#promises)
+            for (let i = 0, len = responses.length; i < len; i++) {
+                const response = responses[i]
+                if (response.status === 'fulfilled') {
+                    successful.push(true)
+                    errors.push(null)
+                    if (response.value.ConsumedCapacity) {
+                        consumedCapacities.push(response.value.ConsumedCapacity)
+                    }
+                    if (response.value.ItemCollectionMetrics) {
+                        // TODO
+                    }
+                }
+                else {
+                    if (response.reason instanceof DynamoDBPutException) {
+                        successful.push(false)
+                        errors.push(response.reason.message)
+                    }
+                }
+            }
+            return {
+                successful: <R>successful,
+                errors: <E>errors,
+                consumedCapacity: mergeNumericProps(consumedCapacities)
+            }
+        }
+        catch (error) {
+            if (error instanceof DynamoDBServiceException) {
+                return DynamORMError.reject(this.table, error) // TODO
+            }
+            return Promise.reject(error)
+        }
     }
 }

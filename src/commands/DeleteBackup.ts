@@ -2,17 +2,6 @@ import {BackupDescription, DeleteBackupCommand, DynamoDBClient} from '@aws-sdk/c
 import {Response} from '../response/Response'
 
 export async function DeleteBackup(client: DynamoDBClient, BackupArn: string) {
-    let error: Error[] | undefined
-    let info: {BackupDescription?: BackupDescription} | undefined
-
-    try {
-        const {BackupDescription} = await client.send(new DeleteBackupCommand({BackupArn}))
-        info = {BackupDescription}
-    }
-
-    catch (_error: any) {
-        error = [_error]
-    }
-
-    return Response<never, undefined, typeof info>(undefined, info, error)
+    const {BackupDescription} = await client.send(new DeleteBackupCommand({BackupArn}))
+    return {backupDescription: BackupDescription}    
 }

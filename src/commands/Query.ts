@@ -7,7 +7,7 @@ import {DynamORMTable} from '../table/DynamORMTable'
 import {Condition} from '../types/Condition'
 import {QueryObject} from '../types/Query'
 import {Constructor} from '../types/Utils'
-import {TablePaginateCommand} from './TablePaginateCommand'
+import {TableCommand} from './TableCommand'
 import {B, N, S} from '../types/Native'
 import {mergeNumericProps} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
@@ -22,7 +22,7 @@ export interface QueryParams<T extends DynamORMTable> {
     consistentRead?: boolean
 }
 
-export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, QueryCommandOutput> {
+export class Query<T extends DynamORMTable> extends TableCommand<T> {
     #paginator
     constructor(table: Constructor<T>, params: QueryParams<T>) {
         super(table)
@@ -117,14 +117,5 @@ export class Query<T extends DynamORMTable> extends TablePaginateCommand<T, Quer
             count,
             scannedCount
         }
-    }
-
-    public get response() {
-        return this.make_response(
-            ['Count', 'ScannedCount', 'ConsumedCapacity'], 
-            undefined, 
-            undefined, 
-            'Items'
-        )
     }
 }

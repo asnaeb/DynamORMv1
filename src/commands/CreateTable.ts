@@ -10,7 +10,7 @@ import {
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {CreateTableParams} from "../interfaces/CreateTableParams"
 import type {Constructor} from '../types/Utils'
-import {TableCommandSingle} from './TableCommandSingle'
+import {TableCommand} from './TableCommand'
 import {DynamoDBCreateTableException} from '../errors/DynamoDBErrors'
 import {DynamORMError} from '../errors/DynamORMError'
 import {TableWaiter} from '../waiter/TableWaiter'
@@ -19,7 +19,7 @@ export interface Output extends CreateTableCommandOutput, Pick<UpdateTimeToLiveC
     TableDescription: TableDescription 
 }
 
-export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, Output> {
+export class CreateTable<T extends DynamORMTable> extends TableCommand<T> {
     #commands: [CreateTableCommand, UpdateTimeToLiveCommand?]
     #waiter
     public constructor(table: Constructor<T>, params?: CreateTableParams) {
@@ -87,18 +87,14 @@ export class CreateTable<T extends DynamORMTable> extends TableCommandSingle<T, 
         catch (error) {
             if (error instanceof DynamoDBCreateTableException) {
                 if (error.name === 'ResourceInUseException') {
-                    return Promise.reject(new DynamORMError(this.table, {
+                    return DynamORMError.reject(this.table, {
                         name: DynamORMError.TABLE_EXISTS,
                         message: 'This table already exists'
-                    }))
+                    })
                 }
-                return Promise.reject(new DynamORMError(this.table, error))
+                return DynamORMError.reject(this.table, error)
             }
             return Promise.reject(error)
         }
-    }
-
-    public get response() {
-        return this.make_response(['TableDescription', 'TimeToLiveSpecification'])
     }
 }

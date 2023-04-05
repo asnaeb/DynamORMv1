@@ -32,10 +32,6 @@ export class Select<T extends DynamORMTable, K extends SelectKey<T>> {
 
     public constructor(table: Constructor<T>, keys: readonly unknown[]) {
         const serializer = privacy(table).serializer
-
-        if (!serializer)
-            throw new Error('Serializer not found!') // TODO Proper error description
-
         this.#table = table
         this.#serializer = serializer
         this.#generatedKeys = this.#serializer.generateKeys(keys)

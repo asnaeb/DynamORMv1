@@ -14,9 +14,9 @@ import {
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
 import {privacy} from '../private/Privacy'
-import {TableCommandSingle} from './TableCommandSingle'
+import {TableCommand} from './TableCommand'
 
-abstract class Update<T extends DynamORMTable> extends TableCommandSingle<T, UpdateTableCommandOutput> {
+abstract class Update<T extends DynamORMTable> extends TableCommand<T> {
     constructor(table: Constructor<T>, params: Omit<UpdateTableCommandInput, 'TableName'>) {
         super(table)
         const command = new UpdateTableCommand({
@@ -62,7 +62,7 @@ class UpdateTableClass<T extends DynamORMTable> extends Update<T> {
     }
 }
 
-class UpdateTimeToLive<T extends DynamORMTable> extends TableCommandSingle<T, UpdateTimeToLiveCommandOutput> {
+class UpdateTimeToLive<T extends DynamORMTable> extends TableCommand<T> {
     constructor(table: Constructor<T>) {
         super(table)
 

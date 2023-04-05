@@ -4,9 +4,10 @@ import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Condition} from '../types/Condition'
 import type {Key, SelectKey, TupleFromKey} from "../types/Key"
 import type {Constructor} from '../types/Utils'
-import {TableCommandPool} from './TableCommandPool'
+import {TableCommand} from './TableCommand'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {mergeNumericProps} from '../utils/General'
+import {DynamoDBGenericException} from '../errors/DynamoDBErrors'
 
 interface DeleteParams<T extends DynamORMTable> {
     keys: Key[]
@@ -16,8 +17,9 @@ interface DeleteParams<T extends DynamORMTable> {
 export class Delete<
     T extends DynamORMTable,
     K extends SelectKey<T>,
-    R = TupleFromKey<T, Error, K>
-> extends TableCommandPool<T, DeleteCommandOutput> {
+    R = TupleFromKey<T, K, T>,
+    E = TupleFromKey<T, K, string>
+> extends TableCommand<T> {
     #promises: Promise<DeleteCommandOutput>[] = []
     public constructor(table: Constructor<T>, {keys, conditions}: DeleteParams<T>) {
         super(table)
@@ -45,19 +47,22 @@ export class Delete<
 
     public async execute() {
         const results = await Promise.allSettled(this.#promises)
-        const items: (T | Error)[] = []
+        const items: (T | null)[] = []
+        const errors: (string | null)[] = []
         const consumedCapacities: ConsumedCapacity[] = []
         for (let i = 0, len = results.length; i < len; i++) {
             const result = results[i]
             if (result.status === 'rejected') {
-                if (result.reason instanceof Error) {
-                    items.push(result.reason)
+                if (result.reason instanceof DynamoDBGenericException) {
+                    items.push(null)
+                    errors.push(result.reason.message)
                 }
             }
             else {
                 if (result.value.Attributes) {
                     const instance = this.serializer.deserialize(result.value.Attributes)
                     items.push(instance)
+                    errors.push(null)
                 }
                 if (result.value.ConsumedCapacity) {
                     consumedCapacities.push(result.value.ConsumedCapacity)
@@ -66,11 +71,8 @@ export class Delete<
         }
         return {
             items: <R>items,
+            errors: <E>errors,
             consumedCapacity: mergeNumericProps(consumedCapacities)
         }
-    }
-
-    public get response() {
-        return this.make_response(['ConsumedCapacity'], 'SuccessfulDeletes', 'FailedDeletes', 'Attributes')
     }
 }

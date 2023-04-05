@@ -19,15 +19,16 @@ interface UpdateParams<T extends DynamORMTable> {
 }
 
 export class Update<
-    T extends DynamORMTable, K extends SelectKey<T>, R = TupleFromKey<T, null, K>
-> extends TableCommand<T, UpdateCommandOutput> {
+    T extends DynamORMTable, 
+    K extends SelectKey<T>, 
+    R = TupleFromKey<T, K>,
+    E = TupleFromKey<T, K, string>
+> extends TableCommand<T> {
     #promises: Promise<UpdateCommandOutput>[] = []
     constructor(table: Constructor<T>, {keys, updates, conditions, recursive}: UpdateParams<T>) {
         super(table)
         const {item} = this.serializer.serialize(updates, {throwOnExcess: true})
-
-        updates = item as any // TODO use wider type
-
+        updates = item 
         for (let i = 0, len = keys.length; i < len; i++) {
             const Key = keys[i]
             const commands = generateUpdate(table, {
@@ -37,7 +38,6 @@ export class Update<
                 conditions, 
                 recursive
             })
-
             const ownKeys = Object.keys(Key)
             for (let i = 0, len = ownKeys.length; i < len; i++) {
                 const k = ownKeys[i]
@@ -50,7 +50,6 @@ export class Update<
                     (expression ? ` ${ConditionalOperator.AND} (${expression})` :  '')
                 }
             }
-
             const promise = new Promise<UpdateCommandOutput>(async (resolve, reject) => {
                 let output: UpdateCommandOutput
                 let consumedCapacities: ConsumedCapacity[] = []
@@ -77,7 +76,6 @@ export class Update<
                     }
                 }
             })
-
             this.#promises.push(promise)
         }
     }
@@ -85,28 +83,22 @@ export class Update<
     public async execute() {
         const results = await Promise.allSettled(this.#promises)
         const items: (T | null)[] = [] 
+        const errors: (string | null)[] = []
         const consumedCapacities: ConsumedCapacity[] = []
         for (let i = 0, len = results.length; i < len; i++) {
             const result = results[i]
             if (result.status === 'rejected') {
                 if (result.reason instanceof DynamoDBUpdateException) {
-                    if (result.reason.name === 'ConditionalCheckFailedException') {
-                        items.push(null)
-                    }
-                    else if (result.reason.name === 'ValidationException') {
-                        if (result.reason.message.includes('document path')) {
-                            return Promise.reject(new DynamORMError(this.table, {
-                                name: DynamORMError.INVALID_PROP,
-                                message: 'A recursive update may only be performed using update.recursive'
-                            }))
-                        }
+                    items.push(null)
+                    if (result.reason.name === 'ValidationException' && result.reason.message.includes('document path')) {
+                        errors.push('A recursive update may only be performed using update.recursive')
                     }
                     else {
-                        return Promise.reject(new DynamORMError(this.table, result.reason))
+                        errors.push(result.reason.message)
                     }
                 }
                 else {
-                    return Promise.reject(result.reason)
+                    return DynamORMError.reject(this.table, result.reason)
                 }
             }
             else {
@@ -121,11 +113,8 @@ export class Update<
         }
         return {
             items: <R>items, 
+            errors: <E>errors,
             consumedCapacity: mergeNumericProps(consumedCapacities)
         }
-    }
-
-    public get response() {
-        return this.make_response(['ConsumedCapacity'], 'SuccessfulUpdates', 'FailedUpdates', 'Attributes')
     }
 }

@@ -41,6 +41,7 @@ export function ConnectFactory({config, client, documentClient, shared}: Connect
                 wm.daxClient = documentClientWithDAX
             }
             wm.tableName = sanitizeTableName(params?.tableName ?? target.name)
+            wm.config = config
             wm.client = client
             wm.documentClient = documentClient
             wm.keySchema = shared.keySchema

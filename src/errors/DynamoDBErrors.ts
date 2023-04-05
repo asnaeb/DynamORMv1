@@ -28,7 +28,15 @@ interface UpdateException extends DynamoDBServiceException {
     | 'TransactionConflictException'
 }
 export const DynamoDBUpdateException = DynamoDBServiceException as ExceptionConstructor<UpdateException>
+interface PutException extends DynamoDBServiceException {
+    name: Common
+    | 'ConditionalCheckFailedException'
+    | 'TransactionConflictException'
+    | 'ProvisionedThroughputExceededException'
+    | 'ItemCollectionSizeLimitExceededException'
+}
 interface BatchGetException extends DynamoDBServiceException {
     name: Common
 }
+export const DynamoDBPutException = DynamoDBServiceException as ExceptionConstructor<PutException>
 export const DynamoDBBatchGetException = DynamoDBServiceException as ExceptionConstructor<BatchGetException>

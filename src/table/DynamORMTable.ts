@@ -31,11 +31,15 @@ import {TableWaiter} from '../waiter/TableWaiter'
 import {UpdateTable} from '../commands/UpdateTable'
 import {CdkTable, type CdkTableProps} from '../cdk/CdkTable'
 import {RECORD as __record} from '../private/Symbols'
+import {ConcurrentScan} from '../commands/ConcurrentScan'
+import {proxy} from './Proxy'
+import {DynamoDBPutException} from '../errors/DynamoDBErrors'
+import {ConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {DynamORMError} from '../errors/DynamORMError'
 
 const WM = Symbol('wm')
 export const RECORD = Symbol('record')
 export abstract class DynamORMTable {
-
     public static get wait() {
         return new TableWaiter(this)
     }
@@ -67,7 +71,8 @@ export abstract class DynamORMTable {
     }
 
     public static importTable(params: ImportTableParams) {
-        return new ImportTable(this, params).response
+        const importTable = new ImportTable(this, params)
+        return importTable.execute()
     }
 
     public static deleteTable() {
@@ -76,11 +81,19 @@ export abstract class DynamORMTable {
     }
 
     public static createBackup({BackupName}: {BackupName: string}) {
-        return new CreateBackup(this, BackupName).response
+        const createBackup = new CreateBackup(this, BackupName)
+        return createBackup.execute()
     }
 
-    public static scan<T extends DynamORMTable>(this: Constructor<T>, params?: ScanOptions) {
-        return new Scan(this, params || {}).response
+    public static scan<T extends DynamORMTable>(this: Constructor<T>, params?: ScanOptions<T>) {
+        let scan 
+        if (params && 'workers' in params) {
+            scan = new ConcurrentScan(this, params)
+        }
+        else {
+            scan = new Scan(this, params)
+        }
+        return scan.execute() 
     }
 
     public static query<T extends DynamORMTable>(
@@ -115,8 +128,9 @@ export abstract class DynamORMTable {
         return query.execute()
     }
 
-    public static put<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
-        return new Put(this, elements).response
+    public static put<T extends DynamORMTable, K extends readonly T[]>(this: Constructor<T>, ...elements: K) {
+        const put = new Put(this, elements)
+        return put.execute()
     }
 
     public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
@@ -126,25 +140,17 @@ export abstract class DynamORMTable {
     public static select<T extends DynamORMTable, K extends SelectKey<T>>(this: Constructor<T>, ...keys: K) {
         return new Select<T, K>(this, keys)
     }
+    
+    // INSTANCE SECTION
 
-    private [WM]: ReturnType<typeof privacy<this>>
+    private get [WM]() {
+        return privacy(this.constructor as Constructor<this>)
+    }
+
     private [RECORD]?: Record<string, NativeType>
 
-    // INSTANCE SECTION
     constructor() {
-        const wm = privacy(this.constructor as Constructor<this>)
-        this[WM] = wm
-        return new Proxy(this, {
-            set(target, key, value) {
-                if (value !== undefined && typeof key === 'string') {
-                    if (key in wm.attributes) {
-                        const name = wm.attributes[key].AttributeName
-                        value = wm.serializer.inspect(name, value)
-                    }
-                }
-                return Reflect.set(target, key, value)
-            }
-        })
+        return proxy(this)
     }
 
     public setKey<
@@ -186,15 +192,38 @@ export abstract class DynamORMTable {
         }
     }
 
-    public save<T extends DynamORMTable>(this: T, options?: {overwrite: true}): ReturnType<Save<T>['execute']>
-    public save<T extends DynamORMTable>(this: T, options: {overwrite: false}): Put<T>['response'] 
-    public save<T extends DynamORMTable>(this: T, options = {overwrite: true}) {
+    public async save<T extends DynamORMTable>(this: T, options = {overwrite: true}) {
         const table = this.constructor as Constructor<T>
+        const response: {saved: boolean; consumedCapaciy?: ConsumedCapacity} = {saved: false}
         if (!options.overwrite) {
-            return new Put(table, [this]).response
+            const put = new Put(table, [this] as const)
+            try {
+                const {consumedCapacity, successful} = await put.execute()
+                response.saved = successful[0]
+                response.consumedCapaciy = consumedCapacity
+            }
+            catch (error) {
+                console.log(error)
+                if (error instanceof DynamoDBPutException) {
+                    if (error.name === 'ConditionalCheckFailedException') {
+                        response.saved = false
+                    }
+                    else {
+                        return DynamORMError.reject(table, error)
+                    }
+                }
+                else {
+                    return Promise.reject(error)
+                }
+            }
         }
-        const save = new Save(table, this)
-        return save.execute()
+        else {
+            const save = new Save(table, this)
+            const {consumedCapacity} = await save.execute()
+            response.saved = true
+            response.consumedCapaciy = consumedCapacity
+        }
+        return response
     }
 
     public async delete<T extends DynamORMTable>(this: T) {
@@ -203,14 +232,15 @@ export abstract class DynamORMTable {
         const del = new Delete(table, {keys: [key]})
         const {items, consumedCapacity} = await del.execute()
         return {
-            item: items[0] as T | Error,
+            deleted: !!items[0],
             consumedCapacity
         }
     }
 
     public record<
         T extends DynamORMTable,
-        B extends boolean
+        B extends boolean,
+        R extends [B] extends [true] ? Record<string, NativeType> : {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
     >(this: T, options?: {transform?: B}) {
         let item
         if (options?.transform) {
@@ -220,7 +250,7 @@ export abstract class DynamORMTable {
         else {
             item = {...this}
         }
-        return item as [B] extends [true] ? Record<string, NativeType> : {[K in keyof T as T[K] extends Function ? never: K]: T[K]}
+        return item as R
     }
 
     public db() {

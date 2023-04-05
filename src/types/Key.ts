@@ -1,3 +1,4 @@
+import {DynamORMTable} from '../table/DynamORMTable'
 import {S, N, B} from './Native'
 import {ValueOf} from './Utils'
 
@@ -11,13 +12,15 @@ export type KeysObject<T> = {
     [K in BinaryToString<HashType<T>>]: RangeType<T> | [RangeType<T>, RangeType<T>, ...RangeType<T>[]]
 } & {[Symbol.iterator]?: never}
 export type NonKey<T> = {[K in keyof T as T[K] extends (HashKey<infer _> | RangeKey<infer _> | undefined) ? never : K]: T[K]}
-export type OnlyKey<T> = {[K in keyof T as T[K] extends (HashKey<infer _> | RangeKey<infer _> | undefined) ? K : never]: T[K]}
-export type ReadonlyKey<T> = Readonly<OnlyKey<T>> & NonKey<T>
-export type KeysTuple<T> = HashType<T> extends never ? never : RangeType<T> extends never ? HashType<T> : [HashType<T>, RangeType<T>]
-export type SelectKey<T> = HashType<T> extends never ? never : 
+export type KeysTuple<T extends DynamORMTable> = HashType<T> extends never ? never : 
+RangeType<T> extends never ? HashType<T> : 
+[HashType<T>, RangeType<T>]
+export type SelectKey<T extends DynamORMTable> = HashType<T> extends never ? never : 
 readonly T[] | (RangeType<T> extends never ? readonly HashType<T>[] : [KeysObject<T>] | readonly KeysTuple<T>[])
-export type TupleFromKey<T, E, K extends SelectKey<T>> = 
-K extends readonly KeysTuple<T>[] | readonly T[] ? {[N in keyof K]: T | E} : (ReadonlyKey<T> | E)[]
+export type TupleFromKey<A extends DynamORMTable, K extends readonly unknown[], T = A, E = null> = 
+K extends (readonly KeysTuple<A>[] | readonly A[]) ? {[N in keyof K]: T | E} : 
+K extends readonly [KeysObject<A>] ? (T | E)[] : 
+never
 export type InferKeyTypes<T> = {
     [K in keyof T]: T[K] extends HashKey<infer S> ? S : T[K] extends RangeKey<infer U> ? U : T[K]
 }

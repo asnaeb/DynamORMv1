@@ -7,6 +7,7 @@ import {
     ATTRIBUTES, 
     ATTRIBUTE_DEFINITIONS, 
     CLIENT, 
+    CLIENT_CONFIG,
     DAX_CLIENT, 
     DOCUMENT_CLIENT, 
     GLOBAL_INDEXES, 
@@ -25,6 +26,7 @@ import {Serializer} from '../serializer/Serializer'
 import {Constructor} from '../types/Utils'
 import {DynamORMError} from '../errors/DynamORMError'
 import {KeySchema, GlobalSecondaryIndex, LocalSecondaryIndex} from '../types/Overrides'
+import {DynamORMClientConfig} from '..'
 
 const __wm = createWeakMap()
 
@@ -65,6 +67,21 @@ export function privacy<T extends DynamORMTable>(table: Constructor<T>) {
         }
         public set client(value) {
             wm.set(CLIENT, value)
+        }
+
+        public get config() {
+            const config = wm.get<DynamORMClientConfig>(CLIENT_CONFIG)
+            if (!config) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_TABLE,
+                    message: no_connect_msg
+                })
+            }
+            return config
+        }
+
+        public set config(value) {
+            wm.set(CLIENT_CONFIG, value)
         }
 
         public get documentClient() {

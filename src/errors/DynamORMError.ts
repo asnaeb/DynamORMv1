@@ -34,6 +34,11 @@ export class DynamORMError<T extends DynamORMTable> extends Error {
             case DynamoDBType.BS: return 'Set (Uint8Array)'
         }
     }
+    static reject<T extends DynamORMTable>(table: Constructor<T>, error: Error): Promise<never>
+    static reject<T extends DynamORMTable>(table: Constructor<T>, {name, message}: {name: ERR_NAME; message: string}): Promise<never>
+    static reject(...args: [any, any?]) {
+        return Promise.reject(new this(...args))
+    }
     #Table
     constructor(table: Constructor<T>, error: Error)
     constructor(table: Constructor<T>, {name, message}: {name: ERR_NAME; message: string}) 
@@ -57,6 +62,6 @@ export class DynamORMError<T extends DynamORMTable> extends Error {
     }
     
     private [inspect]() {
-
+        // TODO
     }
 }

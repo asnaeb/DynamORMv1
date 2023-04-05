@@ -115,13 +115,14 @@ export class GSI<T extends DynamORMTable, H extends keyof Scalars<T>, R extends 
         return query.execute()
     }
 
-    public scan(params?: {limit: number}) {
+    public scan(params?: {limit?: number, workers?: number}) {
         this.#assertTable()
-        return new Scan(this.#table!, {
-            Limit: params?.limit, 
-            ConsistentRead: false, 
-            IndexName: this.indexName
-        }).response
+        const scan = new Scan(this.#table!, {
+            limit: params?.limit, 
+            consistentRead: false, 
+            indexName: this.indexName
+        })
+        return scan.execute()
     }
 
     public create() {

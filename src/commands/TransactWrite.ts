@@ -3,7 +3,6 @@ import {
     TransactWriteCommand,
     TransactWriteCommandInput
 } from '@aws-sdk/lib-dynamodb'
-
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Key, SelectKey} from '../types/Key'
@@ -12,57 +11,59 @@ import {Update} from '../types/Update'
 import {generateUpdate} from '../generators/UpdateGenerator'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {privacy} from '../private/Privacy'
+import {Constructor} from '../types/Utils'
 
-interface IRequest<T extends typeof DynamORMTable> {
-    table: T
+interface IRequest<T extends DynamORMTable> {
+    table: Constructor<T>
 }
-interface UpdateRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    update: Update<InstanceType<T>>
-    keys: readonly any[]
-    conditions?: Condition<InstanceType<T>>[]
+interface UpdateRequest<T extends DynamORMTable> extends IRequest<T> {
+    update: Update<T>
+    keys: readonly unknown[]
+    conditions?: Condition<T>[]
 }
-interface PutRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    items: InstanceType<T>[]
+interface PutRequest<T extends DynamORMTable> extends IRequest<T> {
+    items: T[]
 }
-interface DeleteRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    keys: readonly any[]
+interface DeleteRequest<T extends DynamORMTable> extends IRequest<T> {
+    keys: readonly unknown[]
     delete: true
-    conditions?: Condition<InstanceType<T>>[]
+    conditions?: Condition<T>[]
 }
-interface CheckRequest<T extends typeof DynamORMTable> extends IRequest<T> {
-    keys: readonly any[]
-    conditions: Condition<InstanceType<T>>[]
+interface CheckRequest<T extends DynamORMTable> extends IRequest<T> {
+    keys: readonly unknown[]
+    conditions: Condition<T>[]
     check: true
 }
-interface RunIn {
-    run(): ReturnType<TransactWrite['execute']>
-    in<T extends typeof DynamORMTable>(table: T): Chain<T>
-}
 
-type Request<T extends typeof DynamORMTable = typeof DynamORMTable> =
+type Request<T extends DynamORMTable = DynamORMTable> =
     | PutRequest<T>
     | DeleteRequest<T>
     | UpdateRequest<T>
     | CheckRequest<T>
 
-interface Chain<T extends typeof DynamORMTable> {
-    put(...items: InstanceType<T>[]): Chain<T> & RunIn
-    select(...keys: SelectKey<InstanceType<T>>): {
-        update(update: Update<InstanceType<T>>): Chain<T>  & RunIn
+interface Chain<T extends DynamORMTable> {
+    put(...items: T[]): Chain<T> & RunIn
+    select(...keys: SelectKey<T>): {
+        update(update: Update<T>): Chain<T>  & RunIn
         delete(): Chain<T> & RunIn
-        if(condition: Condition<InstanceType<T>>): {
+        if(condition: Condition<T>): {
             check(): Chain<T> & RunIn
-            update(update: Update<InstanceType<T>>): Chain<T> & RunIn
+            update(update: Update<T>): Chain<T> & RunIn
             delete(): Chain<T> & RunIn
-            or(condition: Condition<InstanceType<T>>): {
-                or(condition: Condition<InstanceType<T>>): 
+            or(condition: Condition<T>): {
+                or(condition: Condition<T>): 
                     ReturnType<ReturnType<ReturnType<Chain<T>['select']>['if']>['or']>
                 check(): Chain<T> & RunIn
-                update(update: Update<InstanceType<T>>): Chain<T> & RunIn
+                update(update: Update<T>): Chain<T> & RunIn
                 delete(): Chain<T> & RunIn
             }
         }
     }
+}
+
+interface RunIn {
+    run(): ReturnType<TransactWrite['execute']>
+    in<T extends DynamORMTable>(table: Constructor<T>): Chain<T>
 }
 
 export class TransactWrite  {
@@ -178,10 +179,10 @@ export class TransactWrite  {
         }
     }
 
-    public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
-        const conditions: Condition<InstanceType<T>>[] = []
+    public in<T extends DynamORMTable>(table: Constructor<T>): Chain<T> {
+        const conditions: Condition<T>[] = []
 
-        const check = (keys: SelectKey<InstanceType<T>>) => ({
+        const check = (keys: SelectKey<T>) => ({
             check: () => {
                 this.#requests.push({table, keys, conditions, check: true})
                 return {
@@ -192,8 +193,8 @@ export class TransactWrite  {
             }
         })
 
-        const update_delete = (keys: SelectKey<InstanceType<T>>) => ({
-            update: (update: Update<InstanceType<T>>) => {
+        const update_delete = (keys: SelectKey<T>) => ({
+            update: (update: Update<T>) => {
                 this.#requests.push({table, keys, update, conditions})
                 return {
                     ...this.in(table),
@@ -211,8 +212,8 @@ export class TransactWrite  {
             }
         })
 
-        const or = (keys: SelectKey<InstanceType<T>>) => {
-            const or = (condition: Condition<InstanceType<T>>) => {
+        const or = (keys: SelectKey<T>) => {
+            const or = (condition: Condition<T>) => {
                 conditions.push(condition)
                 return {
                     or,
@@ -228,7 +229,7 @@ export class TransactWrite  {
         }
 
         return {
-            put: (...items: InstanceType<T>[]) => {
+            put: (...items: T[]) => {
                 this.#requests.push({table, items})
                 return {
                     ...this.in(table),
@@ -236,8 +237,8 @@ export class TransactWrite  {
                     in: this.in.bind(this)
                 }
             },
-            select: (...keys: SelectKey<InstanceType<T>>) => ({
-                if: (condition: Condition<InstanceType<T>>) => {
+            select: (...keys: SelectKey<T>) => ({
+                if: (condition: Condition<T>) => {
                     conditions.push(condition)
                     return {
                         ...check(keys),
@@ -251,12 +252,11 @@ export class TransactWrite  {
     }
 
     public async execute() {
-        const consumedCapacityMap = new Map<typeof DynamORMTable, {consumedCapacity?: ConsumedCapacity}>()
+        const consumedCapacityMap = new Map<Constructor<DynamORMTable>, {consumedCapacity?: ConsumedCapacity}>()
         for (let i = 0, len = this.#requests.length; i < len; i++) {
             const request = this.#requests[i]
             this.#addRequest(request)
         }
-        this.#input.TransactItems = []
         try {
             const response = await this.#client.send(new TransactWriteCommand(this.#input))
             if (response.ConsumedCapacity) {
@@ -271,6 +271,7 @@ export class TransactWrite  {
                     }
                 }
             }
+            this.#input.TransactItems = []
             this.#requests = []
             return {consumedCapacity: consumedCapacityMap}
         }

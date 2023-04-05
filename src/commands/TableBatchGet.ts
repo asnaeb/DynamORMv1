@@ -1,6 +1,6 @@
 import type {DynamORMTable} from '../table/DynamORMTable'
 import type {Constructor} from '../types/Utils'
-import type {Key, ReadonlyKey, SelectKey, TupleFromKey} from "../types/Key"
+import type {Key, SelectKey, TupleFromKey} from "../types/Key"
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {BatchGetCommand, type BatchGetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
@@ -16,15 +16,15 @@ interface TableBatchGetParams {
 export class TableBatchGet<
     T extends DynamORMTable,
     K extends SelectKey<T>,
-    R = TupleFromKey<T, null, K>
-> extends TableCommand<T, BatchGetCommandOutput> {
+    R = TupleFromKey<T, K>
+> extends TableCommand<T> {
     #keys
     #promises: Promise<BatchGetCommandOutput>[] = []
-    constructor(table: Constructor<T>, {keys: Keys, consistentRead: ConsistentRead}: TableBatchGetParams) {
+    constructor(table: Constructor<T>, {keys, consistentRead: ConsistentRead}: TableBatchGetParams) {
         super(table)
         const commands: BatchGetCommand[] = []
-        if (Keys.length > 100) {
-            const chunks = splitToChunks(Keys, 100)
+        if (keys.length > 100) {
+            const chunks = splitToChunks(keys, 100)
             for (let i = 0, len = chunks.length; i < len; i++) {
                 const Keys = chunks[i]
                 const command = new BatchGetCommand({
@@ -40,7 +40,7 @@ export class TableBatchGet<
             const command = new BatchGetCommand({
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                 RequestItems: {
-                    [this.tableName]: {Keys, ConsistentRead}
+                    [this.tableName]: {Keys: keys, ConsistentRead}
                 }
             })
             commands.push(command)
@@ -49,7 +49,7 @@ export class TableBatchGet<
             const command = commands[i]
             this.#promises.push(this.client.send(command))
         }
-        this.#keys = Keys
+        this.#keys = keys
     }
 
     public async execute(
@@ -64,7 +64,7 @@ export class TableBatchGet<
                 if (result.reason instanceof DynamoDBBatchGetException) {
                     // TODO 
                 }
-                return Promise.reject(new DynamORMError(this.table, result.reason))
+                return DynamORMError.reject(this.table, result.reason)
             }
             else {
                 const responses = result.value.Responses?.[this.tableName]
@@ -103,9 +103,5 @@ export class TableBatchGet<
             items: <R>items, 
             consumedCapacity: mergeNumericProps(consumedCapacities)
         }
-    }
-
-    public get response() {
-        return this.make_response(['ConsumedCapacity'], 'SuccessfulGets', 'FailedGets', 'Responses')
     }
 }
