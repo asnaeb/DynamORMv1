@@ -1,6 +1,6 @@
 import type {UpdateCommandOutput} from '@aws-sdk/lib-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import type {Key, KeysTuple, SelectKey, TupleFromKey} from "../types/Key"
+import type {Key, SelectKey, TupleFromKey} from "../types/Key"
 import type {Condition} from '../types/Condition'
 import type {Update as TUpdate} from '../types/Update'
 import type {Constructor} from '../types/Utils'

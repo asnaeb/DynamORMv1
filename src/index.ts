@@ -62,7 +62,7 @@ export const {
     listTables
 } = dynamorm.client
 
-export const createGSI = dynamorm.createGlobalSecondaryIndex
+export const createGlobalSecondaryIndex = dynamorm.createGlobalSecondaryIndex
 
 export class Table extends DynamORMTableES {}
 export * from './types'

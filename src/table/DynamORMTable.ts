@@ -99,18 +99,18 @@ export abstract class DynamORMTable {
     public static query<T extends DynamORMTable>(
         this: Constructor<T>,
         hashValue: HashType<T>,
-        options?: QueryOptions
+        options?: QueryOptions<T>
     ): ReturnType<Query<T>['execute']>
     public static query<T extends DynamORMTable>(
         this: Constructor<T>,
         hashValue: HashType<T>,
         rangeQuery: QueryObject<RangeType<T>>,
-        options?: QueryOptions
+        options?: QueryOptions<T>
     ): ReturnType<Query<T>['execute']>
     public static query<T extends DynamORMTable>(
         arg1: HashType<T>,
-        arg2?: QueryObject<RangeType<T>> | QueryOptions,
-        arg3?: QueryOptions
+        arg2?: QueryObject<RangeType<T>> | QueryOptions<T>,
+        arg3?: QueryOptions<T>
     ) {
         const params: QueryParams<T> = {hashValue: arg1}
         if (arg2) {
@@ -134,7 +134,8 @@ export abstract class DynamORMTable {
     }
 
     public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
-        return new TableBatchWrite(this, AsyncArray.to(elements), 'Put').response
+        const batchPut = new TableBatchWrite(this, {elements, kind:'PutRequest'})
+        return batchPut.execute()
     }
 
     public static select<T extends DynamORMTable, K extends SelectKey<T>>(this: Constructor<T>, ...keys: K) {

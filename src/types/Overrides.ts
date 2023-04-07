@@ -9,7 +9,7 @@ export interface KeySchemaElement<T extends KeyType> {
     KeyType: T;
 }
 
-export type KeySchema = [KeySchemaElement<KeyType.HASH>] | [KeySchemaElement<KeyType.HASH>, KeySchemaElement<KeyType.RANGE>]
+export type KeySchema = [KeySchemaElement<typeof KeyType.HASH>] | [KeySchemaElement<typeof KeyType.HASH>, KeySchemaElement<typeof KeyType.RANGE>]
 
 export interface GlobalSecondaryIndex extends _GlobalSecondaryIndex {
     IndexName: string

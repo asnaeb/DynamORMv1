@@ -1,12 +1,12 @@
 import {env} from './env'
 env('.env')
-import {Table, HashKey, RangeKey, Connect, Attribute, Key, Variant, createGSI} from '../src'
+import {Table, HashKey, RangeKey, Connect, Attribute, Key, Variant, createGlobalSecondaryIndex} from '../src'
 import {randomUUID} from 'crypto'
 import {DynamoDBLocal} from '@asn.aeb/dynamodb-local'
 import {BeginsWith, Between, Equal} from '../src/operators'
 
-const GSI = createGSI<Song, 'title', 'artist'>()
-const GSI2 = createGSI<Song, 'type'>()
+const GSI = createGlobalSecondaryIndex<Song, 'title', 'artist'>()
+const GSI2 = createGlobalSecondaryIndex<Song, 'type'>()
 
 @Connect({tableName: 'Songs'})
 class Song extends Table {
@@ -18,7 +18,7 @@ class Song extends Table {
     type!: Key.Range<string>
 
     @GSI.HashKey.S()
-    title?: string
+    title!: string
 
     @GSI.RangeKey.S()
     artist?: string
@@ -44,7 +44,7 @@ async function x() {
     await DynamoDBLocal.start({inMemory: true})
     await Song.createTable()
     await Song.put(v1, v2)
-    const {items} = await Song.scan({projection: ['time', 'title', 'artist']})
+    const {items} = await Song.scan()
     console.log(items)
     //await v2.save()
     //const response = await Song.query(v1.uuid)

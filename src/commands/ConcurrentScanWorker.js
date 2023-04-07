@@ -1,33 +1,49 @@
 //@ts-check
-const {DynamoDBDocumentClient, paginateScan} = require('@aws-sdk/lib-dynamodb');
+const {DynamoDBDocumentClient, ScanCommand} = require('@aws-sdk/lib-dynamodb');
 const {DynamoDBClient} = require('@aws-sdk/client-dynamodb');
 const {isMainThread, workerData, parentPort} = require('node:worker_threads');
 
 if (!isMainThread) {
-    const data = workerData;
-    const client = new DynamoDBClient(data.config);
+    /** @type {import('./ConcurrentScan').Message} */
+    const message = workerData;
+    const client = new DynamoDBClient(message.config);
     const document = DynamoDBDocumentClient.from(client);
-    async function execute() {
-        let Count;
-        let ScannedCount;
-        let Items;
-        const ConsumedCapacity = [];
-        const paginator = paginateScan({client: document}, data.input);
-        for await (const page of paginator) {
-            if (page.Count) {
-                Count ??= 0;
-                Count += page.Count;
+    
+    /** @returns {Promise<void>} */
+    async function execute(
+        input = message.input,
+        /** @type {Object[]} */
+        Items = [], 
+        Count = 0, 
+        ScannedCount = 0, 
+        /** @type {Object[]} */
+        ConsumedCapacity = []
+    ) {
+        const command = new ScanCommand(input);
+        const scan = await document.send(command);
+        if (scan.Items?.length) {
+            Items.push(...scan.Items);
+        }
+        if (scan.Count) {
+            Count += scan.Count;
+        }
+        if (scan.ScannedCount) {
+            ScannedCount += scan.ScannedCount;
+        }
+        if (scan.ConsumedCapacity) {
+            ConsumedCapacity.push(scan.ConsumedCapacity);
+        }
+        if (scan.LastEvaluatedKey) {
+            if (message.input.Limit) {
+                const residual = message.input.Limit - ScannedCount;
+                if (residual > 0) {
+                    input.ExclusiveStartKey = scan.LastEvaluatedKey;
+                    input.Limit = residual;
+                    return execute(input, Items, Count, ScannedCount, ConsumedCapacity);
+                }
             }
-            if (page.ScannedCount) {
-                ScannedCount ??= 0;
-                ScannedCount += page.ScannedCount;
-            }
-            if (page.Items) {
-                Items ??= [];
-                Items.push(...page.Items);
-            }
-            if (page.ConsumedCapacity) {
-                ConsumedCapacity.push(page.ConsumedCapacity);
+            else {
+                return execute(input, Items, Count, ScannedCount, ConsumedCapacity);
             }
         }
         parentPort?.postMessage({

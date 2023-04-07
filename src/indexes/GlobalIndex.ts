@@ -30,7 +30,7 @@ export interface GlobalIndexProps<H, R, A> {
     rangeKey?: R,
     indexName?: string,
     provisionedThroughput?: GlobalSecondaryIndex['ProvisionedThroughput']
-    projectedAttributes?: A | ProjectionType.KEYS_ONLY
+    projectedAttributes?: A | typeof ProjectionType.KEYS_ONLY
 }
 
 interface GSIProps<T>  {
@@ -87,11 +87,11 @@ export class GSI<T extends DynamORMTable, H extends keyof Scalars<T>, R extends 
     public query(
         hashValue: Exclude<InferKeyType<T[H]>, undefined>, 
         rangeQuery: QueryObject<Exclude<InferKeyType<T[R]>, undefined>>, 
-        options?: Exclude<QueryOptions, {consistentRead: any}>
+        options?: Exclude<QueryOptions<T>, {consistentRead: any}>
     ): ReturnType<Query<T>['execute']>
     public query(
         hashValue: Exclude<InferKeyType<T[H]>, undefined>, 
-        options?: Exclude<QueryOptions, {consistentRead: any}>
+        options?: Exclude<QueryOptions<T>, {consistentRead: any}>
     ): ReturnType<Query<T>['execute']>
     public query(arg1: unknown, arg2?: unknown, arg3?: unknown) {
         this.#assertTable()

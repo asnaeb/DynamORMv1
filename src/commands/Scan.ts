@@ -1,5 +1,5 @@
 import {ConsumedCapacity, DynamoDBServiceException, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
-import {paginateScan, ScanCommandInput} from '@aws-sdk/lib-dynamodb'
+import {ScanCommand, ScanCommandInput} from '@aws-sdk/lib-dynamodb'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {Condition} from '../types/Condition'
@@ -18,7 +18,7 @@ interface ScanParams<T extends DynamORMTable> {
 }
 
 export class Scan<T extends DynamORMTable> extends TableCommand<T> {
-    #paginator
+    #input
     constructor(table: Constructor<T>, params?: ScanParams<T>) {
         super(table)
         const input: ScanCommandInput = {
@@ -49,44 +49,61 @@ export class Scan<T extends DynamORMTable> extends TableCommand<T> {
             Object.assign(input.ExpressionAttributeNames, ExpressionAttributeNames)
             Object.assign(input.ExpressionAttributeValues, ExpressionAttributeValues)
         }
-        this.#paginator = paginateScan({client: this.client}, input)
+        this.#input = input
     }
-    public async execute() {
-        const items: T[] = []
-        const consumedCapacities: ConsumedCapacity[] = []
-        let count = 0
-        let scannedCount = 0
+
+    public async execute(
+        input = this.#input, 
+        items: T[] = [], 
+        count = 0, 
+        scannedCount = 0, 
+        consumedCapacities: ConsumedCapacity[] = []
+    ): Promise<{items: T[]; count: number; scannedCount: number; consumedCapacity?: ConsumedCapacity}> {
+        const command = new ScanCommand(input)
+        let scan
         try {
-            for await (const page of this.#paginator) {
-                if (page.Items) {
-                    for (let i = 0, len = page.Items.length; i < len; i++) {
-                        const item = page.Items[i]
-                        const deserialized = this.serializer.deserialize(item)
-                        items.push(deserialized)
-                    }
-                }
-                if (page.ConsumedCapacity) {
-                    consumedCapacities.push(page.ConsumedCapacity)
-                }
-                if (page.Count) {
-                    count += page.Count
-                }
-                if (page.ScannedCount) {
-                    scannedCount += page.ScannedCount
-                }
-            }
+            scan = await this.client.send(command)
         }
         catch (error) {
             if (error instanceof DynamoDBServiceException) {
-                return Promise.reject(new DynamORMError(this.table, error))
+                return DynamORMError.reject(this.table, error)
             }
             return Promise.reject(error)
         }
+        if (scan.Items?.length) {
+            for (let i = 0, len = scan.Items.length; i < len; i++) {
+                const item = scan.Items[i]
+                const deserialized = this.serializer.deserialize(item)
+                items.push(deserialized)
+            }
+        }
+        if (scan.Count) {
+            count += scan.Count
+        }
+        if (scan.ScannedCount) {
+            scannedCount += scan.ScannedCount
+        }
+        if (scan.ConsumedCapacity) {
+            consumedCapacities.push(scan.ConsumedCapacity)
+        }
+        if (scan.LastEvaluatedKey) {
+            if (this.#input.Limit) {
+                const residual = this.#input.Limit - scannedCount
+                if (residual > 0) {
+                    input.ExclusiveStartKey = scan.LastEvaluatedKey
+                    input.Limit = residual
+                    return this.execute(input, items, count, scannedCount, consumedCapacities)
+                }
+            }
+            else {
+                return this.execute(input, items, count, scannedCount, consumedCapacities)
+            }
+        }
         return {
-            items,
-            consumedCapacity: mergeNumericProps(consumedCapacities),
-            count,
-            scannedCount
+            items, 
+            count, 
+            scannedCount,
+            consumedCapacity: mergeNumericProps(consumedCapacities)
         }
     }
 }

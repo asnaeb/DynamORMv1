@@ -1,12 +1,12 @@
 import {DynamoDBLocal} from '@asn.aeb/dynamodb-local'
 import {env} from './env'
 env('.env')
-import {createWriteTransaction, Connect, HashKey, Attribute, Key, Table} from '../src'
+import {createWriteTransaction, createReadTransaction, Connect, HashKey, Attribute, Key, Table} from '../src'
 
 @Connect({tableName: 'MyTableA'})
 class A extends Table {
-    @HashKey.UUID() id!: Key.Hash<string>
-    @Attribute.N() attr
+    @HashKey.N() id!: Key.Hash<number>
+    @Attribute.S() attr = 'some string attribute on table A'
     @Attribute.L() arr?: string[]
     @Attribute.M() smap = {
         a: 0,
@@ -14,32 +14,42 @@ class A extends Table {
             c: 'hello'
         }
     }
-    constructor(attr?: number) {
+    constructor(id: number) {
         super()
-        this.attr = attr
+        this.id = HashKey(id)
     }
 }
 
 @Connect({tableName: 'MyTableB'})
 class B extends Table {
-    @HashKey.UUID() id!: Key.Hash<string>
-    @Attribute.S() attr = 'string attribute'
+    @HashKey.N() id!: Key.Hash<number>
+    @Attribute.S() attr = 'string attribute on table B'
+
+    constructor(id: number) {
+        super()
+        this.id = HashKey(id)
+    }
 }
 
-const b1 = new B()
-const b2 = new B()
+const b1 = new B(1)
+const b2 = new B(2)
 
-const transaction = createWriteTransaction()
-transaction.in(A).put(...Array(80).fill(null).map((item, i) => new A(i)))
-transaction.in(B).put(b1, b2)
+const write = createWriteTransaction()
+const read = createReadTransaction()
+write.in(A).put(...Array(80).fill(null).map((item, i) => new A(i)))
+write.in(B).put(b1, b2)
+
+read.in(A).select(1, 2).get()
+read.in(A).select(5, 6).get()
+read.in(B).select(1, 2).get()
 
 async function x() {
     await DynamoDBLocal.start({inMemory: true})
     await A.createTable()
     await B.createTable()
-    await transaction.execute()
-    const a = await A.scan({limit: 2})
-    console.dir(a.items.length, {depth: null})
+    await write.execute()
+    const scan = await read.execute()
+    console.log(scan.items.get(A))
     await DynamoDBLocal.stop()
 }
 

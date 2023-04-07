@@ -9,14 +9,24 @@ import {SelectKey} from '../types/Key'
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {TablesMap} from '../types/TablesMap'
 import {privacy} from '../private/Privacy'
+import {Constructor} from '../types/Utils'
+import {Projection} from '../types/Projection'
+import {generateProjection} from '../generators/ProjectionGenerator'
+import {DynamORMError} from '../errors/DynamORMError'
 
-interface Chain<T extends typeof DynamORMTable> {
-    get(...keys: SelectKey<InstanceType<T>>): {
-        run(): ReturnType<TransactGet['execute']>
-        in<T extends typeof DynamORMTable>(table: T): Chain<T>
+interface Chain<T extends DynamORMTable> {
+    select(...keys: SelectKey<T>): {
+        get(options?: {projection: Projection<T>[]}): {
+            execute(): ReturnType<TransactGet['execute']>
+            in<T extends DynamORMTable>(table: Constructor<T>): Chain<T>
+        }
     }
 }
-type GetRequest = {table: typeof DynamORMTable, keys: readonly any[]}
+interface GetRequest {
+    table: Constructor<DynamORMTable>, 
+    keys: readonly unknown[]
+    projection?: string[]
+}
 
 export class TransactGet {
     #client
@@ -30,37 +40,52 @@ export class TransactGet {
         this.#client = client
     }
 
-    async #addRequest({table, keys}: GetRequest) {
+    async #addRequest({table, keys, projection}: GetRequest) {
         const wm = privacy(table)
         const generatedKeys = wm.serializer.generateKeys(keys)
-        if (this.#input.TransactItems!.length + generatedKeys.length <= 100) {
-            for (let i = 0, len = generatedKeys.length; i < len; i++) {
-                const Key = generatedKeys[i]
-                this.#input.TransactItems?.push({
-                    Get: {Key, TableName: wm.tableName}
-                })
-            }
+        if (this.#input.TransactItems!.length + generatedKeys.length > 100) {
+            throw new DynamORMError(table, {
+                name: DynamORMError.ABORTED, //TODO
+                message: 'Max keys allowed for Transaction is 100'
+            })
         }
-        else {
-            console.warn('Max keys allowed for Transaction is 100') // TODO proper error logging
+        let ExpressionAttributeNames
+        let ProjectionExpression
+        if (projection) {
+            const _projection = generateProjection(table, projection)
+            ExpressionAttributeNames = _projection.ExpressionAttributeNames
+            ProjectionExpression = _projection.ProjectionExpression
+        }
+        for (let i = 0, len = generatedKeys.length; i < len; i++) {
+            const Key = generatedKeys[i]
+            this.#input.TransactItems?.push({
+                Get: {
+                    Key, 
+                    TableName: wm.tableName,
+                    ExpressionAttributeNames,
+                    ProjectionExpression
+                }
+            })
         }
     }
 
-    public in<T extends typeof DynamORMTable>(table: T): Chain<T>  {
+    public in<T extends DynamORMTable>(table: Constructor<T>): Chain<T>  {
         return {
-            get: (...keys: SelectKey<InstanceType<T>>) => {
-                this.#requests.push({table, keys})
-                return {
-                    in: this.in.bind(this),
-                    run: this.execute.bind(this)
+            select: (...keys: SelectKey<T>) => ({
+                get: (options?: {projection: Projection<T>[]}) => {
+                    this.#requests.push({table, keys, projection: options?.projection})
+                    return {
+                        in: this.in.bind(this),
+                        execute: this.execute.bind(this)
+                    }
                 }
-            }
+            })
         }
     }
 
     public async execute() {
         const items = new TablesMap()
-        const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
+        const infos = new Map<Constructor<DynamORMTable>, {ConsumedCapacity?: ConsumedCapacity}>()
         for (let i = 0, len = this.#requests.length; i < len; i++) {
             const request = this.#requests[i]
             this.#addRequest(request)

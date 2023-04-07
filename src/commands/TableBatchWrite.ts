@@ -1,96 +1,80 @@
-import {AsyncArray} from '@asn.aeb/async-array'
-import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {ReturnConsumedCapacity, ConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {BatchWriteCommand, BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
-import {TResponse} from '../response/Response'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {TableCommand} from './TableCommand'
-import {ResolvedOutput} from '../interfaces/ResolvedOutput'
-import {Key} from '../types/Key'
 import {Constructor} from '../types/Utils'
+import {mergeNumericProps, splitToChunks} from '../utils/General'
+import {DynamORMError} from '../errors/DynamORMError'
 
-const commandsEvent = Symbol('commands')
-
-export class TableBatchWrite<T extends DynamORMTable> extends TableCommand<T, BatchWriteCommandOutput> {
-    constructor(table: Constructor<T>, elements: AsyncArray<Key | T>, kind: 'Put' | 'Delete') {
+interface TableBatchWriteParams {
+    elements: Record<string, any>[]
+    kind: 'PutRequest' | 'DeleteRequest'
+}
+export class TableBatchWrite<T extends DynamORMTable> extends TableCommand<T> {
+    #kind
+    #promises: Promise<BatchWriteCommandOutput>[] = []
+    constructor(table: Constructor<T>, {elements, kind}: TableBatchWriteParams) {
         super(table)
-        
-        const input = (elements: any[]) => {
-            let items
-
-            if (kind === 'Delete')
-                items = elements.map(Key => ({
-                    DeleteRequest: {Key}
-                }))
-            
-            else 
-                items = elements.map(item => {
-                    const {item: Item} = this.serializer.serialize(item)
-                    return {PutRequest: {Item}}
-                })
-
-            return {
-                ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,    
-                RequestItems: {[this.tableName]: items}
-            }
-        }
-
-        this.once(commandsEvent, async (commands: AsyncArray<BatchWriteCommand>) => {
-            const promises = await commands.async.map(command => this.client.send(command), false) as 
-                Promise<BatchWriteCommandOutput>[]
-            const settled = await Promise.allSettled(promises)
-            const results = new AsyncArray<ResolvedOutput<BatchWriteCommandOutput>>()
-
-            const retry = async ($settled = settled): Promise<boolean> => {
-                const retries: Promise<BatchWriteCommandOutput>[] = []
-
-                await AsyncArray.to($settled).async.forEach(data => {
-                    if (data.status === 'fulfilled') {
-                        const {value} = data
-                        
-                        results.push({output: value})
-
-                        if (
-                            'UnprocessedItems' in value &&
-                            Object.keys(value.UnprocessedItems!).length
-                        ) {
-                            const command = new BatchWriteCommand({
-                                RequestItems: value.UnprocessedItems
-                            })
-
-                            retries.push(this.client.send(command))
-                        }
+        if (elements.length > 25) {
+            const chunks = splitToChunks(elements, 25)
+            for (let i = 0, len = chunks.length; i < len; i++) {
+                const chunk = chunks[i]
+                const command = new BatchWriteCommand({
+                    ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
+                    RequestItems: {
+                        [this.tableName]: this.#convert(chunk)
                     }
-
-                    else results.push({error: data.reason})
                 })
-
-                if (retries.length) {
-                    const settled = await Promise.allSettled(retries)
-                    
-                    return retry(settled)
-                }
-
-                return this.emit(TableCommand.responsesEvent, results)
+                const promise = this.client.send(command)
+                this.#promises.push(promise)
             }
-
-            retry()
-        })
-
-        if (elements.length > 25)
-            elements.async.splitToChunks(25).then(async chunks => {
-                const commands = await chunks.async.map(async chunk => new BatchWriteCommand(input(chunk)))
-                
-                this.emit(commandsEvent, commands)
-            })
-        else {
-            const command = new BatchWriteCommand(input(elements))
-
-            this.emit(commandsEvent, new AsyncArray(command))
         }
+        else {
+            const command = new BatchWriteCommand({
+                ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
+                RequestItems: {
+                    [this.tableName]: this.#convert(elements)
+                }
+            })
+            const promise = this.client.send(command)
+            this.#promises.push(promise)
+        }
+        this.#kind = kind
     }
 
-    public get response() {
-        return this.make_response(['ConsumedCapacity']) as 
-        Promise<TResponse<never, undefined, {ConsumedCapacity: ConsumedCapacity}>>
+    #convert(elements: Record<string, any>[]) {
+        if (this.#kind === 'PutRequest') {
+            return elements.map(i => ({PutRequest: {Item: this.serializer.serialize(i).item}}))
+        }
+        return elements.map(Key => ({DeleteRequest: {Key}}))
+    }
+
+    public async execute(consumedCapacities: ConsumedCapacity[] = []): Promise<{consumedCapacity?: ConsumedCapacity}> {
+        const results = await Promise.allSettled(this.#promises)
+        this.#promises.length = 0
+        for (let i = 0, len = results.length; i < len; i++) {
+            const result = results[i]
+            if (result.status === 'rejected') {
+                return DynamORMError.reject(this.table, result.reason)
+            }
+            else {
+                const {UnprocessedItems} = result.value
+                if (result.value.ConsumedCapacity) {
+                    consumedCapacities.push(...result.value.ConsumedCapacity)
+                }
+                if (UnprocessedItems && Object.keys(UnprocessedItems).length) {
+                    const command = new BatchWriteCommand({
+                        ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
+                        RequestItems: result.value.UnprocessedItems
+                    })
+                    const promise = this.client.send(command)
+                    this.#promises.push(promise)
+                }
+            }
+        }
+        if (this.#promises.length) {
+            return this.execute(consumedCapacities)
+        }
+        return {consumedCapacity: mergeNumericProps(consumedCapacities)}
     }
 }

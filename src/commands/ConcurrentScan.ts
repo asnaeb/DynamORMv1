@@ -11,6 +11,7 @@ import {DynamORMClientConfig} from '..'
 import {ReturnConsumedCapacity, ConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {mergeNumericProps} from '../utils/General'
 import {generateProjection} from '../generators/ProjectionGenerator'
+import {DynamORMError} from '../errors/DynamORMError'
 
 interface ConcurrentScanParams<T extends DynamORMTable> {
     workers: number
@@ -21,7 +22,7 @@ interface ConcurrentScanParams<T extends DynamORMTable> {
     filter?: Condition<T>[]
 }
 
-interface Message {
+export interface Message {
     config: DynamORMClientConfig
     input: ScanCommandInput
 }
@@ -38,6 +39,16 @@ export class ConcurrentScan<T extends DynamORMTable> extends TableCommand<T> {
     constructor(table: Constructor<T>, params: ConcurrentScanParams<T>) {
         super(table)
         const responses: ScanCommandOutput[] = []
+        let Limit
+        if (params.limit) {
+            if (params.workers > params.limit) {
+                throw new DynamORMError(table, {
+                    name: DynamORMError.INVALID_PROP,
+                    message: 'Property "workers" cannot have a value greater than property "limit"'
+                })
+            }
+            Limit = params.limit / params.workers
+        }
         for (let i = 0; i < params.workers; i++) {
             const message: Message = {
                 config: this.config,
@@ -46,7 +57,7 @@ export class ConcurrentScan<T extends DynamORMTable> extends TableCommand<T> {
                     ConsistentRead: params.consistentRead,
                     IndexName: params.indexName,
                     TotalSegments: params.workers,
-                    Limit: params.limit,
+                    Limit,
                     Segment: i,
                     ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
                 }

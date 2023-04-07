@@ -21,13 +21,10 @@ interface Or<T extends DynamORMTable, K extends SelectKey<T>> {
     delete(): ReturnType<Select<T, K>['delete']>
 }
 
-const keysEvent = Symbol('keys')
-
 export class Select<T extends DynamORMTable, K extends SelectKey<T>> {
     #table: Constructor<T>
     #serializer: Serializer<T>
     #conditions: Condition<T>[] = []
-    #emitter = new EventEmitter({captureRejections: true})
     #generatedKeys
 
     public constructor(table: Constructor<T>, keys: readonly unknown[]) {
@@ -84,11 +81,11 @@ export class Select<T extends DynamORMTable, K extends SelectKey<T>> {
     }
 
     public batchDelete() {
-        return new Promise<Awaited<TableBatchWrite<T>['response']>>(resolve => {
-            this.#emitter.once(keysEvent, (keys: AsyncArray<Key>) => {
-                resolve(new TableBatchWrite(this.#table, keys, 'Delete').response)
-            })
+        const batchDelete = new TableBatchWrite(this.#table, {
+            elements: this.#generatedKeys, 
+            kind: 'DeleteRequest'
         })
+        return batchDelete.execute()
     }
 
     public if(condition: Condition<T>): Or<T, K> {

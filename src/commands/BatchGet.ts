@@ -1,154 +1,112 @@
-import {
-    BatchGetCommand, 
-    type BatchGetCommandInput, 
-    type BatchGetCommandOutput, 
-    type DynamoDBDocumentClient
-} from '@aws-sdk/lib-dynamodb'
-
 import {type ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
+import {BatchGetCommand, type DynamoDBDocumentClient} from '@aws-sdk/lib-dynamodb'
 import type {DynamORMTable} from '../table/DynamORMTable'
-import {AsyncArray} from '@asn.aeb/async-array'
-import {ClientCommandChain} from './ClientCommandChain'
-import {KeysObject} from '../types/Key'
-import {Response} from '../response/Response'
-import {mergeNumericProps} from '../utils/General'
+import type {SelectKey} from '../types/Key'
+import type {Constructor} from '../types/Utils'
 import {TablesMap} from '../types/TablesMap'
 import {privacy} from '../private/Privacy'
 
-interface GetRequest {table: typeof DynamORMTable, keys: any[]}
-interface Chain<T extends typeof DynamORMTable> {
-    get(...keys: KeysObject<InstanceType<T>>): Omit<Chain<T>, 'get'> & {
-        in<T extends typeof DynamORMTable>(table: T): Chain<T>
-        run(): ReturnType<BatchGet['execute']>
+interface GetRequest {
+    table: Constructor<DynamORMTable>, 
+    keys: readonly unknown[]
+}
+interface Chain<T extends DynamORMTable> {
+    get(...keys: SelectKey<T>): {
+        in<T extends DynamORMTable>(table: Constructor<T>): Chain<T>
+        execute(): ReturnType<BatchGet['execute']>
     }
 }
 
-export class BatchGet extends ClientCommandChain {
-    #pool = new AsyncArray<BatchGetCommandInput>()
-    #requests = new AsyncArray<GetRequest>()
+export class BatchGet {
+    #client
+    #commands: BatchGetCommand[] = []
 
     public constructor(client: DynamoDBDocumentClient) {
-        super(client)
+        this.#client = client
     }
 
-    async #addRequest({table, keys}: GetRequest) {
-        const serializer = privacy(table).serializer
-        const tableName = privacy(table).tableName
-        
-        if (!serializer || !tableName) 
-            throw 'Somethig was wrong' // TODO Proper error logging
-
-        const $keys = AsyncArray.to(keys)
-        const genratedKeys = await serializer.generateKeys($keys)
-
-        await genratedKeys.async.forEach(key => {
-            if (this.#pool.length) {
-                for (let i = 0, batchGet; i < this.#pool.length; i++) {
-                    batchGet = this.#pool[i]
-
-                    if (batchGet.RequestItems) {
+    #addRequest({table, keys}: GetRequest) {
+        const wm = privacy(table)
+        const tableName = wm.tableName
+        const genratedKeys = wm.serializer.generateKeys(keys)
+        for (let i = 0, len = genratedKeys.length; i < len; i++) {
+            const key = genratedKeys[i]
+            if (this.#commands.length) {
+                for (let i = 0, len = this.#commands.length; i < len; i++) {
+                    const command = this.#commands[i]
+                    if (command.input.RequestItems) {
                         let totalLength = 0
-    
-                        for (const [, {Keys}] of Object.entries((batchGet.RequestItems)))
-                            totalLength += Keys?.length ?? 0
-    
+                        const entries = Object.entries(command.input.RequestItems)
+                        for (let i = 0, len = entries.length; i < len; i++) {
+                            const [, {Keys}] = entries[i] 
+                            totalLength += Keys?.length || 0
+                        }
                         if (totalLength < 100) {
-                            if (tableName in batchGet.RequestItems) {
-                                batchGet.RequestItems[tableName].Keys?.push(key)
+                            if (tableName in command.input.RequestItems) {
+                                command.input.RequestItems[tableName].Keys!.push(key)
                                 break
                             } 
-                            
                             else {
-                                batchGet.RequestItems[tableName] = {Keys: [key]}
+                                command.input.RequestItems[tableName] = {Keys: [key]}
                                 break
                             }
                         } 
-                        
-                        else if (i === this.#pool.length - 1) {
-                            this.#pool.push({
+                        else if (i === (len - 1)) {
+                            const command = new BatchGetCommand({
                                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                                 RequestItems: {
                                     [tableName]: {Keys: [key]}
                                 }
                             })
+                            this.#commands.push(command)
                             break
                         }
                     }
                 }
             } 
-            
-            else
-                this.#pool.push({
+            else {
+                const command = new BatchGetCommand({
                     ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                     RequestItems: {
                         [tableName]: {Keys: [key]}
                     }
                 })
-        })
-    }
-
-    public in<T extends typeof DynamORMTable>(table: T): Chain<T> {
-        return {
-            get: (...keys: KeysObject<InstanceType<T>>) => {
-                this.#requests.push({table, keys})
-                return {in: this.in.bind(this), run: this.execute.bind(this)}
+                this.#commands.push(command)
             }
         }
     }
 
-    public async execute() {
-        const items = new TablesMap()
-        const infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
-        const errors: Error[] = []
-
-        const requests = await this.#requests.async.map(r => this.#addRequest(r), false)
-        
-        await Promise.all(requests)
-
-        const promises = await this.#pool.async.map(input => {
-            return this.client.send(new BatchGetCommand(input))
-        }, false) as Promise<BatchGetCommandOutput>[]
-
-        this.#pool = new AsyncArray()
-
-        const settled = await Promise.allSettled(promises)
-
-        // TODO Implement retries
-        
-        await AsyncArray.to(settled).async.forEach(async data => {
-            if (data.status === 'fulfilled') {
-                for (const {table} of this.#requests) {
-                    const tableName = privacy(table).tableName!
-                    const consumedCapacities = data.value.ConsumedCapacity
-                    const responses = data.value.Responses?.[tableName]
-
-                    if (consumedCapacities) 
-                        for (const ConsumedCapacity of consumedCapacities)
-                            if (ConsumedCapacity.TableName === tableName) { 
-                                const actual = infos.get(table) ?? {}
-                                const merged = await mergeNumericProps([actual, {ConsumedCapacity}])
-                                
-                                infos.set(table, merged)
-                            }
-
-                    if (responses?.length) {
-                        const serializer = privacy(table).serializer!
-                        const serialized = responses.map(e => serializer.deserialize(e))
-
-                        if (!items.has(table)) items.set(table, [])
-                        items.get(table)!.push(...serialized)
-                    }
+    public in<T extends DynamORMTable>(table: Constructor<T>): Chain<T> {
+        return {
+            get: (...keys: SelectKey<T>) => {
+                this.#addRequest({table, keys})
+                return {
+                    in: this.in.bind(this), 
+                    execute: this.execute.bind(this)
                 }
             }
+        }
+    }
 
-            else errors.push(data.reason)
-        })
-
-        return Response(items, infos.size ? infos : undefined, errors)
+    public async execute(
+        items = new TablesMap(),
+        infos = new Map<typeof DynamORMTable, {ConsumedCapacity?: ConsumedCapacity}>()
+    ) {
+        const promises = this.#commands.map(c => this.#client.send(c))
+        const results = await Promise.allSettled(promises)
+        this.#commands.length = 0
+        for (let i = 0, len = results.length; i < len; i++) {
+            const result = results[i]
+            if (result.status === 'rejected') {
+                // TODO
+            }
+            else {
+                result.value.Responses
+            }
+        }
     }
 
     public clear() {
-        this.#pool = new AsyncArray()
-        this.#requests = new AsyncArray()
+        this.#commands.length = 0
     }
 }

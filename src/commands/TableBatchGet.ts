@@ -22,7 +22,6 @@ export class TableBatchGet<
     #promises: Promise<BatchGetCommandOutput>[] = []
     constructor(table: Constructor<T>, {keys, consistentRead: ConsistentRead}: TableBatchGetParams) {
         super(table)
-        const commands: BatchGetCommand[] = []
         if (keys.length > 100) {
             const chunks = splitToChunks(keys, 100)
             for (let i = 0, len = chunks.length; i < len; i++) {
@@ -33,7 +32,8 @@ export class TableBatchGet<
                         [this.tableName]: {Keys, ConsistentRead}
                     }
                 })
-                commands.push(command)
+                const promise = this.client.send(command)
+                this.#promises.push(promise)
             }
         }
         else {
@@ -43,11 +43,8 @@ export class TableBatchGet<
                     [this.tableName]: {Keys: keys, ConsistentRead}
                 }
             })
-            commands.push(command)
-        }
-        for (let i = 0, len = commands.length; i < len; i++) {
-            const command = commands[i]
-            this.#promises.push(this.client.send(command))
+            const promise = this.client.send(command)
+            this.#promises.push(promise)
         }
         this.#keys = keys
     }
@@ -68,17 +65,17 @@ export class TableBatchGet<
             }
             else {
                 const responses = result.value.Responses?.[this.tableName]
-                const consumedCapacity = result.value.ConsumedCapacity
-                const unprocessedKeys = result.value.UnprocessedKeys
-                if (unprocessedKeys && Object.keys(unprocessedKeys).length) {
+                const {UnprocessedKeys, ConsumedCapacity} = result.value
+                if (UnprocessedKeys && Object.keys(UnprocessedKeys).length) {
                     const command = new BatchGetCommand({
-                        RequestItems: unprocessedKeys,
+                        RequestItems: UnprocessedKeys,
                         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
                     })
-                    this.#promises.push(this.client.send(command))
+                    const promise = this.client.send(command)
+                    this.#promises.push(promise)
                 }
-                if (consumedCapacity) {
-                    consumedCapacities.push(...consumedCapacity)
+                if (ConsumedCapacity) {
+                    consumedCapacities.push(...ConsumedCapacity)
                 }
                 if (responses) {
                     for (let i = 0, len = responses.length; i < len; i++) {

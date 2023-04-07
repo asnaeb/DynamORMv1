@@ -31,22 +31,22 @@
   },
   "dependencies": {
     "@asn.aeb/async-array": "^1.5.9",
-    "@aws-sdk/client-dynamodb": "^3.297.0",
-    "@aws-sdk/lib-dynamodb": "^3.297.0",
+    "@aws-sdk/client-dynamodb": "^3.306.0",
+    "@aws-sdk/lib-dynamodb": "^3.306.0",
     "amazon-dax-client": "^1.2.9",
     "aws-cdk-lib": "^2.70.0",
-    "aws-sdk": "^2.1341.0",
-    "constructs": "^10.1.288"
+    "aws-sdk": "^2.1350.0",
+    "constructs": "^10.1.302"
   },
   "devDependencies": {
     "@asn.aeb/dynamodb-local": "file:../dynamodb-local",
     "@babel/cli": "^7.21.0",
-    "@babel/core": "^7.21.3",
+    "@babel/core": "^7.21.4",
     "@babel/plugin-proposal-decorators": "^7.21.0",
-    "@babel/preset-env": "^7.20.2",
+    "@babel/preset-env": "^7.21.4",
     "@types/amazon-dax-client": "^1.2.5",
-    "@types/node": "^18.15.5",
+    "@types/node": "^18.15.11",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.2"
+    "typescript": "^5.0.3"
   }
 }
