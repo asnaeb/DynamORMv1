@@ -9,3 +9,4 @@ export namespace Key {
     export type Hash<T extends S | N | B> = HashKey<T>
     export type Range<T extends S | N | B> = RangeKey<T>
 }
+

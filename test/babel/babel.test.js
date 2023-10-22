@@ -1,26 +1,32 @@
 //@ts-check
-import {Table, Connect, HashKey, Attribute, RangeKey, createGSI} from '../../lib'
+import {Table, Connect, HashKey, RangeKey, createGlobalSecondaryIndex, Attribute} from '../../lib'
+import * as Types from '../../lib/types.js'
 
-/** @typedef {import("../../lib/types").Key.Hash<string>} HashKey.S */
-/** @typedef {import("../../lib/types").Key.Range<string>} RangeKey.S */
-
-/** @type {ReturnType<typeof createGSI<BabelTest, 'SecondAttribute'>>} */
-const GSI = createGSI()
+/** @type {ReturnType<typeof createGlobalSecondaryIndex<BabelTest, 'SecondAttribute'>>} */
+const GSI = createGlobalSecondaryIndex()
 
 @Connect()
 class BabelTest extends Table {
-    /** @type {HashKey.S} */
+    /** @type {Types.Key.Hash<string>} */
     @HashKey.S()
     PartitionKey;
 
-    /** @type {import("../../lib/types").Key.Range<string>} */
+    /** @type {Types.Key.Range<string>} */
     @RangeKey.S()
     SortKey;
 
     /** @type {string} */
-    @GSI.HashKey.S()
+    @Attribute.S()
     SecondAttribute;
+
+    /** @type {number} */
+    @Attribute.N()
+    NumAttr;
+
+    static gsi = this.globalSecondaryIndex({hashKey: 'SecondAttribute', projection: ['NumAttr']})
 }
 
-console.log(BabelTest)
+const babel = new BabelTest()
+babel.setAttribute('NumAttr', 234)
+babel.setAttribute('SecondAttribute', 'asnaeb')
 

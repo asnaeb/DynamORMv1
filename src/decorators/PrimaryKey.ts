@@ -38,7 +38,6 @@ function decorator<X>({shared, uuid, AttributeType, KeyType}: FactoryParams) {
             }
             shared.attributeDefinitions ??= []
             shared.attributeDefinitions.push({AttributeName, AttributeType})
-            
             if (uuid) {
                 return function(this: A, value: T) {
                     let uuid: string = randomUUID()

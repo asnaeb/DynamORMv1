@@ -12,27 +12,30 @@ import {generateUpdate} from '../generators/UpdateGenerator'
 import {generateCondition} from '../generators/ConditionsGenerator'
 import {privacy} from '../private/Privacy'
 import {Constructor} from '../types/Utils'
+import {mergeNumericProps} from '../utils/General'
 
 interface IRequest<T extends DynamORMTable> {
     table: Constructor<T>
 }
 interface UpdateRequest<T extends DynamORMTable> extends IRequest<T> {
+    kind: 'Update'
     update: Update<T>
     keys: readonly unknown[]
     conditions?: Condition<T>[]
 }
 interface PutRequest<T extends DynamORMTable> extends IRequest<T> {
+    kind: 'Put'
     items: T[]
 }
 interface DeleteRequest<T extends DynamORMTable> extends IRequest<T> {
+    kind: 'Delete'
     keys: readonly unknown[]
-    delete: true
     conditions?: Condition<T>[]
 }
 interface CheckRequest<T extends DynamORMTable> extends IRequest<T> {
+    kind: 'Check'
     keys: readonly unknown[]
     conditions: Condition<T>[]
-    check: true
 }
 
 type Request<T extends DynamORMTable = DynamORMTable> =
@@ -68,11 +71,11 @@ interface RunIn {
 
 export class TransactWrite  {
     #client
-    #requests: Request[] = []
     #input: TransactWriteCommandInput = {
         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
         TransactItems: []
     }
+    #consumedCapacity = new Map<Constructor<DynamORMTable>, ConsumedCapacity>()
 
     public constructor(client: DynamoDBDocumentClient, token?: string) {
         this.#client = client
@@ -84,27 +87,18 @@ export class TransactWrite  {
     #addRequest(request: Request) {
         const wm = privacy(request.table)
         const TableName = wm.tableName
-        const serializer = wm.serializer
-        
-        let keys: Key[] | undefined
-
-        if ('items' in request) {
-            for (let i = 0, len = request.items.length; i < len; i++) {
-                const item = request.items[i]
-                const {item: Item} = serializer.serialize(item)
-                this.#input.TransactItems?.push({
-                    Put: {TableName, Item}
-                })
-            }
-            return
-        }
-
-        if ('keys' in request) {
-            keys = serializer.generateKeys(request.keys)
-        }
-
-        if (keys?.length) {
-            if ('update' in request) {
+        const serializer = wm.serializer        
+        switch (request.kind) {
+            case 'Put': 
+                for (let i = 0, len = request.items.length; i < len; i++) {
+                    const {item: Item} = serializer.serialize(request.items[i])
+                    this.#input.TransactItems!.push({
+                        Put: {TableName, Item}
+                    })
+                }
+                break
+            case 'Update': {
+                const keys = serializer.generateKeys(request.keys)
                 for (let i = 0, len = keys.length; i < len; i++) {
                     const Key = keys[i]
                     const commands = generateUpdate(request.table, {
@@ -128,20 +122,19 @@ export class TransactWrite  {
                         })
                     }
                 }
+                break
             }
-
-            if ('delete' in request) {
+            case 'Delete': {
+                const keys = serializer.generateKeys(request.keys)
                 let ConditionExpression
                 let ExpressionAttributeNames
                 let ExpressionAttributeValues
-
                 if (request.conditions?.length) {
                     const condition = generateCondition({conditions: request.conditions})
                     ConditionExpression = condition.ConditionExpression
                     ExpressionAttributeNames = condition.ExpressionAttributeNames
                     ExpressionAttributeValues = condition.ExpressionAttributeValues
                 }
-
                 for (let i = 0, len = keys.length; i < len; i++) {
                     const Key = keys[i]
                     this.#input.TransactItems?.push({
@@ -154,15 +147,15 @@ export class TransactWrite  {
                         }
                     })
                 }
+                break
             }
-
-            if ('check' in request) {
+            case 'Check': {
                 const {
                     ConditionExpression,
                     ExpressionAttributeNames,
                     ExpressionAttributeValues
                 } = generateCondition({conditions: request.conditions})
-
+                const keys = serializer.generateKeys(request.keys)
                 for (let i = 0, len = keys.length; i < len; i++) {
                     const Key = keys[i]
                     this.#input.TransactItems?.push({
@@ -175,16 +168,19 @@ export class TransactWrite  {
                         }
                     })
                 }
+                break
             }
+        } 
+        if (!this.#consumedCapacity.has(request.table)) {
+            this.#consumedCapacity.set(request.table, {})
         }
     }
 
     public in<T extends DynamORMTable>(table: Constructor<T>): Chain<T> {
         const conditions: Condition<T>[] = []
-
         const check = (keys: SelectKey<T>) => ({
             check: () => {
-                this.#requests.push({table, keys, conditions, check: true})
+                this.#addRequest({table, keys, conditions, kind: 'Check'})
                 return {
                     ...this.in(table),
                     run: this.execute.bind(this),
@@ -192,10 +188,9 @@ export class TransactWrite  {
                 }
             }
         })
-
         const update_delete = (keys: SelectKey<T>) => ({
             update: (update: Update<T>) => {
-                this.#requests.push({table, keys, update, conditions})
+                this.#addRequest({table, keys, update, conditions, kind: 'Update'})
                 return {
                     ...this.in(table),
                     run: this.execute.bind(this),
@@ -203,7 +198,7 @@ export class TransactWrite  {
                 }
             },
             delete: () => {
-                this.#requests.push({table, keys, conditions, delete: true})
+                this.#addRequest({table, keys, conditions, kind: 'Delete'})
                 return {
                     ...this.in(table),
                     run: this.execute.bind(this),
@@ -211,7 +206,6 @@ export class TransactWrite  {
                 }
             }
         })
-
         const or = (keys: SelectKey<T>) => {
             const or = (condition: Condition<T>) => {
                 conditions.push(condition)
@@ -227,10 +221,9 @@ export class TransactWrite  {
                 ...check(keys)
             }
         }
-
         return {
             put: (...items: T[]) => {
-                this.#requests.push({table, items})
+                this.#addRequest({table, items, kind: 'Put'})
                 return {
                     ...this.in(table),
                     run: this.execute.bind(this),
@@ -252,39 +245,35 @@ export class TransactWrite  {
     }
 
     public async execute() {
-        const consumedCapacityMap = new Map<Constructor<DynamORMTable>, {consumedCapacity?: ConsumedCapacity}>()
-        for (let i = 0, len = this.#requests.length; i < len; i++) {
-            const request = this.#requests[i]
-            this.#addRequest(request)
-        }
+        const command = new TransactWriteCommand(this.#input)
+        let response
         try {
-            const response = await this.#client.send(new TransactWriteCommand(this.#input))
-            if (response.ConsumedCapacity) {
+            response = await this.#client.send(command)
+        }
+        catch (error) {
+            return Promise.reject(error)
+        }
+        if (response.ConsumedCapacity) {
+            const entries = this.#consumedCapacity.entries()
+            for (const [table, cc] of entries) {
+                const wm = privacy(table)
+                const tableName = wm.tableName
                 for (let i = 0, len = response.ConsumedCapacity.length; i < len; i++) {
                     const consumedCapacity = response.ConsumedCapacity[i]
-                    for (let i = 0, len = this.#requests.length; i < len; i++) {
-                        const {table} = this.#requests[i]
-                        const wm = privacy(table)
-                        if (consumedCapacity.TableName === wm.tableName) {
-                            consumedCapacityMap.set(table, {consumedCapacity})
+                    if (consumedCapacity.TableName === tableName) {
+                        const merged = mergeNumericProps([cc, consumedCapacity])
+                        if (merged) {
+                            this.#consumedCapacity.set(table, merged)
                         }
                     }
                 }
             }
-            this.#input.TransactItems = []
-            this.#requests = []
-            return {consumedCapacity: consumedCapacityMap}
         }
-
-        catch (error) {
-            throw error // TODO ERROR
-        }
-
-        
+        return {consumedCapacity: this.#consumedCapacity}        
     }
 
     public clear() {
-        this.#input.TransactItems = []
-        this.#requests = []
+        this.#input.TransactItems!.length = 0
+        this.#consumedCapacity.clear()
     }
 }

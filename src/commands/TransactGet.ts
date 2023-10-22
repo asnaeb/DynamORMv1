@@ -13,6 +13,7 @@ import {Constructor} from '../types/Utils'
 import {Projection} from '../types/Projection'
 import {generateProjection} from '../generators/ProjectionGenerator'
 import {DynamORMError} from '../errors/DynamORMError'
+import {mergeNumericProps} from '../utils/General'
 
 interface Chain<T extends DynamORMTable> {
     select(...keys: SelectKey<T>): {
@@ -30,25 +31,26 @@ interface GetRequest {
 
 export class TransactGet {
     #client
-    #requests: GetRequest[] = []
     #input: TransactGetCommandInput = {
         TransactItems: [],
         ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES
     }
+    #items = new TablesMap()
+    #consumedCapacity = new Map<Constructor<DynamORMTable>, ConsumedCapacity>()
 
     constructor(client: DynamoDBDocumentClient) {
         this.#client = client
     }
 
     async #addRequest({table, keys, projection}: GetRequest) {
-        const wm = privacy(table)
-        const generatedKeys = wm.serializer.generateKeys(keys)
-        if (this.#input.TransactItems!.length + generatedKeys.length > 100) {
+        if (this.#input.TransactItems!.length + keys.length > 100) {
             throw new DynamORMError(table, {
                 name: DynamORMError.ABORTED, //TODO
-                message: 'Max keys allowed for Transaction is 100'
+                message: 'Max number of keys allowed for a get transaction is 100'
             })
         }
+        const wm = privacy(table)
+        const generatedKeys = wm.serializer.generateKeys(keys)
         let ExpressionAttributeNames
         let ProjectionExpression
         if (projection) {
@@ -67,13 +69,19 @@ export class TransactGet {
                 }
             })
         }
+        if (!this.#items.has(table)) {
+            this.#items.set(table, new Array(generatedKeys.length))
+        }
+        if (!this.#consumedCapacity.has(table)) {
+            this.#consumedCapacity.set(table, {})
+        }
     }
 
     public in<T extends DynamORMTable>(table: Constructor<T>): Chain<T>  {
         return {
             select: (...keys: SelectKey<T>) => ({
                 get: (options?: {projection: Projection<T>[]}) => {
-                    this.#requests.push({table, keys, projection: options?.projection})
+                    this.#addRequest({table, keys, projection: options?.projection})
                     return {
                         in: this.in.bind(this),
                         execute: this.execute.bind(this)
@@ -84,51 +92,56 @@ export class TransactGet {
     }
 
     public async execute() {
-        const items = new TablesMap()
-        const infos = new Map<Constructor<DynamORMTable>, {ConsumedCapacity?: ConsumedCapacity}>()
-        for (let i = 0, len = this.#requests.length; i < len; i++) {
-            const request = this.#requests[i]
-            this.#addRequest(request)
-        }
         if (this.#input.TransactItems?.length) {
             const command = new TransactGetCommand(this.#input)
+            let response
             try {
-                const {ConsumedCapacity, Responses} = await this.#client.send(command)
-                let j = 0
-                for (let i = 0, len = this.#requests.length; i < len; i++) {
-                    const {table, keys} = this.#requests[i]
-                    const wm = privacy(table)
-                    if (ConsumedCapacity) {
-                        for (let i = 0, len = ConsumedCapacity.length; i < len; i++) {
-                            const consumedCapacity = ConsumedCapacity[i]
-                            if ((consumedCapacity.TableName === wm.tableName) && (!infos.has(table))) {
-                                infos.set(table, {ConsumedCapacity: consumedCapacity})
-                            }
-                        }
-                    }
-                    for (let i = 0, len = keys.length; i < len; i++) {
-                        const response = Responses?.[i + j]   
-                        if (response?.Item) {
-                            const item = wm.serializer.deserialize(response.Item)
-                            if (!items.has(table)) {
-                                items.set(table, [])
-                            }
-                            items.get(table)!.push(item)
-                        }
-                    }
-                    j += keys.length
-                }
+                response = await this.#client.send(command)
             }
             catch (error) {
-                throw error // TODO ERROR
+                return Promise.reject(error)
+            }
+            if (response.Responses) {
+                let j = 0
+                const entries = this.#items.entries()
+                for (const [table, items] of entries) {
+                    const wm = privacy(table)
+                    for (let i = 0, len = items.length; i < len; i++) {
+                        const {Item} = response.Responses[i+j]
+                        if (Item) {
+                            const item = wm.serializer.deserialize(Item)
+                            items[i] = item
+                        }
+                    }
+                    j += items.length
+                }
+            }
+            if (response.ConsumedCapacity) {
+                const entries = this.#consumedCapacity.entries()
+                for (const [table, item] of entries) {
+                    const wm = privacy(table)
+                    const tableName = wm.tableName
+                    for (let i = 0, len = response.ConsumedCapacity.length; i < len; i++) {
+                        const consumedCapacity = response.ConsumedCapacity[i]
+                        if (consumedCapacity.TableName === tableName) {
+                            const merged  = mergeNumericProps([item, consumedCapacity])
+                            if (merged) {
+                                this.#consumedCapacity.set(table, merged)
+                            }
+                        }
+                    }
+                }
             }
         }
-        this.#input.TransactItems = []
-        return {items, consumedCapacity: infos}
+        return {
+            items: this.#items, 
+            consumedCapacity: this.#consumedCapacity
+        }
     }
 
     public clear() {
-        this.#requests = []
-        this.#input.TransactItems = []
+        this.#input.TransactItems!.length = 0
+        this.#consumedCapacity.clear()
+        this.#items.clear()
     }
 }

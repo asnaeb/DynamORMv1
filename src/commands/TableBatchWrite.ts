@@ -3,7 +3,7 @@ import {BatchWriteCommand, BatchWriteCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {DynamORMTable} from '../table/DynamORMTable'
 import {TableCommand} from './TableCommand'
 import {Constructor} from '../types/Utils'
-import {mergeNumericProps, splitToChunks} from '../utils/General'
+import {jitter, mergeNumericProps, splitToChunks} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
 
 interface TableBatchWriteParams {
@@ -49,7 +49,13 @@ export class TableBatchWrite<T extends DynamORMTable> extends TableCommand<T> {
         return elements.map(Key => ({DeleteRequest: {Key}}))
     }
 
-    public async execute(consumedCapacities: ConsumedCapacity[] = []): Promise<{consumedCapacity?: ConsumedCapacity}> {
+    public async execute(
+        consumedCapacities: ConsumedCapacity[] = [],
+        attempt = 0
+    ): Promise<{consumedCapacity?: ConsumedCapacity}> {
+        if (attempt) {
+            await jitter(attempt)
+        }
         const results = await Promise.allSettled(this.#promises)
         this.#promises.length = 0
         for (let i = 0, len = results.length; i < len; i++) {
@@ -73,7 +79,7 @@ export class TableBatchWrite<T extends DynamORMTable> extends TableCommand<T> {
             }
         }
         if (this.#promises.length) {
-            return this.execute(consumedCapacities)
+            return this.execute(consumedCapacities, ++attempt)
         }
         return {consumedCapacity: mergeNumericProps(consumedCapacities)}
     }

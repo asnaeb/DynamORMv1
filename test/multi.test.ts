@@ -1,6 +1,6 @@
 import {env} from './env'
 env('.env')
-import {Table, HashKey, RangeKey, Connect, Attribute, Key, Variant, createGlobalSecondaryIndex} from '../src'
+import {Table, HashKey, RangeKey, Connect, Attribute, Key, Variant, createGlobalSecondaryIndex, createBatchGet} from '../src'
 import {randomUUID} from 'crypto'
 import {DynamoDBLocal} from '@asn.aeb/dynamodb-local'
 import {BeginsWith, Between, Equal} from '../src/operators'
@@ -40,7 +40,7 @@ v1.artist = 'Michael Jackson'
 v1.title = 'You Are Not Alone'
 v2.setRangeKey(`download-${randomUUID()}`)
 v2.time = Date.now()
-async function x() {
+async function main() {
     await DynamoDBLocal.start({inMemory: true})
     await Song.createTable()
     await Song.put(v1, v2)
@@ -53,5 +53,5 @@ async function x() {
     await DynamoDBLocal.stop()
 }
 
-x()
+main()
 

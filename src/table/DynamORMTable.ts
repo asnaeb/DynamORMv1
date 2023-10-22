@@ -20,7 +20,6 @@ import {Scan} from '../commands/Scan'
 import {isQueryObject} from '../validation/symbols'
 import {Select} from './Select'
 import {TableBatchWrite} from '../commands/TableBatchWrite'
-import {AsyncArray} from '@asn.aeb/async-array'
 import {Save} from '../commands/Save'
 import {CreateBackup} from '../commands/CreateBackup'
 import {LocalIndex} from '../indexes/LocalIndex'
@@ -80,8 +79,8 @@ export abstract class DynamORMTable {
         return deleteTable.execute()
     }
 
-    public static createBackup({BackupName}: {BackupName: string}) {
-        const createBackup = new CreateBackup(this, BackupName)
+    public static createBackup({backupName}: {backupName: string}) {
+        const createBackup = new CreateBackup(this, backupName)
         return createBackup.execute()
     }
 
@@ -134,7 +133,7 @@ export abstract class DynamORMTable {
     }
 
     public static batchPut<T extends DynamORMTable>(this: Constructor<T>, ...elements: T[]) {
-        const batchPut = new TableBatchWrite(this, {elements, kind:'PutRequest'})
+        const batchPut = new TableBatchWrite(this, {elements, kind: 'PutRequest'})
         return batchPut.execute()
     }
 
@@ -144,10 +143,7 @@ export abstract class DynamORMTable {
     
     // INSTANCE SECTION
 
-    private get [WM]() {
-        return privacy(this.constructor as Constructor<this>)
-    }
-
+    private [WM] = privacy(this.constructor as Constructor<this>)
     private [RECORD]?: Record<string, NativeType>
 
     constructor() {
@@ -183,6 +179,10 @@ export abstract class DynamORMTable {
         }
     }
 
+    public setAttribute<T extends DynamORMTable, K extends keyof Native<NonKey<T>>>(this: T, attr: K, value: T[K]) {
+        this[attr] = value
+    }
+
     public setRangeKey<T extends DynamORMTable>(this: T, value: RangeType<T>) {
         const wm = this[WM]
         if (wm.rangeKey) {
@@ -204,7 +204,6 @@ export abstract class DynamORMTable {
                 response.consumedCapaciy = consumedCapacity
             }
             catch (error) {
-                console.log(error)
                 if (error instanceof DynamoDBPutException) {
                     if (error.name === 'ConditionalCheckFailedException') {
                         response.saved = false
@@ -303,7 +302,7 @@ export abstract class DynamORMTableES extends DynamORMTable {
         T extends DynamORMTable,
         H extends keyof Scalars<T>,
         R extends Exclude<keyof Scalars<T>, H>,
-        A extends (Exclude<keyof Native<NonKey<T>>, H | R>)[]
+        A extends Array<Exclude<keyof Native<NonKey<T>>, H | R>>
     >(this: Constructor<T>, props: GlobalIndexProps<H, R, A>) {
         return staticGlobalIndex(this, props)
     }

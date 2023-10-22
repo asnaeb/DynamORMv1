@@ -1,7 +1,7 @@
 import {DynamoDBLocal} from '@asn.aeb/dynamodb-local'
 import {env} from './env'
 env('.env')
-import {createWriteTransaction, createReadTransaction, Connect, HashKey, Attribute, Key, Table} from '../src'
+import {createWriteTransaction, createReadTransaction, Connect, HashKey, Attribute, Key, Table, createBatchGet, createBatchWrite} from '../src'
 
 @Connect({tableName: 'MyTableA'})
 class A extends Table {
@@ -36,12 +36,12 @@ const b2 = new B(2)
 
 const write = createWriteTransaction()
 const read = createReadTransaction()
+//const read = createBatchGet()
 write.in(A).put(...Array(80).fill(null).map((item, i) => new A(i)))
 write.in(B).put(b1, b2)
 
-read.in(A).select(1, 2).get()
-read.in(A).select(5, 6).get()
-read.in(B).select(1, 2).get()
+read.in(A).select(1, 2, 3).get()
+read.in(B).select(7).get()
 
 async function x() {
     await DynamoDBLocal.start({inMemory: true})
@@ -49,7 +49,7 @@ async function x() {
     await B.createTable()
     await write.execute()
     const scan = await read.execute()
-    console.log(scan.items.get(A))
+    console.log(scan.items)
     await DynamoDBLocal.stop()
 }
 

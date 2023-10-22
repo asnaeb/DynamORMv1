@@ -4,6 +4,7 @@ import {CreatePrimaryKeyParams} from '../../interfaces/CreatePrimaryKeyParams'
 import {B, DynamoDBScalarType, DynamoDBType, N, S} from '../../types/Native'
 import {HashKey, RangeKey} from '../../types/Key'
 import {privacy} from '../../private/Privacy'
+import {KeySchema} from '../../types/Overrides'
 
 const toHashKey = <T extends S | N | B>(value: T) => value as HashKey<T>
 const toRangeKey = <T extends S | N | B>(value: T) => value as RangeKey<T>
@@ -27,16 +28,13 @@ function legacyDecoratorFactory<Z>(
     return function<T extends DynamORMTable, K extends keyof T>(
         prototype: T,
         AttributeName: T[K] extends Z | undefined ? K : never) {
-
         if (!!AttributeType && ['S', 'N', 'B'].includes(AttributeType)) {
-            const infos = privacy(prototype.constructor as any)
-         
-            infos.attributes ??= {}
-            infos.attributes[<string>AttributeName] = {
+            const wm = privacy(prototype.constructor as any)
+            wm.attributes ??= {}
+            wm.attributes[<string>AttributeName] = {
                 AttributeType,
                 AttributeName: MappedAttributeName ?? <string>AttributeName
             }
-
             AddKeyInfo(prototype.constructor, {
                 KeyType, 
                 AttributeType, 
@@ -52,16 +50,15 @@ function legacyDecorator<T>(KeyType: KeyType, AttributeType: DynamoDBScalarType)
     }
 }
 
-function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<CreatePrimaryKeyParams, 'SharedInfo'>) {
+function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<CreatePrimaryKeyParams, 'shared'>) {
     let i
-    const infos = privacy(target)
-
+    const wm = privacy(target)
     if (KeyType === 'RANGE')
         i = 1
     else if (KeyType === 'HASH') {
         i = 0
-        if (infos.localIndexes?.length) {
-            for (const localI of infos.localIndexes) {
+        if (wm.localIndexes?.length) {
+            for (const localI of wm.localIndexes) {
                 if (localI.KeySchema)
                     localI.KeySchema[0] = {AttributeName, KeyType}
             }
@@ -71,11 +68,11 @@ function AddKeyInfo(target: any, {KeyType, AttributeType, AttributeName}: Omit<C
     if (AttributeName && AttributeType && (i === 0 || i === 1)) {
         const KeySchemaElement = {AttributeName, KeyType}
         const AttributeDefinition = {AttributeName, AttributeType}
+        
+        wm.keySchema ??= [] as unknown as KeySchema
+        wm.keySchema[i] = KeySchemaElement
 
-        infos.keySchema ??= []
-        infos.keySchema[i] = KeySchemaElement
-
-        infos.attributeDefinitions ??= []
-        infos.attributeDefinitions.push(AttributeDefinition)
+        wm.attributeDefinitions ??= []
+        wm.attributeDefinitions.push(AttributeDefinition)
     }
 }

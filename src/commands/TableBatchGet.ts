@@ -4,24 +4,29 @@ import type {Key, SelectKey, TupleFromKey} from "../types/Key"
 import {ConsumedCapacity, ReturnConsumedCapacity} from '@aws-sdk/client-dynamodb'
 import {BatchGetCommand, type BatchGetCommandOutput} from '@aws-sdk/lib-dynamodb'
 import {TableCommand} from './TableCommand'
-import {mergeNumericProps, splitToChunks} from '../utils/General'
+import {jitter, mergeNumericProps, splitToChunks} from '../utils/General'
 import {DynamORMError} from '../errors/DynamORMError'
 import {DynamoDBBatchGetException} from '../errors/DynamoDBErrors'
+import {generateProjection} from '../generators/ProjectionGenerator'
 
 interface TableBatchGetParams {
     keys: Key[]
     consistentRead: boolean
+    projection?: string[]
 }
 
-export class TableBatchGet<
-    T extends DynamORMTable,
-    K extends SelectKey<T>,
-    R = TupleFromKey<T, K>
-> extends TableCommand<T> {
+export class TableBatchGet<T extends DynamORMTable, K extends SelectKey<T>, R = TupleFromKey<T, K>> extends TableCommand<T> {
     #keys
     #promises: Promise<BatchGetCommandOutput>[] = []
-    constructor(table: Constructor<T>, {keys, consistentRead: ConsistentRead}: TableBatchGetParams) {
+    constructor(table: Constructor<T>, {keys, consistentRead: ConsistentRead, projection}: TableBatchGetParams) {
         super(table)
+        let ExpressionAttributeNames
+        let ProjectionExpression
+        if (projection) {
+            const _projection = generateProjection(table, projection)
+            ExpressionAttributeNames = _projection.ExpressionAttributeNames
+            ProjectionExpression = _projection.ProjectionExpression
+        }
         if (keys.length > 100) {
             const chunks = splitToChunks(keys, 100)
             for (let i = 0, len = chunks.length; i < len; i++) {
@@ -29,7 +34,12 @@ export class TableBatchGet<
                 const command = new BatchGetCommand({
                     ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                     RequestItems: {
-                        [this.tableName]: {Keys, ConsistentRead}
+                        [this.tableName]: {
+                            Keys, 
+                            ConsistentRead,
+                            ExpressionAttributeNames,
+                            ProjectionExpression
+                        }
                     }
                 })
                 const promise = this.client.send(command)
@@ -40,7 +50,12 @@ export class TableBatchGet<
             const command = new BatchGetCommand({
                 ReturnConsumedCapacity: ReturnConsumedCapacity.INDEXES,
                 RequestItems: {
-                    [this.tableName]: {Keys: keys, ConsistentRead}
+                    [this.tableName]: {
+                        Keys: keys, 
+                        ConsistentRead, 
+                        ExpressionAttributeNames,
+                        ProjectionExpression
+                    }
                 }
             })
             const promise = this.client.send(command)
@@ -51,8 +66,12 @@ export class TableBatchGet<
 
     public async execute(
         items = new Array(this.#keys.length).fill(null),
-        consumedCapacities: ConsumedCapacity[] = []
+        consumedCapacities: ConsumedCapacity[] = [],
+        attempt = 0
     ): Promise<{items: R, consumedCapacity?: ConsumedCapacity}> {
+        if (attempt) {
+            await jitter(attempt)
+        }
         const results = await Promise.allSettled(this.#promises)
         this.#promises.length = 0
         for (let i = 0, len = results.length; i < len; i++) {
@@ -94,7 +113,7 @@ export class TableBatchGet<
             } 
         }
         if (this.#promises.length) {
-            return this.execute(items, consumedCapacities)
+            return this.execute(items, consumedCapacities, ++attempt)
         }
         return {
             items: <R>items, 

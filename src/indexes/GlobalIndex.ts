@@ -30,7 +30,7 @@ export interface GlobalIndexProps<H, R, A> {
     rangeKey?: R,
     indexName?: string,
     provisionedThroughput?: GlobalSecondaryIndex['ProvisionedThroughput']
-    projectedAttributes?: A | typeof ProjectionType.KEYS_ONLY
+    projection?: A | typeof ProjectionType.KEYS_ONLY
 }
 
 interface GSIProps<T>  {
@@ -199,12 +199,12 @@ export class GSIWithDecorators<
             const Projection: Projection = {
                 ProjectionType: ProjectionType.ALL
             }
-            if (this.#options.projectedAttributes === ProjectionType.KEYS_ONLY) {
+            if (this.#options.projection === ProjectionType.KEYS_ONLY) {
                 Projection.ProjectionType = ProjectionType.KEYS_ONLY
             }
-            else if (Array.isArray(this.#options.projectedAttributes)) {
+            else if (Array.isArray(this.#options.projection)) {
                 Projection.ProjectionType = ProjectionType.INCLUDE
-                Projection.NonKeyAttributes = this.#options.projectedAttributes as string[]
+                Projection.NonKeyAttributes = this.#options.projection as string[]
             }
             KeySchema[i] = {AttributeName, KeyType}
             globalIndexes.push({
@@ -265,14 +265,14 @@ export function staticGlobalIndex<
         AttributeType: wm.attributes[params.hashKey]?.AttributeType
     }
     const Projection: Projection = {}
-    if (Array.isArray(params.projectedAttributes) && params.projectedAttributes.length) {
-        Projection.NonKeyAttributes = params.projectedAttributes as string[]
+    if (Array.isArray(params.projection) && params.projection.length) {
+        Projection.NonKeyAttributes = params.projection as string[]
         Projection.ProjectionType = ProjectionType.INCLUDE
     }
-    if (params.projectedAttributes === ProjectionType.KEYS_ONLY) {
-        Projection.ProjectionType = params.projectedAttributes
+    if (params.projection === ProjectionType.KEYS_ONLY) {
+        Projection.ProjectionType = params.projection
     }
-    if (!params.projectedAttributes) {
+    if (!params.projection) {
         Projection.ProjectionType = ProjectionType.ALL
     }
     if (wm.attributeDefinitions.every(a => !isDeepStrictEqual(a, hashAttributeDefinition))) {
@@ -330,7 +330,7 @@ export function decoratorsGlobalIndex(shared: Shared) {
         }
         const gsi = new GSIWithDecorators<T, H ,R, A>({shared, ...params})
         shared.unregisteredIndexes ??= []
-        shared.unregisteredIndexes?.push(gsi)
+        shared.unregisteredIndexes.push(gsi)
         return gsi
     }
 }

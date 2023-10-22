@@ -1,10 +1,7 @@
-//@ts-check
-
-import {String} from 'aws-sdk/clients/cloudtrail'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 
-export function env(path: String) {
+export function env(path: string) {
     path = resolve(__dirname, path)
     const file = readFileSync(path, 'utf8')
     const lines = file.split('\n').filter(i => !i.startsWith('#'))

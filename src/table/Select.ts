@@ -44,10 +44,21 @@ export class Select<T extends DynamORMTable, K extends SelectKey<T>> {
         }
     }
 
-    public get(params?: {consistentRead: boolean}) {
+    public get(params?: {consistentRead: boolean} | {projection: string[]}) {
+        let consistentRead = false
+        let projection
+        if (params) {
+            if ('consistentRead' in params) {
+                consistentRead = params.consistentRead
+            }
+            if ('projection' in params) {
+                projection = params.projection
+            } 
+        }
         const batchGet = new TableBatchGet<T, K>(this.#table, {
             keys: this.#generatedKeys, 
-            consistentRead: !!params?.consistentRead
+            consistentRead,
+            projection
         })
         return batchGet.execute()
     }

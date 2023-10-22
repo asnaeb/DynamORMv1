@@ -1,6 +1,3 @@
-import {ResponseInfo} from '../interfaces/ResponseInfo'
-import {EventEmitter} from 'node:events'
-
 /** Checks if a value is a Javascript Object, excluding most native objects like `Array`, `Set`, `Map` etc. */
 export function isObject<T extends Record<PropertyKey, any>>(obj: any): obj is T {
     return typeof obj === 'object' &&
@@ -48,33 +45,39 @@ export function alphaNumeric(name: string) {
 }
 
 export function mergeNumericProps<T extends Record<string, any>>(responses: T[]) {
-    const ResponseInfo = <T>{}
-
-    const traverse = (main: T, response: T) => {
-        for (const k in response) {
-            if (!(k in main)) {
-                if (isObject(response[k])) {
-                    Object.assign(main, {[k]: {}})
+    const result = <T>{}
+    function traverse(main: T, response: T) {
+        const keys = Object.keys(response)
+        for (let i = 0, len = keys.length; i < len; i++) {
+            const key = keys[i] as keyof T
+            if (!(key in main)) {
+                if (isObject(response[key])) {
+                    Object.assign(main, {[key]: {}})
                 }
-                else if (typeof response[k] !== 'number') {
-                    main[k] = response[k]
+                else if (typeof response[key] !== 'number') {
+                    main[key] = response[key]
                 }
             }
-            if (isObject(response[k])) {
-                traverse(main[k], response[k])
+            if (isObject(response[key])) {
+                traverse(main[key], response[key])
             }
-            else if (typeof response[k] === 'number') {
-                main[k] ??= <any>0;
-                (<any>main)[k] += response[k]
+            else if (typeof response[key] === 'number') {
+                main[key] ??= <any>0;
+                (<any>main)[key] += response[key]
             }
         }
     }
-
-    for (const response of responses) {
-        traverse(ResponseInfo, response)
+    for (let i = 0, len = responses.length; i < len; i++) {
+        const response = responses[i]
+        traverse(result, response)
     }
-
-    if (Object.keys(ResponseInfo).length) {
-        return ResponseInfo
+    if (Object.keys(result).length) {
+        return result
     }
+}
+
+export function jitter(attempt: number, cap: number = 1000, base: number = 10) {
+    const n = Math.min(cap, base * 2 ** attempt)
+    const t = Math.floor(Math.random() * n + 1)
+    return new Promise(resolve => setTimeout(resolve, t))
 }
